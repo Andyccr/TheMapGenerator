@@ -1,5 +1,6 @@
 name: Deploy GitHub Pages
 
+# 纯静态：发布 index.html + src/，不跑 Vite。
 on:
   push:
     branches: [main]
@@ -25,10 +26,14 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
-      - run: npm run build
+      - name: Assemble static site
+        run: |
+          mkdir -p _site
+          cp index.html LICENSE .nojekyll _site/
+          cp -r src _site/src
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: _site
 
   deploy:
     needs: build
