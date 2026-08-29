@@ -7,7 +7,7 @@
 /** @typedef {import("../types.js").GenerateConfig} GenerateConfig */
 
 /** Keep generation and frame time in a comfortable band on typical laptops. */
-export const MAX_CELLS = 48000;
+export const MAX_CELLS = 110000;
 
 /** Baseline hypot(1600, 1000) used by the original default atlas. */
 const BASE_SPAN = 1887;
