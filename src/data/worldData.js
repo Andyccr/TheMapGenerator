@@ -11,15 +11,15 @@
  * @returns {WorldData}
  */
 export function createWorldShell(config) {
-  const width = config.width ?? 1400;
-  const height = config.height ?? 900;
+  const width = config.width ?? 1600;
+  const height = config.height ?? 1000;
   return {
     version: 1,
     meta: {
       seed: String(config.seed ?? "terra"),
       width,
       height,
-      cellSize: config.cellSize ?? 18,
+      cellSize: config.cellSize ?? 11,
       plateCount: config.plateCount ?? 10,
       seaLevel: config.seaLevel ?? 0,
       wind: config.wind ?? { x: 1, y: 0 },

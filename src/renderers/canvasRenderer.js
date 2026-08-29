@@ -18,12 +18,38 @@ export class CanvasRenderer {
     this.index = null;
     this._indexSeed = "";
     this.dpr = 1;
+    this._fitScale = 1;
   }
 
   /** Convert CSS pixels into world units at the current zoom. @param {number} n */
   #px(n) {
     const scale = this._view?.scale || 1;
-    return n / Math.min(scale, 1);
+    return n / scale;
+  }
+
+  /**
+   * Visible world-space rectangle plus a cell-sized pad.
+   * @param {import("../types.js").WorldData} world
+   */
+  #viewBounds(world) {
+    const v = world.view;
+    const pad = (world.meta.cellSize || 12) * 3;
+    const w = this.canvas.clientWidth || 1;
+    const h = this.canvas.clientHeight || 1;
+    return {
+      x0: -v.x / v.scale - pad,
+      y0: -v.y / v.scale - pad,
+      x1: (w - v.x) / v.scale + pad,
+      y1: (h - v.y) / v.scale + pad,
+    };
+  }
+
+  /**
+   * @param {import("../types.js").Cell} cell
+   * @param {{ x0: number, y0: number, x1: number, y1: number }} b
+   */
+  #inView(cell, b) {
+    return cell.x >= b.x0 && cell.x <= b.x1 && cell.y >= b.y0 && cell.y <= b.y1;
   }
 
   resize() {
@@ -56,19 +82,21 @@ export class CanvasRenderer {
 
     const { x, y, scale } = world.view;
     ctx.setTransform(scale * this.dpr, 0, 0, scale * this.dpr, x * this.dpr, y * this.dpr);
+    const bounds = this.#viewBounds(world);
 
-    this.#drawCells(world, style);
+    this.#drawCells(world, style, bounds);
     if (options.grid) this.#drawGrid(world, ink);
-    this.#drawCoast(world, ink, style);
-    this.#drawRivers(world, ink, style);
-    if (options.borders !== false) this.#drawBorders(world, ink);
-    this.#drawMountains(world, style);
+    this.#drawCoast(world, ink, style, bounds);
+    this.#drawRivers(world, ink, style, bounds);
+    if (options.borders !== false) this.#drawBorders(world, ink, bounds);
+    this.#drawMountains(world, style, bounds, scale);
     if (options.draftPath?.length) this.#drawDraft(world, options.draftPath);
-    if (options.labels !== false) this.#drawSettlements(world, ink, style);
+    if (options.labels !== false) this.#drawSettlements(world, ink, style, bounds, scale);
     if (options.highlightCell >= 0) this.#drawHighlight(world, options.highlightCell);
 
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     this.#drawCompass(ink, style);
+    this.#drawScaleBar(world, ink);
   }
 
   /**
@@ -81,6 +109,7 @@ export class CanvasRenderer {
     off.height = Math.floor(world.meta.height * exportScale);
     const tmp = new CanvasRenderer(off);
     tmp.dpr = 1;
+    tmp._fitScale = exportScale;
     const saved = { ...world.view };
     world.view.x = 0;
     world.view.y = 0;
@@ -148,7 +177,21 @@ export class CanvasRenderer {
     world.view.scale = Math.min(sx, sy);
     world.view.x = (w - world.meta.width * world.view.scale) / 2;
     world.view.y = (h - world.meta.height * world.view.scale) / 2;
+    this._fitScale = world.view.scale;
     this._view = world.view;
+  }
+
+  /**
+   * @param {import("../types.js").WorldData} world
+   */
+  clampView(world) {
+    const vw = this.canvas.clientWidth || 1;
+    const vh = this.canvas.clientHeight || 1;
+    const mw = world.meta.width * world.view.scale;
+    const mh = world.meta.height * world.view.scale;
+    const m = 72;
+    world.view.x = Math.min(vw - m, Math.max(m - mw, world.view.x));
+    world.view.y = Math.min(vh - m, Math.max(m - mh, world.view.y));
   }
 
   /**
@@ -159,6 +202,7 @@ export class CanvasRenderer {
   pan(world, dx, dy) {
     world.view.x += dx;
     world.view.y += dy;
+    this.clampView(world);
   }
 
   /**
@@ -169,12 +213,23 @@ export class CanvasRenderer {
    */
   zoomAt(world, factor, cx, cy) {
     const v = world.view;
-    const next = Math.max(0.25, Math.min(8, v.scale * factor));
+    const fit = this._fitScale || v.scale || 0.5;
+    const min = fit * 0.4;
+    const max = Math.max(fit * 28, 16);
+    const next = Math.max(min, Math.min(max, v.scale * factor));
+    if (next === v.scale) return;
     const wx = (cx - v.x) / v.scale;
     const wy = (cy - v.y) / v.scale;
     v.scale = next;
     v.x = cx - wx * v.scale;
     v.y = cy - wy * v.scale;
+    this.clampView(world);
+  }
+
+  /** @param {import("../types.js").WorldData} world */
+  zoomPercent(world) {
+    const fit = this._fitScale || world.view.scale || 1;
+    return Math.round((world.view.scale / fit) * 100);
   }
 
   legendItems() {
@@ -194,18 +249,33 @@ export class CanvasRenderer {
   /**
    * @param {import("../types.js").WorldData} world
    * @param {string} style
+   * @param {{ x0: number, y0: number, x1: number, y1: number }} bounds
    */
-  #drawCells(world, style) {
+  #drawCells(world, style, bounds) {
     const ctx = this.ctx;
     if (!ctx) return;
     for (const cell of world.cells) {
-      if (cell.polygon.length < 3) continue;
+      if (cell.polygon.length < 3 || !this.#inView(cell, bounds)) continue;
       ctx.beginPath();
       const p = cell.polygon;
       ctx.moveTo(p[0][0], p[0][1]);
       for (let i = 1; i < p.length; i++) ctx.lineTo(p[i][0], p[i][1]);
       ctx.closePath();
       ctx.fillStyle = fillFor(cell, world, style);
+      ctx.fill();
+      if (cell.ocean || cell.lake) continue;
+      let shade = 0;
+      let w = 0;
+      for (const nid of cell.neighbors) {
+        const n = world.cells[nid];
+        if (cell.x - n.x + (cell.y - n.y) <= 0) continue;
+        shade += (cell.height - n.height) * 2.4;
+        w += 1;
+      }
+      if (!w) continue;
+      shade = Math.max(-0.28, Math.min(0.22, shade / w));
+      if (Math.abs(shade) < 0.02) continue;
+      ctx.fillStyle = shade > 0 ? `rgba(255,246,220,${shade})` : `rgba(12,16,28,${-shade * 1.15})`;
       ctx.fill();
     }
   }
@@ -215,15 +285,15 @@ export class CanvasRenderer {
    * @param {{ coast: string }} ink
    * @param {string} style
    */
-  #drawCoast(world, ink, style) {
+  #drawCoast(world, ink, style, bounds) {
     const ctx = this.ctx;
     if (!ctx) return;
     ctx.strokeStyle = ink.coast;
-    ctx.lineWidth = this.#px(style === "parchment" ? 1.6 : 1.15);
+    ctx.lineWidth = this.#px(style === "parchment" ? 1.7 : 1.2);
     ctx.lineJoin = "round";
     ctx.beginPath();
     for (const cell of world.cells) {
-      if (!cell.coast || cell.ocean || cell.polygon.length < 3) continue;
+      if (!cell.coast || cell.ocean || cell.polygon.length < 3 || !this.#inView(cell, bounds)) continue;
       const p = cell.polygon;
       ctx.moveTo(p[0][0], p[0][1]);
       for (let i = 1; i < p.length; i++) ctx.lineTo(p[i][0], p[i][1]);
@@ -237,26 +307,33 @@ export class CanvasRenderer {
    * @param {{ river: string }} ink
    * @param {string} style
    */
-  #drawRivers(world, ink, style) {
+  #drawRivers(world, ink, style, bounds) {
     const ctx = this.ctx;
     if (!ctx) return;
     ctx.strokeStyle = ink.river;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.globalAlpha = style === "night" ? 0.9 : 0.85;
+    ctx.globalAlpha = style === "night" ? 0.9 : 0.88;
     for (const river of world.rivers) {
       if (river.points.length < 2) continue;
-      ctx.lineWidth = Math.max(this.#px(1.3), river.width);
+      const last = river.points[river.points.length - 1];
+      const first = river.points[0];
+      if (
+        (first[0] < bounds.x0 && last[0] < bounds.x0) ||
+        (first[0] > bounds.x1 && last[0] > bounds.x1) ||
+        (first[1] < bounds.y0 && last[1] < bounds.y0) ||
+        (first[1] > bounds.y1 && last[1] > bounds.y1)
+      ) {
+        continue;
+      }
+      ctx.lineWidth = Math.max(this.#px(1.15), river.width);
       ctx.beginPath();
-      ctx.moveTo(river.points[0][0], river.points[0][1]);
+      ctx.moveTo(first[0], first[1]);
       for (let i = 1; i < river.points.length; i++) {
         const prev = river.points[i - 1];
         const cur = river.points[i];
-        const mx = (prev[0] + cur[0]) / 2;
-        const my = (prev[1] + cur[1]) / 2;
-        ctx.quadraticCurveTo(prev[0], prev[1], mx, my);
+        ctx.quadraticCurveTo(prev[0], prev[1], (prev[0] + cur[0]) / 2, (prev[1] + cur[1]) / 2);
       }
-      const last = river.points[river.points.length - 1];
       ctx.lineTo(last[0], last[1]);
       ctx.stroke();
     }
@@ -267,15 +344,15 @@ export class CanvasRenderer {
    * @param {import("../types.js").WorldData} world
    * @param {{ border: string }} ink
    */
-  #drawBorders(world, ink) {
+  #drawBorders(world, ink, bounds) {
     const ctx = this.ctx;
     if (!ctx) return;
     ctx.strokeStyle = ink.border;
     ctx.lineWidth = this.#px(1);
-    ctx.globalAlpha = 0.5;
+    ctx.globalAlpha = 0.45;
     ctx.beginPath();
     for (const cell of world.cells) {
-      if (cell.ocean || cell.regionId < 0) continue;
+      if (cell.ocean || cell.regionId < 0 || !this.#inView(cell, bounds)) continue;
       for (const nid of cell.neighbors) {
         if (nid < cell.id) continue;
         const n = world.cells[nid];
@@ -292,19 +369,20 @@ export class CanvasRenderer {
    * @param {import("../types.js").WorldData} world
    * @param {string} style
    */
-  #drawMountains(world, style) {
+  #drawMountains(world, style, bounds, scale) {
     const ctx = this.ctx;
     if (!ctx) return;
     ctx.strokeStyle = style === "night" ? "#c4b8a0" : "#3a2c22";
-    ctx.fillStyle = style === "parchment" ? "#6a5640" : "rgba(40,28,18,0.18)";
-    ctx.lineWidth = this.#px(1);
+    ctx.fillStyle = style === "parchment" ? "#6a5640" : "rgba(40,28,18,0.2)";
+    ctx.lineWidth = this.#px(0.9);
     for (const cell of world.cells) {
-      if (!cell.mountain) continue;
-      const s = Math.max(this.#px(5.5), 5.5 + cell.height * 6);
+      if (!cell.mountain || !this.#inView(cell, bounds)) continue;
+      const s = Math.max(this.#px(4.5), Math.min(9 + cell.height * 7, this.#px(16)));
+      if (s * scale < 3.2) continue;
       ctx.beginPath();
       ctx.moveTo(cell.x, cell.y - s);
-      ctx.lineTo(cell.x - s * 0.7, cell.y + s * 0.35);
-      ctx.lineTo(cell.x + s * 0.7, cell.y + s * 0.35);
+      ctx.lineTo(cell.x - s * 0.72, cell.y + s * 0.38);
+      ctx.lineTo(cell.x + s * 0.72, cell.y + s * 0.38);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
@@ -316,17 +394,21 @@ export class CanvasRenderer {
    * @param {{ text: string }} ink
    * @param {string} style
    */
-  #drawSettlements(world, ink, style) {
+  #drawSettlements(world, ink, style, bounds, scale) {
     const ctx = this.ctx;
     if (!ctx) return;
-    const fs = this.#px(11);
+    const fit = this._fitScale || scale;
+    const zoom = scale / fit;
+    const fs = this.#px(zoom < 1.15 ? 10 : 11.5);
     ctx.font = `${fs}px Palatino, Georgia, serif`;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     for (const s of world.settlements) {
+      if (zoom < 0.9 && s.type === "village") continue;
+      if (zoom < 1.25 && s.type === "town") continue;
       const c = world.cells[s.cellId];
-      if (!c) continue;
-      const r = this.#px(s.type === "capital" ? 4.2 : s.type === "city" ? 3.4 : 2.6);
+      if (!c || !this.#inView(c, bounds)) continue;
+      const r = this.#px(s.type === "capital" ? 4.4 : s.type === "city" ? 3.5 : 2.7);
       ctx.beginPath();
       ctx.fillStyle = style === "night" ? "#f0d78c" : "#1a120c";
       ctx.strokeStyle = style === "night" ? "#1a120c" : "#f4ead4";
@@ -338,6 +420,7 @@ export class CanvasRenderer {
       }
       ctx.fill();
       ctx.stroke();
+      if (zoom < 0.75 && s.type !== "capital") continue;
       ctx.fillStyle = ink.text;
       ctx.fillText(s.name, c.x + r + this.#px(4), c.y);
     }
@@ -425,5 +508,41 @@ export class CanvasRenderer {
     ctx.textAlign = "center";
     ctx.fillText("N", 0, -20);
     ctx.restore();
+  }
+
+  /**
+   * @param {import("../types.js").WorldData} world
+   * @param {{ text: string }} ink
+   */
+  #drawScaleBar(world, ink) {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const scale = world.view.scale || 1;
+    const candidates = [50, 100, 200, 400, 800];
+    let worldLen = 100;
+    for (const c of candidates) {
+      if (c * scale >= 48 && c * scale <= 140) {
+        worldLen = c;
+        break;
+      }
+      worldLen = c;
+    }
+    const px = worldLen * scale;
+    const x = 58;
+    const y = this.canvas.clientHeight - 18;
+    ctx.strokeStyle = ink.text;
+    ctx.fillStyle = ink.text;
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + px, y);
+    ctx.moveTo(x, y - 4);
+    ctx.lineTo(x, y + 4);
+    ctx.moveTo(x + px, y - 4);
+    ctx.lineTo(x + px, y + 4);
+    ctx.stroke();
+    ctx.font = "10px Palatino, Georgia, serif";
+    ctx.textAlign = "center";
+    ctx.fillText(`${worldLen}`, x + px / 2, y - 8);
   }
 }
