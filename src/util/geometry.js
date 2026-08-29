@@ -177,3 +177,25 @@ export function chaikin(pts, iters = 2) {
   }
   return p;
 }
+
+/**
+ * Drop vertices closer than `minDist` (world units). Endpoints stay.
+ * Used by the renderer for zoomed-out strokes; does not touch WorldData.
+ * @param {number[][]} pts
+ * @param {number} minDist
+ */
+export function simplifyPolyline(pts, minDist) {
+  if (pts.length < 3 || minDist <= 0) return pts;
+  const min2 = minDist * minDist;
+  /** @type {number[][]} */
+  const out = [pts[0]];
+  for (let i = 1; i < pts.length - 1; i++) {
+    const prev = out[out.length - 1];
+    const p = pts[i];
+    const dx = p[0] - prev[0];
+    const dy = p[1] - prev[1];
+    if (dx * dx + dy * dy >= min2) out.push(p);
+  }
+  out.push(pts[pts.length - 1]);
+  return out;
+}
