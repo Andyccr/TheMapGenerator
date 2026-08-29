@@ -1,8 +1,7 @@
 /**
  * Fantasy World Map Generator
- * Entry point — static, client-side only.
+ * Entry point — static ES modules, no bundler required (GitHub Pages can serve this as-is).
  */
-import "./styles.css";
 import { App } from "./ui/app.js";
 
 const app = new App(document);

@@ -1,13 +1,14 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Fantasy World Map Generator</title>
+    <title>幻想世界地图生成器</title>
     <meta
       name="description"
-      content="Generate geographically plausible interactive fantasy maps in the browser. No server required."
+      content="在浏览器里生成地理上合理的交互式幻想地图。纯静态，可直接部署到 GitHub Pages。"
     />
+    <link rel="stylesheet" href="./src/styles.css" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect fill='%23140f0c' width='64' height='64'/%3E%3Cpath fill='%23b0894a' d='M8 40c8-18 16-10 24-22 8 14 16 4 24 20v12H8z'/%3E%3Ccircle cx='44' cy='18' r='5' fill='%23ead9c1'/%3E%3C/svg%3E" />
   </head>
   <body>
@@ -15,87 +16,87 @@
       <header class="masthead">
         <div class="folio">
           <span class="folio-mark">FWMG</span>
-          <h1>Fantasy World Map Generator</h1>
+          <h1>幻想世界地图生成器</h1>
         </div>
-        <p class="tagline">Plate tectonics, hydrology, and climate — drawn like an atlas, edited like a workshop.</p>
+        <p class="tagline">板块运动、水文与气候 — 像地图集一样绘制，像工坊一样编辑。纯静态，GitHub Pages 打开即用。</p>
         <div class="mast-actions">
           <label class="seed-field">
-            Seed
+            种子
             <input id="seed-input" type="text" spellcheck="false" autocomplete="off" />
           </label>
-          <button id="btn-generate" class="btn-primary" type="button">Generate world</button>
-          <button id="btn-random" class="btn-ghost" type="button">Random seed</button>
+          <button id="btn-generate" class="btn-primary" type="button">生成世界</button>
+          <button id="btn-random" class="btn-ghost" type="button">随机种子</button>
         </div>
       </header>
 
-      <aside class="panel panel-left" aria-label="Generation and tools">
+      <aside class="panel panel-left" aria-label="生成与工具">
         <section>
-          <h2>World</h2>
-          <label>Detail
+          <h2>世界</h2>
+          <label>精细度
             <select id="opt-detail">
-              <option value="22">Coarse (~2k cells)</option>
-              <option value="18" selected>Medium (~3k cells)</option>
-              <option value="14">Fine (~5k cells)</option>
+              <option value="22">粗略（约 2 千格）</option>
+              <option value="18" selected>中等（约 3 千格）</option>
+              <option value="14">精细（约 5 千格）</option>
             </select>
           </label>
-          <label>Plates
+          <label>板块数
             <input id="opt-plates" type="range" min="6" max="16" value="10" />
             <span id="opt-plates-val">10</span>
           </label>
-          <label>Sea level
+          <label>海平面
             <input id="opt-sea" type="range" min="-20" max="20" value="0" />
             <span id="opt-sea-val">0</span>
           </label>
-          <label>Wind
+          <label>风向
             <select id="opt-wind">
-              <option value="1,0" selected>Westerlies →</option>
-              <option value="-1,0">Easterlies ←</option>
-              <option value="0,1">Northerlies ↓</option>
-              <option value="0,-1">Southerlies ↑</option>
+              <option value="1,0" selected>西风 →</option>
+              <option value="-1,0">东风 ←</option>
+              <option value="0,1">北风 ↓</option>
+              <option value="0,-1">南风 ↑</option>
             </select>
           </label>
         </section>
 
         <section>
-          <h2>Tools</h2>
-          <div class="tool-grid" role="toolbar" aria-label="Map editors">
-            <button class="tool active" data-tool="pan" type="button" title="Pan and inspect">Pan</button>
-            <button class="tool" data-tool="raise" type="button" title="Raise land and ridges">Raise</button>
-            <button class="tool" data-tool="lower" type="button" title="Lower valleys and seas">Lower</button>
-            <button class="tool" data-tool="river" type="button" title="Carve a downhill river">River</button>
-            <button class="tool" data-tool="move" type="button" title="Move a settlement">Move</button>
-            <button class="tool" data-tool="rename" type="button" title="Rename a settlement">Rename</button>
+          <h2>工具</h2>
+          <div class="tool-grid" role="toolbar" aria-label="地图编辑">
+            <button class="tool active" data-tool="pan" type="button" title="平移与查看">平移</button>
+            <button class="tool" data-tool="raise" type="button" title="抬升陆地与山脊">抬升</button>
+            <button class="tool" data-tool="lower" type="button" title="降低谷地与海洋">降低</button>
+            <button class="tool" data-tool="river" type="button" title="开凿顺流而下的河流">河流</button>
+            <button class="tool" data-tool="move" type="button" title="移动聚落">移动</button>
+            <button class="tool" data-tool="rename" type="button" title="重命名聚落">命名</button>
           </div>
-          <label>Brush
+          <label>笔刷
             <input id="opt-brush" type="range" min="1" max="8" value="3" />
             <span id="opt-brush-val">3</span>
           </label>
-          <p class="hint" id="tool-hint">Drag to pan. Scroll to zoom. Click a cell to inspect it.</p>
+          <p class="hint" id="tool-hint">拖动平移。滚轮缩放。点击格子查看属性。</p>
         </section>
 
         <section>
-          <h2>Style</h2>
+          <h2>样式</h2>
           <select id="opt-style">
-            <option value="atlas" selected>Atlas biomes</option>
-            <option value="physical">Physical relief</option>
-            <option value="political">Political</option>
-            <option value="parchment">Ink &amp; parchment</option>
-            <option value="night">Night chart</option>
+            <option value="atlas" selected>图集生物群系</option>
+            <option value="physical">地势晕渲</option>
+            <option value="political">政治疆域</option>
+            <option value="parchment">墨线羊皮纸</option>
+            <option value="night">夜航图</option>
           </select>
-          <label class="check"><input id="opt-labels" type="checkbox" checked /> Place names</label>
-          <label class="check"><input id="opt-borders" type="checkbox" checked /> Realm borders</label>
-          <label class="check"><input id="opt-grid" type="checkbox" /> Graticule</label>
+          <label class="check"><input id="opt-labels" type="checkbox" checked /> 地名</label>
+          <label class="check"><input id="opt-borders" type="checkbox" checked /> 国境</label>
+          <label class="check"><input id="opt-grid" type="checkbox" /> 经纬网</label>
         </section>
 
         <section>
-          <h2>Archive</h2>
+          <h2>存档</h2>
           <div class="btn-row">
-            <button id="btn-export-json" type="button">Export JSON</button>
-            <button id="btn-import-json" type="button">Import JSON</button>
+            <button id="btn-export-json" type="button">导出 JSON</button>
+            <button id="btn-import-json" type="button">导入 JSON</button>
             <input id="file-import" type="file" accept="application/json,.json" hidden />
           </div>
           <div class="btn-row">
-            <button id="btn-export-png" type="button">Export PNG</button>
+            <button id="btn-export-png" type="button">导出 PNG</button>
             <select id="opt-png-scale">
               <option value="1">1×</option>
               <option value="2" selected>2×</option>
@@ -103,40 +104,40 @@
             </select>
           </div>
           <div class="btn-row">
-            <button id="btn-undo" type="button">Undo</button>
-            <button id="btn-autosave" type="button">Load autosave</button>
+            <button id="btn-undo" type="button">撤销</button>
+            <button id="btn-autosave" type="button">读取自动存档</button>
           </div>
         </section>
       </aside>
 
       <main class="stage">
-        <canvas id="map" tabindex="0" aria-label="Interactive fantasy map"></canvas>
+        <canvas id="map" tabindex="0" aria-label="交互式幻想地图"></canvas>
         <div id="hover-card" class="hover-card" hidden></div>
+        <div id="loading" class="loading" hidden>正在生成世界…</div>
         <div class="stage-legend" id="legend"></div>
       </main>
 
-      <aside class="panel panel-right" aria-label="Cell inspector">
+      <aside class="panel panel-right" aria-label="格子检视">
         <section>
-          <h2>Inspector</h2>
+          <h2>检视</h2>
           <dl id="inspector" class="inspector">
-            <dt>Status</dt>
-            <dd>Generate a world to begin.</dd>
+            <dt>状态</dt>
+            <dd>正在准备世界…</dd>
           </dl>
         </section>
         <section>
-          <h2>Layers</h2>
+          <h2>图层</h2>
           <p class="prose">
-            Terrain is born from tectonic plates, not raw noise blobs. Rivers drain from highlands to sea,
-            moisture dies in the lee of ridges, and towns cling to water.
+            陆地来自板块，不是噪声色块。河流从高地汇入海洋，湿气在山脊背风面枯竭，城镇紧贴水源。
           </p>
           <ol class="legend-list" id="biome-legend"></ol>
         </section>
         <footer class="colophon">
-          Inspired by Martin O’Leary, Amit Patel, and Scott Turner.
-          Four layers: data · generators · editors · renderer.
+          算法灵感：Martin O’Leary、Amit Patel、Scott Turner。
+          四层架构：数据 · 生成器 · 编辑器 · 渲染器。无需后端，GitHub Pages 可直接打开。
         </footer>
       </aside>
     </div>
-    <script type="module" src="/src/main.js"></script>
+    <script type="module" src="./src/main.js"></script>
   </body>
 </html>

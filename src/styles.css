@@ -252,6 +252,23 @@ button:hover {
   display: none;
 }
 
+.loading {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(12, 9, 8, 0.62);
+  color: var(--ink);
+  letter-spacing: 0.28em;
+  font-size: 0.95rem;
+}
+
+.loading[hidden] {
+  display: none !important;
+}
+
 .inspector {
   display: grid;
   grid-template-columns: 6.5rem 1fr;

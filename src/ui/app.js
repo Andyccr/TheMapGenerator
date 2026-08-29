@@ -8,14 +8,22 @@ import { CanvasRenderer } from "../renderers/canvasRenderer.js";
 import { createTools } from "../editors/tools.js";
 import { cloneWorld, parseWorld, summarizeWorld } from "../data/worldData.js";
 import { saveLocal, loadLocal, downloadJson, downloadPng, readJsonFile } from "../persistence/storage.js";
+import { BIOME_LABELS } from "../renderers/styles.js";
 
 const HINTS = {
-  pan: "Drag to pan. Scroll to zoom. Click a cell to inspect it.",
-  raise: "Paint to raise land and grow mountain ridges. Hydrology updates as you paint.",
-  lower: "Paint to sink valleys or open seas. Hydrology updates as you paint.",
-  river: "Click-drag from highland toward the sea. The channel is forced downhill.",
-  move: "Drag a town onto another land cell. Towns cannot sit in the ocean.",
-  rename: "Click a settlement to rename it. Names live in the JSON save.",
+  pan: "拖动平移。滚轮缩放。点击格子查看属性。",
+  raise: "涂抹以抬升陆地、堆出山脊。水文会在绘制过程中更新。",
+  lower: "涂抹以沉陷谷地或开辟海洋。水文会在绘制过程中更新。",
+  river: "从高地拖向大海。河道会被强制改为顺流而下。",
+  move: "把城镇拖到另一块陆地上。不能放进海里。",
+  rename: "点击聚落即可改名。名称保存在 JSON 存档里。",
+};
+
+const SETTLEMENT_TYPE = {
+  capital: "都城",
+  city: "城市",
+  town: "城镇",
+  village: "村落",
 };
 
 export class App {
@@ -60,35 +68,41 @@ export class App {
     });
   }
 
-  generate() {
-    const seedEl = this.#el("seed-input");
-    const detailEl = this.#el("opt-detail");
-    const platesEl = this.#el("opt-plates");
-    const seaEl = this.#el("opt-sea");
-    const windEl = this.#el("opt-wind");
-    const seed = seedEl instanceof HTMLInputElement ? seedEl.value.trim() || randomSeed() : randomSeed();
-    if (seedEl instanceof HTMLInputElement) seedEl.value = seed;
-    const cellSize = Number(detailEl instanceof HTMLSelectElement ? detailEl.value : 18);
-    const plateCount = Number(platesEl instanceof HTMLInputElement ? platesEl.value : 10);
-    const seaLevel = Number(seaEl instanceof HTMLInputElement ? seaEl.value : 0);
-    const windRaw = windEl instanceof HTMLSelectElement ? windEl.value : "1,0";
-    const [wx, wy] = windRaw.split(",").map(Number);
-    const world = this.generator.generate({
-      seed,
-      cellSize,
-      plateCount,
-      seaLevel,
-      wind: { x: wx, y: wy },
-    });
-    const styleEl = this.#el("opt-style");
-    world.meta.style = styleEl instanceof HTMLSelectElement ? styleEl.value : "atlas";
-    this.world = world;
-    this.undo = [];
-    this.renderer.resize();
-    this.renderer.fit(world);
-    this.redraw();
-    this.#scheduleAutosave();
-    this.#inspect(-1);
+  async generate() {
+    this.#setLoading(true);
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    try {
+      const seedEl = this.#el("seed-input");
+      const detailEl = this.#el("opt-detail");
+      const platesEl = this.#el("opt-plates");
+      const seaEl = this.#el("opt-sea");
+      const windEl = this.#el("opt-wind");
+      const seed = seedEl instanceof HTMLInputElement ? seedEl.value.trim() || randomSeed() : randomSeed();
+      if (seedEl instanceof HTMLInputElement) seedEl.value = seed;
+      const cellSize = Number(detailEl instanceof HTMLSelectElement ? detailEl.value : 18);
+      const plateCount = Number(platesEl instanceof HTMLInputElement ? platesEl.value : 10);
+      const seaLevel = Number(seaEl instanceof HTMLInputElement ? seaEl.value : 0);
+      const windRaw = windEl instanceof HTMLSelectElement ? windEl.value : "1,0";
+      const [wx, wy] = windRaw.split(",").map(Number);
+      const world = this.generator.generate({
+        seed,
+        cellSize,
+        plateCount,
+        seaLevel,
+        wind: { x: wx, y: wy },
+      });
+      const styleEl = this.#el("opt-style");
+      world.meta.style = styleEl instanceof HTMLSelectElement ? styleEl.value : "atlas";
+      this.world = world;
+      this.undo = [];
+      this.renderer.resize();
+      this.renderer.fit(world);
+      this.redraw();
+      this.#scheduleAutosave();
+      this.#inspect(-1);
+    } finally {
+      this.#setLoading(false);
+    }
   }
 
   redraw() {
@@ -191,7 +205,7 @@ export class App {
         const seed = this.#el("seed-input");
         if (seed instanceof HTMLInputElement) seed.value = this.world.meta.seed;
       } catch (err) {
-        alert(err instanceof Error ? err.message : "Import failed.");
+        alert(err instanceof Error ? err.message : "导入失败。");
       }
       input.value = "";
     });
@@ -206,7 +220,7 @@ export class App {
     this.#el("btn-autosave")?.addEventListener("click", () => {
       const w = loadLocal();
       if (!w) {
-        alert("No autosave found.");
+        alert("没有找到自动存档。");
         return;
       }
       try {
@@ -214,7 +228,7 @@ export class App {
         this.renderer.fit(this.world);
         this.redraw();
       } catch (err) {
-        alert(err instanceof Error ? err.message : "Autosave is unreadable.");
+        alert(err instanceof Error ? err.message : "自动存档无法读取。");
       }
     });
   }
@@ -315,7 +329,7 @@ export class App {
       requestRecompute: () => this.#scheduleRecompute(),
       commit: () => {},
       promptRename: (s) => {
-        const next = window.prompt("Rename settlement", s.name);
+        const next = window.prompt("重命名聚落", s.name);
         if (next && next.trim()) {
           s.name = next.trim();
           this.#scheduleAutosave();
@@ -364,34 +378,36 @@ export class App {
     if (cellId < 0) {
       const sum = summarizeWorld(this.world);
       box.innerHTML = `
-        <dt>Seed</dt><dd>${escapeHtml(this.world.meta.seed)}</dd>
-        <dt>Cells</dt><dd>${sum.cells} · land ${sum.land} · ocean ${sum.ocean}</dd>
-        <dt>Rivers</dt><dd>${sum.rivers}</dd>
-        <dt>Settlements</dt><dd>${sum.settlements}</dd>
-        <dt>Realms</dt><dd>${sum.regions}</dd>`;
+        <dt>种子</dt><dd>${escapeHtml(this.world.meta.seed)}</dd>
+        <dt>格子</dt><dd>${sum.cells} · 陆地 ${sum.land} · 海洋 ${sum.ocean}</dd>
+        <dt>河流</dt><dd>${sum.rivers}</dd>
+        <dt>聚落</dt><dd>${sum.settlements}</dd>
+        <dt>国度</dt><dd>${sum.regions}</dd>`;
       return;
     }
     const c = this.world.cells[cellId];
     const town = this.world.settlements.find((s) => s.cellId === cellId);
     const realm = c.regionId >= 0 ? this.world.regions[c.regionId] : null;
+    const biomeName = BIOME_LABELS[c.biome] || c.biome;
+    const typeName = town ? SETTLEMENT_TYPE[town.type] || town.type : "";
     box.innerHTML = `
-      <dt>Cell</dt><dd>#${c.id}</dd>
-      <dt>Height</dt><dd>${c.height.toFixed(2)}</dd>
-      <dt>Biome</dt><dd>${escapeHtml(c.biome)}</dd>
-      <dt>Moisture</dt><dd>${c.moisture.toFixed(2)}</dd>
-      <dt>Temperature</dt><dd>${c.temperature.toFixed(2)}</dd>
-      <dt>Flux</dt><dd>${c.flux.toFixed(1)}</dd>
-      <dt>Flags</dt><dd>${[
-        c.ocean && "ocean",
-        c.lake && "lake",
-        c.coast && "coast",
-        c.mountain && "mountain",
-        c.riverId >= 0 && "river",
+      <dt>格子</dt><dd>#${c.id}</dd>
+      <dt>海拔</dt><dd>${c.height.toFixed(2)}</dd>
+      <dt>生物群系</dt><dd>${escapeHtml(biomeName)}</dd>
+      <dt>湿度</dt><dd>${c.moisture.toFixed(2)}</dd>
+      <dt>温度</dt><dd>${c.temperature.toFixed(2)}</dd>
+      <dt>径流量</dt><dd>${c.flux.toFixed(1)}</dd>
+      <dt>标记</dt><dd>${[
+        c.ocean && "海洋",
+        c.lake && "湖泊",
+        c.coast && "海岸",
+        c.mountain && "山脉",
+        c.riverId >= 0 && "河流",
       ]
         .filter(Boolean)
         .join(" · ") || "—"}</dd>
-      <dt>Realm</dt><dd>${realm ? escapeHtml(realm.name) : "—"}</dd>
-      <dt>Town</dt><dd>${town ? escapeHtml(town.name + " (" + town.type + ")") : "—"}</dd>`;
+      <dt>国度</dt><dd>${realm ? escapeHtml(realm.name) : "—"}</dd>
+      <dt>聚落</dt><dd>${town ? escapeHtml(`${town.name}（${typeName}）`) : "—"}</dd>`;
   }
 
   /**
@@ -411,7 +427,9 @@ export class App {
     card.hidden = false;
     card.style.left = `${x + 14}px`;
     card.style.top = `${y + 14}px`;
-    card.textContent = town ? `${town.name} · ${c.biome}` : c.biome.replaceAll("_", " ");
+    card.textContent = town
+      ? `${town.name} · ${BIOME_LABELS[c.biome] || c.biome}`
+      : BIOME_LABELS[c.biome] || c.biome.replaceAll("_", " ");
     this.#inspect(cellId);
   }
 
@@ -425,6 +443,11 @@ export class App {
           `<li><span class="swatch" style="background:${item.color}"></span>${escapeHtml(item.label)}</li>`,
       )
       .join("");
+  }
+
+  #setLoading(on) {
+    const el = this.#el("loading");
+    if (el instanceof HTMLElement) el.hidden = !on;
   }
 
   /** @param {string} id */
