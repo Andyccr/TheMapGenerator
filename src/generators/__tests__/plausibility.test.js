@@ -88,4 +88,6 @@ test("clampGrid coarsens maps that would exceed the cell cap", () => {
   const size = clampGrid(5120, 3200, 4);
   assert.ok(size > 4);
   assert.ok(estimateCellCount(5120, 3200, size) <= MAX_CELLS);
+  assert.equal(clampGrid(2560, 1600, 4), 4, "wide + extra-fine should stay at cell size 4");
+  assert.equal(clampGrid(2560, 1600, 5), 5, "wide + fine should stay at cell size 5");
 });
