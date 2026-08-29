@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fantasy World Map Generator</title>
+    <meta
+      name="description"
+      content="Generate geographically plausible interactive fantasy maps in the browser. No server required."
+    />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect fill='%23140f0c' width='64' height='64'/%3E%3Cpath fill='%23b0894a' d='M8 40c8-18 16-10 24-22 8 14 16 4 24 20v12H8z'/%3E%3Ccircle cx='44' cy='18' r='5' fill='%23ead9c1'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="masthead">
+        <div class="folio">
+          <span class="folio-mark">FWMG</span>
+          <h1>Fantasy World Map Generator</h1>
+        </div>
+        <p class="tagline">Plate tectonics, hydrology, and climate — drawn like an atlas, edited like a workshop.</p>
+        <div class="mast-actions">
+          <label class="seed-field">
+            Seed
+            <input id="seed-input" type="text" spellcheck="false" autocomplete="off" />
+          </label>
+          <button id="btn-generate" class="btn-primary" type="button">Generate world</button>
+          <button id="btn-random" class="btn-ghost" type="button">Random seed</button>
+        </div>
+      </header>
+
+      <aside class="panel panel-left" aria-label="Generation and tools">
+        <section>
+          <h2>World</h2>
+          <label>Detail
+            <select id="opt-detail">
+              <option value="22">Coarse (~2k cells)</option>
+              <option value="18" selected>Medium (~3k cells)</option>
+              <option value="14">Fine (~5k cells)</option>
+            </select>
+          </label>
+          <label>Plates
+            <input id="opt-plates" type="range" min="6" max="16" value="10" />
+            <span id="opt-plates-val">10</span>
+          </label>
+          <label>Sea level
+            <input id="opt-sea" type="range" min="-20" max="20" value="0" />
+            <span id="opt-sea-val">0</span>
+          </label>
+          <label>Wind
+            <select id="opt-wind">
+              <option value="1,0" selected>Westerlies →</option>
+              <option value="-1,0">Easterlies ←</option>
+              <option value="0,1">Northerlies ↓</option>
+              <option value="0,-1">Southerlies ↑</option>
+            </select>
+          </label>
+        </section>
+
+        <section>
+          <h2>Tools</h2>
+          <div class="tool-grid" role="toolbar" aria-label="Map editors">
+            <button class="tool active" data-tool="pan" type="button" title="Pan and inspect">Pan</button>
+            <button class="tool" data-tool="raise" type="button" title="Raise land and ridges">Raise</button>
+            <button class="tool" data-tool="lower" type="button" title="Lower valleys and seas">Lower</button>
+            <button class="tool" data-tool="river" type="button" title="Carve a downhill river">River</button>
+            <button class="tool" data-tool="move" type="button" title="Move a settlement">Move</button>
+            <button class="tool" data-tool="rename" type="button" title="Rename a settlement">Rename</button>
+          </div>
+          <label>Brush
+            <input id="opt-brush" type="range" min="1" max="8" value="3" />
+            <span id="opt-brush-val">3</span>
+          </label>
+          <p class="hint" id="tool-hint">Drag to pan. Scroll to zoom. Click a cell to inspect it.</p>
+        </section>
+
+        <section>
+          <h2>Style</h2>
+          <select id="opt-style">
+            <option value="atlas" selected>Atlas biomes</option>
+            <option value="physical">Physical relief</option>
+            <option value="political">Political</option>
+            <option value="parchment">Ink &amp; parchment</option>
+            <option value="night">Night chart</option>
+          </select>
+          <label class="check"><input id="opt-labels" type="checkbox" checked /> Place names</label>
+          <label class="check"><input id="opt-borders" type="checkbox" checked /> Realm borders</label>
+          <label class="check"><input id="opt-grid" type="checkbox" /> Graticule</label>
+        </section>
+
+        <section>
+          <h2>Archive</h2>
+          <div class="btn-row">
+            <button id="btn-export-json" type="button">Export JSON</button>
+            <button id="btn-import-json" type="button">Import JSON</button>
+            <input id="file-import" type="file" accept="application/json,.json" hidden />
+          </div>
+          <div class="btn-row">
+            <button id="btn-export-png" type="button">Export PNG</button>
+            <select id="opt-png-scale">
+              <option value="1">1×</option>
+              <option value="2" selected>2×</option>
+              <option value="3">3×</option>
+            </select>
+          </div>
+          <div class="btn-row">
+            <button id="btn-undo" type="button">Undo</button>
+            <button id="btn-autosave" type="button">Load autosave</button>
+          </div>
+        </section>
+      </aside>
+
+      <main class="stage">
+        <canvas id="map" tabindex="0" aria-label="Interactive fantasy map"></canvas>
+        <div id="hover-card" class="hover-card" hidden></div>
+        <div class="stage-legend" id="legend"></div>
+      </main>
+
+      <aside class="panel panel-right" aria-label="Cell inspector">
+        <section>
+          <h2>Inspector</h2>
+          <dl id="inspector" class="inspector">
+            <dt>Status</dt>
+            <dd>Generate a world to begin.</dd>
+          </dl>
+        </section>
+        <section>
+          <h2>Layers</h2>
+          <p class="prose">
+            Terrain is born from tectonic plates, not raw noise blobs. Rivers drain from highlands to sea,
+            moisture dies in the lee of ridges, and towns cling to water.
+          </p>
+          <ol class="legend-list" id="biome-legend"></ol>
+        </section>
+        <footer class="colophon">
+          Inspired by Martin O’Leary, Amit Patel, and Scott Turner.
+          Four layers: data · generators · editors · renderer.
+        </footer>
+      </aside>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,45 @@
+# MVP plan
+
+Build in this order. Each step is a shippable static page.
+
+## Step 1 — Mesh + land + Canvas (done in this prototype)
+
+- Jittered hex dual mesh from a seed
+- Plate-based elevation, sea level, coastal flood
+- Canvas fill of land/ocean, pan and zoom
+- **First editor:** raise/lower brush that mutates `height` and rebuilds hydrology
+
+Done when: a seed produces a continent with mountain *chains*, not noise speckles, and painting a ridge updates the coastline.
+
+## Step 2 — Water that obeys gravity (done)
+
+- Depression fill, flux, river polylines
+- Lakes as inland basins
+- Plausibility tests: rivers never climb
+
+Done when: every river ends in ocean or a lake, and none cross a ridge.
+
+## Step 3 — Climate, biomes, towns (done)
+
+- Latitude temperature, rain shadow, Whittaker biomes
+- Settlements scored toward water
+- Style presets (atlas, physical, political, parchment, night)
+
+Done when: the far north is not tropical, and most towns sit on rivers or coasts.
+
+## Step 4 — Realms, archive, polish (done at prototype level)
+
+- Cost-distance political regions
+- JSON export/import, LocalStorage, high-res PNG
+- Rename / move settlement, river-carve tool
+
+## Step 5 — After this prototype
+
+- True Delaunay/Voronoi (Delaunator) at 20k+ cells
+- Hydraulic erosion pass (O’Leary)
+- Label collision (Turner's annealing notes)
+- SVG overlay for selectable labels
+- TypeScript conversion of `src/types.js`
+- Optional WebWorker around `MapGenerator.generate`
+
+Do not start step 5 until the four-layer folders still have no circular imports.
