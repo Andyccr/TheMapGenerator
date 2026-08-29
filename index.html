@@ -34,9 +34,10 @@
           <h2>世界</h2>
           <label>精细度
             <select id="opt-detail">
-              <option value="22">粗略（约 2 千格）</option>
-              <option value="18" selected>中等（约 3 千格）</option>
-              <option value="14">精细（约 5 千格）</option>
+              <option value="16">粗略（约 3 千格）</option>
+              <option value="11" selected>中等（约 6 千格）</option>
+              <option value="8">精细（约 1.1 万格）</option>
+              <option value="6">极细（约 2 万格）</option>
             </select>
           </label>
           <label>板块数
@@ -71,7 +72,7 @@
             <input id="opt-brush" type="range" min="1" max="8" value="3" />
             <span id="opt-brush-val">3</span>
           </label>
-          <p class="hint" id="tool-hint">拖动平移。滚轮缩放。点击格子查看属性。</p>
+          <p class="hint" id="tool-hint">滚轮平滑缩放，双击放大。拖动平移。点击格子查看属性。</p>
         </section>
 
         <section>
@@ -114,6 +115,12 @@
         <canvas id="map" tabindex="0" aria-label="交互式幻想地图"></canvas>
         <div id="hover-card" class="hover-card" hidden></div>
         <div id="loading" class="loading" hidden>正在生成世界…</div>
+        <div class="zoom-hud" aria-label="缩放">
+          <button type="button" id="btn-zoom-in" title="放大">+</button>
+          <button type="button" id="btn-zoom-out" title="缩小">−</button>
+          <button type="button" id="btn-zoom-fit" title="适应窗口">适应</button>
+          <span id="zoom-readout">100%</span>
+        </div>
         <div class="stage-legend" id="legend"></div>
       </main>
 

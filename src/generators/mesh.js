@@ -6,7 +6,7 @@
  * Small jitter + Lloyd relaxation yields organic coastlines without the
  * "clumpy random points" artifacts Martin O'Leary warns against.
  */
-import { circumcenter, clipPolygon, polygonCentroid } from "../util/geometry.js";
+import { circumcenter, clipPolygon, polygonCentroid, organicPolygon } from "../util/geometry.js";
 
 /** odd-r offset neighbors (pointy-top), even then odd rows */
 const ODD_R = [
@@ -125,6 +125,13 @@ export function createMesh(opts) {
       cell.y = cy * 0.35 + c.y * 0.65;
     }
     rebuildPolygons();
+  }
+
+  const amp = 0.16 * size;
+  for (const cell of cells) {
+    if (cell.polygon.length >= 3) {
+      cell.polygon = clipPolygon(organicPolygon(cell.polygon, amp), 0, 0, width, height);
+    }
   }
 
   for (const cell of cells) {

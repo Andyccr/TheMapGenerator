@@ -118,3 +118,60 @@ export function pointInPolygon(x, y, poly) {
   }
   return inside;
 }
+
+/** Stable 0–1 hash so shared Voronoi vertices jitter identically. */
+export function hash2(x, y) {
+  const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;
+  return s - Math.floor(s);
+}
+
+/**
+ * Subdivide long edges then jitter vertices. Same quantized input → same
+ * output, so adjacent cells keep a watertight mesh (Patel noisy-edge idea).
+ * @param {number[][]} poly
+ * @param {number} amp
+ */
+export function organicPolygon(poly, amp) {
+  if (poly.length < 3) return poly;
+  const minLen = Math.max(6, amp * 4.5);
+  /** @type {number[][]} */
+  const mid = [];
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i];
+    const b = poly[(i + 1) % poly.length];
+    mid.push(a);
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    if (dx * dx + dy * dy > minLen * minLen) {
+      mid.push([(a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5]);
+    }
+  }
+  return mid.map(([x, y]) => {
+    const qx = Math.round(x * 8) / 8;
+    const qy = Math.round(y * 8) / 8;
+    return [x + (hash2(qx, qy) - 0.5) * 2 * amp, y + (hash2(qx + 19.2, qy + 7.1) - 0.5) * 2 * amp];
+  });
+}
+
+/**
+ * Chaikin corner-cutting for river polylines.
+ * @param {number[][]} pts
+ * @param {number} [iters]
+ */
+export function chaikin(pts, iters = 2) {
+  if (pts.length < 3) return pts;
+  let p = pts;
+  for (let k = 0; k < iters; k++) {
+    /** @type {number[][]} */
+    const n = [p[0]];
+    for (let i = 0; i < p.length - 1; i++) {
+      const a = p[i];
+      const b = p[i + 1];
+      n.push([0.75 * a[0] + 0.25 * b[0], 0.75 * a[1] + 0.25 * b[1]]);
+      n.push([0.25 * a[0] + 0.75 * b[0], 0.25 * a[1] + 0.75 * b[1]]);
+    }
+    n.push(p[p.length - 1]);
+    p = n;
+  }
+  return p;
+}

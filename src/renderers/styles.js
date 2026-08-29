@@ -57,6 +57,10 @@ export function fillFor(cell, world, style) {
   if (style === "political") return politicalFill(cell, world);
   if (style === "parchment") return parchmentFill(cell);
   if (style === "night") return nightFill(cell);
+  if (cell.ocean) {
+    const t = Math.max(0, Math.min(1, (cell.height + 0.75) / 0.75));
+    return lerpColor("#123344", "#3d7a94", t);
+  }
   return ATLAS_BIOME[cell.biome] || "#666";
 }
 

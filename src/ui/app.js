@@ -11,7 +11,7 @@ import { saveLocal, loadLocal, downloadJson, downloadPng, readJsonFile } from ".
 import { BIOME_LABELS } from "../renderers/styles.js";
 
 const HINTS = {
-  pan: "拖动平移。滚轮缩放。点击格子查看属性。",
+  pan: "滚轮平滑缩放，双击放大，Shift+双击缩小。拖动平移。",
   raise: "涂抹以抬升陆地、堆出山脊。水文会在绘制过程中更新。",
   lower: "涂抹以沉陷谷地或开辟海洋。水文会在绘制过程中更新。",
   river: "从高地拖向大海。河道会被强制改为顺流而下。",
@@ -49,6 +49,7 @@ export class App {
     this.labels = true;
     this.borders = true;
     this.grid = false;
+    this._zoomRaf = 0;
     this.#bind();
   }
 
@@ -79,7 +80,7 @@ export class App {
       const windEl = this.#el("opt-wind");
       const seed = seedEl instanceof HTMLInputElement ? seedEl.value.trim() || randomSeed() : randomSeed();
       if (seedEl instanceof HTMLInputElement) seedEl.value = seed;
-      const cellSize = Number(detailEl instanceof HTMLSelectElement ? detailEl.value : 18);
+      const cellSize = Number(detailEl instanceof HTMLSelectElement ? detailEl.value : 11);
       const plateCount = Number(platesEl instanceof HTMLInputElement ? platesEl.value : 10);
       const seaLevel = Number(seaEl instanceof HTMLInputElement ? seaEl.value : 0);
       const windRaw = windEl instanceof HTMLSelectElement ? windEl.value : "1,0";
@@ -100,6 +101,7 @@ export class App {
       this.redraw();
       this.#scheduleAutosave();
       this.#inspect(-1);
+      this.#syncZoomReadout();
     } finally {
       this.#setLoading(false);
     }
@@ -179,12 +181,37 @@ export class App {
         if (!this.world) return;
         ev.preventDefault();
         const rect = canvas.getBoundingClientRect();
-        const factor = ev.deltaY < 0 ? 1.12 : 1 / 1.12;
+        let dy = ev.deltaY;
+        if (ev.deltaMode === 1) dy *= 16;
+        else if (ev.deltaMode === 2) dy *= rect.height;
+        const factor = Math.exp(-dy * 0.0016);
         this.renderer.zoomAt(this.world, factor, ev.clientX - rect.left, ev.clientY - rect.top);
-        this.redraw();
+        this.#syncZoomReadout();
+        if (!this._zoomRaf) {
+          this._zoomRaf = requestAnimationFrame(() => {
+            this._zoomRaf = 0;
+            this.redraw();
+          });
+        }
       },
       { passive: false },
     );
+    canvas.addEventListener("dblclick", (ev) => {
+      if (!this.world) return;
+      ev.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      this.renderer.zoomAt(this.world, ev.shiftKey ? 0.5 : 1.85, ev.clientX - rect.left, ev.clientY - rect.top);
+      this.#syncZoomReadout();
+      this.redraw();
+    });
+    this.#el("btn-zoom-in")?.addEventListener("click", () => this.#zoomButton(1.25));
+    this.#el("btn-zoom-out")?.addEventListener("click", () => this.#zoomButton(0.8));
+    this.#el("btn-zoom-fit")?.addEventListener("click", () => {
+      if (!this.world) return;
+      this.renderer.fit(this.world);
+      this.#syncZoomReadout();
+      this.redraw();
+    });
 
     this.#el("btn-export-json")?.addEventListener("click", () => {
       if (!this.world) return;
@@ -443,6 +470,20 @@ export class App {
           `<li><span class="swatch" style="background:${item.color}"></span>${escapeHtml(item.label)}</li>`,
       )
       .join("");
+  }
+
+  #zoomButton(factor) {
+    if (!this.world) return;
+    const canvas = /** @type {HTMLCanvasElement} */ (this.#el("map"));
+    this.renderer.zoomAt(this.world, factor, canvas.clientWidth / 2, canvas.clientHeight / 2);
+    this.#syncZoomReadout();
+    this.redraw();
+  }
+
+  #syncZoomReadout() {
+    const el = this.#el("zoom-readout");
+    if (!el || !this.world) return;
+    el.textContent = `${this.renderer.zoomPercent(this.world)}%`;
   }
 
   #setLoading(on) {
