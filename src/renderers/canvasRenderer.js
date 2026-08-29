@@ -20,6 +20,12 @@ export class CanvasRenderer {
     this.dpr = 1;
   }
 
+  /** Convert CSS pixels into world units at the current zoom. @param {number} n */
+  #px(n) {
+    const scale = this._view?.scale || 1;
+    return n / Math.min(scale, 1);
+  }
+
   resize() {
     const parent = this.canvas.parentElement;
     if (!parent) return;
@@ -213,7 +219,7 @@ export class CanvasRenderer {
     const ctx = this.ctx;
     if (!ctx) return;
     ctx.strokeStyle = ink.coast;
-    ctx.lineWidth = style === "parchment" ? 1.35 : 0.9;
+    ctx.lineWidth = this.#px(style === "parchment" ? 1.6 : 1.15);
     ctx.lineJoin = "round";
     ctx.beginPath();
     for (const cell of world.cells) {
@@ -240,7 +246,7 @@ export class CanvasRenderer {
     ctx.globalAlpha = style === "night" ? 0.9 : 0.85;
     for (const river of world.rivers) {
       if (river.points.length < 2) continue;
-      ctx.lineWidth = river.width;
+      ctx.lineWidth = Math.max(this.#px(1.3), river.width);
       ctx.beginPath();
       ctx.moveTo(river.points[0][0], river.points[0][1]);
       for (let i = 1; i < river.points.length; i++) {
@@ -265,8 +271,8 @@ export class CanvasRenderer {
     const ctx = this.ctx;
     if (!ctx) return;
     ctx.strokeStyle = ink.border;
-    ctx.lineWidth = 0.7;
-    ctx.globalAlpha = 0.55;
+    ctx.lineWidth = this.#px(1);
+    ctx.globalAlpha = 0.5;
     ctx.beginPath();
     for (const cell of world.cells) {
       if (cell.ocean || cell.regionId < 0) continue;
@@ -290,11 +296,11 @@ export class CanvasRenderer {
     const ctx = this.ctx;
     if (!ctx) return;
     ctx.strokeStyle = style === "night" ? "#c4b8a0" : "#3a2c22";
-    ctx.fillStyle = style === "parchment" ? "#6a5640" : "rgba(40,28,18,0.15)";
-    ctx.lineWidth = 0.7;
+    ctx.fillStyle = style === "parchment" ? "#6a5640" : "rgba(40,28,18,0.18)";
+    ctx.lineWidth = this.#px(1);
     for (const cell of world.cells) {
       if (!cell.mountain) continue;
-      const s = 4.5 + cell.height * 5;
+      const s = Math.max(this.#px(5.5), 5.5 + cell.height * 6);
       ctx.beginPath();
       ctx.moveTo(cell.x, cell.y - s);
       ctx.lineTo(cell.x - s * 0.7, cell.y + s * 0.35);
@@ -313,17 +319,18 @@ export class CanvasRenderer {
   #drawSettlements(world, ink, style) {
     const ctx = this.ctx;
     if (!ctx) return;
-    ctx.font = "6.5px Palatino, Georgia, serif";
+    const fs = this.#px(11);
+    ctx.font = `${fs}px Palatino, Georgia, serif`;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     for (const s of world.settlements) {
       const c = world.cells[s.cellId];
       if (!c) continue;
-      const r = s.type === "capital" ? 3.2 : s.type === "city" ? 2.6 : 2;
+      const r = this.#px(s.type === "capital" ? 4.2 : s.type === "city" ? 3.4 : 2.6);
       ctx.beginPath();
       ctx.fillStyle = style === "night" ? "#f0d78c" : "#1a120c";
       ctx.strokeStyle = style === "night" ? "#1a120c" : "#f4ead4";
-      ctx.lineWidth = 0.8;
+      ctx.lineWidth = this.#px(1);
       if (s.type === "capital") {
         ctx.rect(c.x - r, c.y - r, r * 2, r * 2);
       } else {
@@ -332,7 +339,7 @@ export class CanvasRenderer {
       ctx.fill();
       ctx.stroke();
       ctx.fillStyle = ink.text;
-      ctx.fillText(s.name, c.x + r + 2.5, c.y);
+      ctx.fillText(s.name, c.x + r + this.#px(4), c.y);
     }
   }
 
@@ -341,8 +348,8 @@ export class CanvasRenderer {
     const ctx = this.ctx;
     if (!ctx || path.length < 1) return;
     ctx.strokeStyle = "#c45c2a";
-    ctx.lineWidth = 2;
-    ctx.setLineDash([4, 3]);
+    ctx.lineWidth = this.#px(2.2);
+    ctx.setLineDash([this.#px(5), this.#px(4)]);
     ctx.beginPath();
     const p0 = world.cells[path[0]];
     ctx.moveTo(p0.x, p0.y);
@@ -361,7 +368,7 @@ export class CanvasRenderer {
     const cell = world.cells[id];
     if (!cell || cell.polygon.length < 3) return;
     ctx.strokeStyle = "#f2e6c4";
-    ctx.lineWidth = 1.6;
+    ctx.lineWidth = this.#px(1.8);
     ctx.beginPath();
     ctx.moveTo(cell.polygon[0][0], cell.polygon[0][1]);
     for (let i = 1; i < cell.polygon.length; i++) ctx.lineTo(cell.polygon[i][0], cell.polygon[i][1]);
@@ -375,7 +382,7 @@ export class CanvasRenderer {
     if (!ctx) return;
     ctx.strokeStyle = ink.text;
     ctx.globalAlpha = 0.12;
-    ctx.lineWidth = 0.4;
+    ctx.lineWidth = this.#px(0.6);
     const step = 100;
     ctx.beginPath();
     for (let x = 0; x <= world.meta.width; x += step) {
