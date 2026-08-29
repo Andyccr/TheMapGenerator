@@ -95,12 +95,15 @@ function plateBoundaryDistance(cells) {
  * @param {number} width
  * @param {number} height
  * @param {number} seaLevel
+ * @param {number} [cellSize]
  */
-export function assignElevation(cells, plates, rng, width, height, seaLevel) {
+export function assignElevation(cells, plates, rng, width, height, seaLevel, cellSize = 10) {
   const simplex = createSimplex(rng);
   const invW = 1 / width;
   const invH = 1 / height;
   const boundDist = plateBoundaryDistance(cells);
+  const beltLength = Math.max(2.2, 26 / Math.max(3.5, cellSize));
+  const microFreq = 1 / Math.max(8, cellSize * 3.2);
 
   /** @type {number[]} */
   const strain = new Array(cells.length).fill(0);
@@ -135,7 +138,8 @@ export function assignElevation(cells, plates, rng, width, height, seaLevel) {
 
   /** @type {number[]} */
   let field = strain.slice();
-  for (let pass = 0; pass < 4; pass++) {
+  const smoothPasses = Math.max(3, Math.min(8, Math.round(4 * (10 / Math.max(3.5, cellSize)))));
+  for (let pass = 0; pass < smoothPasses; pass++) {
     const next = field.slice();
     for (const cell of cells) {
       let acc = field[cell.id] * 1.6;
@@ -160,13 +164,14 @@ export function assignElevation(cells, plates, rng, width, height, seaLevel) {
     const rolling = simplex.fbm(nx * 1.7, ny * 1.7, 5) * 0.11;
     const detail = simplex.fbm(nx * 4.4, ny * 4.4, 5) * 0.055;
     const wrinkle = simplex.fbm(nx * 11 + 20, ny * 11, 3) * 0.02;
+    const micro = simplex.fbm(cell.x * microFreq, cell.y * microFreq, 3) * 0.016;
     const slope = (nx * tx + ny * ty - 0.5) * (p.continental ? 0.07 : 0.03);
     const continental = p.continental ? 0.2 : -0.44;
     const d = boundDist[cell.id];
-    const belt = Math.exp(-d / 2.6);
+    const belt = Math.exp(-d / beltLength);
     const mountains = Math.max(0, field[cell.id]) * (0.42 + 0.95 * belt);
     const rift = Math.min(0, field[cell.id]) * (0.35 + 0.25 * belt);
-    let h = continental + mountains + rift + rolling + detail + wrinkle + slope;
+    let h = continental + mountains + rift + rolling + detail + wrinkle + micro + slope;
 
     if (p.continental) {
       let oceanNb = 0;

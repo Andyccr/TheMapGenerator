@@ -128,12 +128,14 @@ export function hash2(x, y) {
 /**
  * Subdivide long edges then jitter vertices. Same quantized input → same
  * output, so adjacent cells keep a watertight mesh (Patel noisy-edge idea).
+ * Dense maps skip subdivision to keep vertex count in check.
  * @param {number[][]} poly
  * @param {number} amp
+ * @param {boolean} [subdivide]
  */
-export function organicPolygon(poly, amp) {
+export function organicPolygon(poly, amp, subdivide = true) {
   if (poly.length < 3) return poly;
-  const minLen = Math.max(6, amp * 4.5);
+  const minLen = subdivide ? Math.max(6, amp * 4.5) : Infinity;
   /** @type {number[][]} */
   const mid = [];
   for (let i = 0; i < poly.length; i++) {

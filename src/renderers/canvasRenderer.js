@@ -254,6 +254,8 @@ export class CanvasRenderer {
   #drawCells(world, style, bounds) {
     const ctx = this.ctx;
     if (!ctx) return;
+    const relZoom = (world.view.scale || 1) / (this._fitScale || world.view.scale || 1);
+    const hillshade = world.cells.length < 8000 || relZoom >= 1.35 || (world.view.scale || 0) >= 0.9;
     for (const cell of world.cells) {
       if (cell.polygon.length < 3 || !this.#inView(cell, bounds)) continue;
       ctx.beginPath();
@@ -263,7 +265,7 @@ export class CanvasRenderer {
       ctx.closePath();
       ctx.fillStyle = fillFor(cell, world, style);
       ctx.fill();
-      if (cell.ocean || cell.lake) continue;
+      if (!hillshade || cell.ocean || cell.lake) continue;
       let shade = 0;
       let w = 0;
       for (const nid of cell.neighbors) {
@@ -378,7 +380,7 @@ export class CanvasRenderer {
     for (const cell of world.cells) {
       if (!cell.mountain || !this.#inView(cell, bounds)) continue;
       const s = Math.max(this.#px(4.5), Math.min(9 + cell.height * 7, this.#px(16)));
-      if (s * scale < 3.2) continue;
+      if (s * scale < (world.cells.length > 12000 ? 5.5 : 3.2)) continue;
       ctx.beginPath();
       ctx.moveTo(cell.x, cell.y - s);
       ctx.lineTo(cell.x - s * 0.72, cell.y + s * 0.38);

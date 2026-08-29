@@ -31,13 +31,17 @@ export { BIOMES };
  * @param {import("../types.js").Cell[]} cells
  * @param {number} height
  * @param {{ x: number, y: number }} wind
+ * @param {number} [width]
  */
-export function assignClimate(cells, height, wind) {
+export function assignClimate(cells, height, wind, width) {
   const len = Math.hypot(wind.x, wind.y) || 1;
   const wx = wind.x / len;
   const wy = wind.y / len;
+  const span = Math.hypot(width || height * 1.6, height);
+  const stepLen = Math.max(16, span * 0.016);
+  const nSteps = Math.min(18, Math.max(8, Math.round(span / 220)));
 
-  /** Walk upwind a handful of steps; tall ridges steal moisture. */
+  /** Walk upwind; tall ridges steal moisture. Length scales with map span. */
   for (const cell of cells) {
     const lat = 1 - cell.y / height; // 1 = north poleward, 0 = south/tropics
     const lapse = Math.max(0, cell.height) * 0.55;
@@ -54,9 +58,9 @@ export function assignClimate(cells, height, wind) {
     let x = cell.x;
     let y = cell.y;
     let id = cell.id;
-    for (let step = 0; step < 10; step++) {
-      x -= wx * 28;
-      y -= wy * 28;
+    for (let step = 0; step < nSteps; step++) {
+      x -= wx * stepLen;
+      y -= wy * stepLen;
       let next = -1;
       let best = 1e9;
       for (const nid of cells[id].neighbors) {

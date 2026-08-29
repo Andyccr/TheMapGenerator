@@ -54,7 +54,7 @@ export class RaiseTool {
    */
   apply(world, ev, ctx) {
     if (ev.phase !== "down" && ev.phase !== "move") return;
-    const radius = 12 + ctx.brush * 10;
+    const radius = (12 + ctx.brush * 10) * ((world.meta.cellSize || 10) / 10);
     sculptElevation(world, ev.worldX, ev.worldY, radius, 0.045);
   }
 }
@@ -69,7 +69,7 @@ export class LowerTool {
    */
   apply(world, ev, ctx) {
     if (ev.phase !== "down" && ev.phase !== "move") return;
-    const radius = 12 + ctx.brush * 10;
+    const radius = (12 + ctx.brush * 10) * ((world.meta.cellSize || 10) / 10);
     sculptElevation(world, ev.worldX, ev.worldY, radius, -0.045);
   }
 }

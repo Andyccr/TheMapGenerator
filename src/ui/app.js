@@ -74,19 +74,26 @@ export class App {
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     try {
       const seedEl = this.#el("seed-input");
+      const extentEl = this.#el("opt-extent");
       const detailEl = this.#el("opt-detail");
       const platesEl = this.#el("opt-plates");
       const seaEl = this.#el("opt-sea");
       const windEl = this.#el("opt-wind");
       const seed = seedEl instanceof HTMLInputElement ? seedEl.value.trim() || randomSeed() : randomSeed();
       if (seedEl instanceof HTMLInputElement) seedEl.value = seed;
-      const cellSize = Number(detailEl instanceof HTMLSelectElement ? detailEl.value : 11);
-      const plateCount = Number(platesEl instanceof HTMLInputElement ? platesEl.value : 10);
+      const extentRaw = extentEl instanceof HTMLSelectElement ? extentEl.value : "2560,1600";
+      const [ew, eh] = extentRaw.split(",").map(Number);
+      const width = Number.isFinite(ew) && ew > 200 ? ew : 2560;
+      const height = Number.isFinite(eh) && eh > 200 ? eh : 1600;
+      const cellSize = Number(detailEl instanceof HTMLSelectElement ? detailEl.value : 7);
+      const plateCount = Number(platesEl instanceof HTMLInputElement ? platesEl.value : 12);
       const seaLevel = Number(seaEl instanceof HTMLInputElement ? seaEl.value : 0);
       const windRaw = windEl instanceof HTMLSelectElement ? windEl.value : "1,0";
       const [wx, wy] = windRaw.split(",").map(Number);
       const world = this.generator.generate({
         seed,
+        width,
+        height,
         cellSize,
         plateCount,
         seaLevel,
@@ -380,7 +387,7 @@ export class App {
   #pushUndo() {
     if (!this.world) return;
     this.undo.push(cloneWorld(this.world));
-    if (this.undo.length > 16) this.undo.shift();
+    if (this.undo.length > 8) this.undo.shift();
   }
 
   #undo() {
@@ -406,6 +413,7 @@ export class App {
       const sum = summarizeWorld(this.world);
       box.innerHTML = `
         <dt>种子</dt><dd>${escapeHtml(this.world.meta.seed)}</dd>
+        <dt>画幅</dt><dd>${this.world.meta.width}×${this.world.meta.height} · 格距 ${this.world.meta.cellSize}</dd>
         <dt>格子</dt><dd>${sum.cells} · 陆地 ${sum.land} · 海洋 ${sum.ocean}</dd>
         <dt>河流</dt><dd>${sum.rivers}</dd>
         <dt>聚落</dt><dd>${sum.settlements}</dd>
