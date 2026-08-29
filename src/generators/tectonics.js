@@ -1,9 +1,9 @@
 /**
  * Lightweight plate-tectonics simulation (Scott Turner / Nortantis school):
- * plates with velocity, then strain along shared margins.
+ * warped plate seeds, strain along margins, mountain *belts* of finite width,
+ * coastal plains, shelves, and island arcs.
  *
  * Continents come from continental plates, not from a noise threshold.
- * Mountain *chains* form where plates converge; rifts where they diverge.
  */
 import { createSimplex } from "./noise.js";
 
@@ -22,9 +22,9 @@ export function assignPlates(cells, plateCount, rng, width, height) {
   const plates = [];
   for (let i = 0; i < count; i++) {
     const ang = rng() * Math.PI * 2;
-    const speed = 0.4 + rng() * 0.9;
+    const speed = 0.35 + rng() * 1.05;
     const continental = i < continentalTarget;
-    const margin = continental ? 0.16 : 0.04;
+    const margin = continental ? 0.14 : 0.03;
     plates.push({
       id: i,
       continental,
@@ -36,13 +36,18 @@ export function assignPlates(cells, plateCount, rng, width, height) {
   }
   if (!plates.some((p) => !p.continental)) plates[plates.length - 1].continental = false;
 
+  const simplex = createSimplex(rng);
+  const warp = Math.min(width, height) * 0.1;
   for (const cell of cells) {
+    const wx = simplex.noise2D(cell.x / 160, cell.y / 160) * warp;
+    const wy = simplex.noise2D(cell.x / 160 + 40, cell.y / 160) * warp;
+    const px = cell.x + wx;
+    const py = cell.y + wy;
     let best = 0;
     let bestD = Infinity;
     for (const p of plates) {
-      const dx = cell.x - p.cx;
-      const dy = cell.y - p.cy;
-      // Slight wrap-free Euclidean; plates are seeds, not spherical.
+      const dx = px - p.cx;
+      const dy = py - p.cy;
       const d = dx * dx + dy * dy;
       if (d < bestD) {
         bestD = d;
@@ -52,6 +57,35 @@ export function assignPlates(cells, plateCount, rng, width, height) {
     cell.plateId = best;
   }
   return plates;
+}
+
+/**
+ * Graph distance to a cell whose neighbor belongs to another plate.
+ * @param {import("../types.js").Cell[]} cells
+ * @returns {Float64Array}
+ */
+function plateBoundaryDistance(cells) {
+  const dist = new Float64Array(cells.length);
+  dist.fill(1e9);
+  const q = [];
+  for (const c of cells) {
+    if (c.neighbors.some((id) => cells[id].plateId !== c.plateId)) {
+      dist[c.id] = 0;
+      q.push(c.id);
+    }
+  }
+  let h = 0;
+  while (h < q.length) {
+    const id = q[h++];
+    for (const nid of cells[id].neighbors) {
+      const nd = dist[id] + 1;
+      if (nd < dist[nid]) {
+        dist[nid] = nd;
+        q.push(nid);
+      }
+    }
+  }
+  return dist;
 }
 
 /**
@@ -66,6 +100,7 @@ export function assignElevation(cells, plates, rng, width, height, seaLevel) {
   const simplex = createSimplex(rng);
   const invW = 1 / width;
   const invH = 1 / height;
+  const boundDist = plateBoundaryDistance(cells);
 
   /** @type {number[]} */
   const strain = new Array(cells.length).fill(0);
@@ -84,28 +119,27 @@ export function assignElevation(cells, plates, rng, width, height, seaLevel) {
       const nx = dx / len;
       const ny = dy / len;
       const closing = -((q.vx - p.vx) * nx + (q.vy - p.vy) * ny);
-      if (closing > 0.12) {
+      if (closing > 0.1) {
         const bothLand = p.continental && q.continental;
         const subduct = p.continental !== q.continental;
-        if (bothLand) s += 1.15 * closing;
-        else if (subduct) s += p.continental ? 0.9 * closing : 0.15 * closing;
-        else s += 0.2 * closing;
-      } else if (closing < -0.12) {
-        s -= 0.35 * -closing;
+        if (bothLand) s += 1.35 * closing;
+        else if (subduct) s += p.continental ? 1.05 * closing : 0.22 * closing;
+        else s += 0.28 * closing;
+      } else if (closing < -0.1) {
+        s -= 0.42 * -closing;
       }
       n++;
     }
-    strain[cell.id] = n ? s / Math.max(1, n * 0.55) : 0;
+    strain[cell.id] = n ? s / Math.max(1, n * 0.5) : 0;
   }
 
-  // Spread strain a few cells so ranges have width (Turner-style chains, not hairlines).
   /** @type {number[]} */
   let field = strain.slice();
-  for (let pass = 0; pass < 3; pass++) {
+  for (let pass = 0; pass < 4; pass++) {
     const next = field.slice();
     for (const cell of cells) {
-      let acc = field[cell.id] * 1.4;
-      let w = 1.4;
+      let acc = field[cell.id] * 1.6;
+      let w = 1.6;
       for (const nid of cell.neighbors) {
         acc += field[nid];
         w += 1;
@@ -115,29 +149,41 @@ export function assignElevation(cells, plates, rng, width, height, seaLevel) {
     field = next;
   }
 
+  const tiltAng = rng() * Math.PI * 2;
+  const tx = Math.cos(tiltAng);
+  const ty = Math.sin(tiltAng);
+
   for (const cell of cells) {
     const p = plates[cell.plateId];
     const nx = cell.x * invW;
     const ny = cell.y * invH;
-    const detail = simplex.fbm(nx * 3.2, ny * 3.2, 5) * 0.08;
-    const wrinkle = simplex.fbm(nx * 8.5 + 20, ny * 8.5, 3) * 0.025;
-    const continental = p.continental ? 0.22 : -0.42;
-    const mountains = Math.max(0, field[cell.id]) * 0.85;
-    const rift = Math.min(0, field[cell.id]) * 0.45;
-    let h = continental + mountains + rift + detail + wrinkle;
+    const rolling = simplex.fbm(nx * 1.7, ny * 1.7, 5) * 0.11;
+    const detail = simplex.fbm(nx * 4.4, ny * 4.4, 5) * 0.055;
+    const wrinkle = simplex.fbm(nx * 11 + 20, ny * 11, 3) * 0.02;
+    const slope = (nx * tx + ny * ty - 0.5) * (p.continental ? 0.07 : 0.03);
+    const continental = p.continental ? 0.2 : -0.44;
+    const d = boundDist[cell.id];
+    const belt = Math.exp(-d / 2.6);
+    const mountains = Math.max(0, field[cell.id]) * (0.42 + 0.95 * belt);
+    const rift = Math.min(0, field[cell.id]) * (0.35 + 0.25 * belt);
+    let h = continental + mountains + rift + rolling + detail + wrinkle + slope;
 
     if (p.continental) {
       let oceanNb = 0;
       for (const nid of cell.neighbors) {
         if (!plates[cells[nid].plateId].continental) oceanNb++;
       }
-      if (oceanNb >= 3) h -= 0.045 * oceanNb;
+      if (oceanNb >= 3 && mountains < 0.2) h -= 0.035 * oceanNb;
+    } else if (mountains > 0.18 && rng() < 0.12 + mountains * 0.15) {
+      // Island arc on the oceanic side of a convergent margin.
+      h = Math.max(h, 0.12 + mountains * 0.35 + detail);
     }
 
-    if (cell.border) h = Math.min(h, -0.5);
+    if (cell.border) h = Math.min(h, -0.55);
     cell.height = h;
   }
-  setLandFraction(cells, 0.5, seaLevel);
+  setLandFraction(cells, 0.48, seaLevel);
+  roundLand(cells);
 }
 
 /**
@@ -155,10 +201,9 @@ export function setLandFraction(cells, targetLand, seaSlider) {
   const cutoff = heights[Math.max(0, Math.min(heights.length - 1, idx))] + seaSlider * 0.01;
   for (const cell of cells) {
     cell.height -= cutoff;
-    if (cell.border) cell.height = Math.min(cell.height, -0.25);
+    if (cell.border) cell.height = Math.min(cell.height, -0.28);
   }
 
-  // Tiny morphological clean-up so single-cell puddles do not become lakes later.
   for (let k = 0; k < 2; k++) {
     for (const cell of cells) {
       if (cell.border) continue;
@@ -168,8 +213,19 @@ export function setLandFraction(cells, targetLand, seaSlider) {
         if (cells[nid].height >= 0) land++;
         else sea++;
       }
-      if (cell.height >= 0 && sea >= 5) cell.height = -0.05;
-      if (cell.height < 0 && land >= 5) cell.height = 0.04;
+      if (cell.height >= 0 && sea >= 6 && land <= 1) cell.height = -0.04;
+      if (cell.height < 0 && land >= 6 && sea <= 1) cell.height = 0.03;
     }
+  }
+}
+
+/**
+ * Soften plains and keep peaks (O'Leary "round hills").
+ * @param {import("../types.js").Cell[]} cells
+ */
+function roundLand(cells) {
+  for (const c of cells) {
+    if (c.height <= 0) continue;
+    c.height = Math.pow(c.height, 0.82);
   }
 }
