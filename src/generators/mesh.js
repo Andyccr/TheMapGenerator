@@ -40,7 +40,7 @@ export function createMesh(opts) {
   const pad = 2;
   const cols = Math.ceil(width / w) + pad * 2 + 1;
   const rows = Math.ceil(height / h) + pad * 2 + 1;
-  const jitter = 0.22 * size;
+  const jitter = 0.3 * size;
 
   /** @type {import("../types.js").Cell[]} */
   const cells = [];

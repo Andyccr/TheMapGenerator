@@ -40,7 +40,7 @@ export class MapGenerator {
       height: world.meta.height,
       cellSize: world.meta.cellSize,
       rng,
-      lloydIterations: 2,
+      lloydIterations: 3,
     });
     world.cells = cells;
     world.plates = assignPlates(cells, world.meta.plateCount, rng, world.meta.width, world.meta.height);
