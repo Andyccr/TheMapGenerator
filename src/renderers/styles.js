@@ -2,6 +2,17 @@
  * Style presets. Renderer reads these; generators and editors never do.
  * Colors are chosen for atlas printing, not a generic UI palette.
  */
+import { macroBiome } from "./lod.js";
+
+/** Posterized atlas colors used only at overview zoom. */
+const ATLAS_MACRO = {
+  OCEAN: "#1a4860",
+  LAKE: "#3a7a92",
+  FOREST: "#3a6b44",
+  GRASS: "#9eaf58",
+  DESERT: "#dcc56e",
+  COLD: "#d4dce4",
+};
 
 /** @type {Record<string, string>} */
 export const ATLAS_BIOME = {
@@ -51,10 +62,12 @@ export const BIOME_LABELS = {
  * @param {import("../types.js").Cell} cell
  * @param {import("../types.js").WorldData} world
  * @param {string} style
+ * @param {"overview"|"regional"|"local"} [lod]
  */
-export function fillFor(cell, world, style) {
+export function fillFor(cell, world, style, lod = "local") {
+  if (lod === "overview") return fillOverview(cell, world, style);
   if (style === "physical") return physicalFill(cell);
-  if (style === "political") return politicalFill(cell, world);
+  if (style === "political") return politicalFill(cell, world, 0.28);
   if (style === "parchment") return parchmentFill(cell);
   if (style === "night") return nightFill(cell);
   if (cell.ocean) {
@@ -62,6 +75,48 @@ export function fillFor(cell, world, style) {
     return lerpColor("#123344", "#3d7a94", t);
   }
   return ATLAS_BIOME[cell.biome] || "#666";
+}
+
+/**
+ * Generalized tints: fewer classes, stronger continents. Cells keep their
+ * real biome in WorldData; this is paint-only.
+ * @param {import("../types.js").Cell} cell
+ * @param {import("../types.js").WorldData} world
+ * @param {string} style
+ */
+function fillOverview(cell, world, style) {
+  if (style === "physical") {
+    if (cell.ocean) return cell.height < -0.35 ? "#0e3348" : "#2f6d86";
+    if (cell.lake) return "#4a88a0";
+    if (cell.mountain) return "#a88862";
+    const h = Math.max(0, Math.min(1, (cell.height + 0.05) / 0.85));
+    if (h < 0.4) return "#7fa04a";
+    if (h < 0.72) return "#c4b05a";
+    return "#c4a07a";
+  }
+  if (style === "political") return politicalFill(cell, world, 0.1);
+  if (style === "parchment") {
+    if (cell.ocean) return "#c4b48a";
+    if (cell.lake) return "#b7a57a";
+    if (cell.mountain) return "#8a7352";
+    const m = macroBiome(cell.biome);
+    if (m === "FOREST") return "#b39b6a";
+    if (m === "DESERT") return "#e6d3a4";
+    return "#d8c49a";
+  }
+  if (style === "night") {
+    if (cell.ocean) return "#091018";
+    if (cell.lake) return "#16304a";
+    const m = macroBiome(cell.biome);
+    if (m === "FOREST") return "#142c20";
+    if (m === "DESERT") return "#332616";
+    if (m === "COLD") return "#243040";
+    return "#1a2620";
+  }
+  if (cell.ocean) return cell.height < -0.32 ? "#123044" : "#2c6a86";
+  if (cell.lake) return ATLAS_MACRO.LAKE;
+  if (cell.mountain) return mix(ATLAS_MACRO[macroBiome(cell.biome)] || "#888", "#8a7a68", 0.45);
+  return ATLAS_MACRO[macroBiome(cell.biome)] || ATLAS_BIOME[cell.biome] || "#666";
 }
 
 /** @param {import("../types.js").Cell} cell */
@@ -81,13 +136,14 @@ function physicalFill(cell) {
 /**
  * @param {import("../types.js").Cell} cell
  * @param {import("../types.js").WorldData} world
+ * @param {number} biomeMix
  */
-function politicalFill(cell, world) {
+function politicalFill(cell, world, biomeMix = 0.28) {
   if (cell.ocean) return "#1c3d52";
   if (cell.lake) return "#3a6e82";
   if (cell.regionId >= 0) {
     const col = world.regions[cell.regionId]?.color || "#888";
-    return mix(col, ATLAS_BIOME[cell.biome] || "#888", 0.28);
+    return mix(col, ATLAS_BIOME[cell.biome] || "#888", biomeMix);
   }
   return "#6a6258";
 }

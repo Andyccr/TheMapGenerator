@@ -61,3 +61,15 @@ Score land cells for river, coast, lake, moisture; penalize mountains, ice, scor
 | Rename | `settlement.name` | none |
 
 Editors never write `biome` or `rivers` by hand.
+
+## 6. Cartographic LOD (draw-only)
+
+Zoom does **not** resample the mesh. `WorldData.cells` stay put. The renderer switches bands from relative zoom (`scale / fitScale`):
+
+| Band | Zoom | Paint |
+| --- | --- | --- |
+| 全图 overview | fit | baked raster, merged biomes, thick coasts, major rivers, capitals |
+| 地区 regional | ~1.3–2.5× | sharper raster or vectors, full biomes, more rivers, mountain marks |
+| 近景 local | closer | live polygons, hillshade, tributaries, villages, optional cell grain |
+
+Coasts and realm borders are chained polylines cached beside the raster. Editing height invalidates the cache via a cheap height checksum; it never rewrites cell ids or biomes for decoration.
