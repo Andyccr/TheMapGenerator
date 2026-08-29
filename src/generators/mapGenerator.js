@@ -41,16 +41,26 @@ export class MapGenerator {
       height: world.meta.height,
       cellSize: world.meta.cellSize,
       rng,
-      lloydIterations: 2,
     });
     world.cells = cells;
     world.plates = assignPlates(cells, world.meta.plateCount, rng, world.meta.width, world.meta.height);
-    assignElevation(cells, world.plates, rng, world.meta.width, world.meta.height, world.meta.seaLevel);
+    assignElevation(
+      cells,
+      world.plates,
+      rng,
+      world.meta.width,
+      world.meta.height,
+      world.meta.seaLevel,
+      world.meta.cellSize,
+    );
 
     this.#hydrologyAndClimate(world);
 
     const names = createNameFactory(rng);
-    const { settlements, regions } = placeCivilizations(cells, rng, names);
+    const { settlements, regions } = placeCivilizations(cells, rng, names, {
+      width: world.meta.width,
+      height: world.meta.height,
+    });
     world.settlements = settlements;
     world.regions = regions;
     world.generatedAt = new Date().toISOString();
@@ -123,7 +133,7 @@ export class MapGenerator {
   #hydrologyAndClimate(world) {
     const { cells } = world;
     classifyOceanAndCoast(cells);
-    gradeCoastsAndShelf(cells);
+    gradeCoastsAndShelf(cells, world.meta.cellSize);
     fillDepressions(cells);
     erodeFluvial(cells);
     classifyOceanAndCoast(cells);
@@ -133,7 +143,7 @@ export class MapGenerator {
     accumulateFlux(cells);
     markMountains(cells);
     world.rivers = extractRivers(cells, 16);
-    assignClimate(cells, world.meta.height, world.meta.wind);
+    assignClimate(cells, world.meta.height, world.meta.wind, world.meta.width);
     assignBiomes(cells);
   }
 }

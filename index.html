@@ -32,17 +32,26 @@
       <aside class="panel panel-left" aria-label="生成与工具">
         <section>
           <h2>世界</h2>
-          <label>精细度
-            <select id="opt-detail">
-              <option value="16">粗略（约 3 千格）</option>
-              <option value="11" selected>中等（约 6 千格）</option>
-              <option value="8">精细（约 1.1 万格）</option>
-              <option value="6">极细（约 2 万格）</option>
+          <label>范围
+            <select id="opt-extent">
+              <option value="1920,1200">中幅 1920×1200</option>
+              <option value="2560,1600" selected>宽幅 2560×1600</option>
+              <option value="3840,2400">洲际 3840×2400</option>
+              <option value="5120,3200">超大陆 5120×3200</option>
             </select>
           </label>
+          <label>精细度
+            <select id="opt-detail">
+              <option value="10">粗略</option>
+              <option value="7" selected>中等</option>
+              <option value="5">精细</option>
+              <option value="4">极细</option>
+            </select>
+          </label>
+          <p class="hint">画幅越大、格子越密，海岸与河网越细。超过约 11 万格时会自动略微放粗格距。</p>
           <label>板块数
-            <input id="opt-plates" type="range" min="6" max="16" value="10" />
-            <span id="opt-plates-val">10</span>
+            <input id="opt-plates" type="range" min="8" max="20" value="12" />
+            <span id="opt-plates-val">12</span>
           </label>
           <label>海平面
             <input id="opt-sea" type="range" min="-20" max="20" value="0" />
@@ -114,7 +123,7 @@
       <main class="stage">
         <canvas id="map" tabindex="0" aria-label="交互式幻想地图"></canvas>
         <div id="hover-card" class="hover-card" hidden></div>
-        <div id="loading" class="loading" hidden>正在生成世界…</div>
+        <div id="loading" class="loading" hidden>正在生成世界…范围越大、格网越密，可能需要数秒。</div>
         <div class="zoom-hud" aria-label="缩放">
           <button type="button" id="btn-zoom-in" title="放大">+</button>
           <button type="button" id="btn-zoom-out" title="缩小">−</button>

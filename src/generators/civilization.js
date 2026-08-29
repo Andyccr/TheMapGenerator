@@ -8,8 +8,9 @@ import { MinHeap } from "../util/heap.js";
  * @param {import("../types.js").Cell[]} cells
  * @param {() => number} rng
  * @param {{ settlement: () => string, realm: () => string }} names
+ * @param {{ width?: number, height?: number }} [extent]
  */
-export function placeCivilizations(cells, rng, names) {
+export function placeCivilizations(cells, rng, names, extent = {}) {
   /** @type {import("../types.js").Settlement[]} */
   const settlements = [];
   /** @type {import("../types.js").Region[]} */
@@ -35,15 +36,20 @@ export function placeCivilizations(cells, rng, names) {
     .filter((x) => x.s > 0.8)
     .sort((a, b) => b.s - a.s);
 
-  const minDist = 48;
+  const span = Math.hypot(extent.width ?? 1600, extent.height ?? 1000);
+  const scale = Math.max(0.45, span / 1887);
+  const minDist = 48 * scale;
+  const maxTowns = Math.min(90, Math.max(12, Math.round(28 * scale * scale)));
+  const nCity = Math.max(3, Math.round(4 * scale));
+  const nTown = Math.max(10, Math.round(12 * scale));
   const taken = [];
   for (const cand of candidates) {
-    if (settlements.length >= 28) break;
+    if (settlements.length >= maxTowns) break;
     const cell = cells[cand.id];
     if (taken.some((t) => (t.x - cell.x) ** 2 + (t.y - cell.y) ** 2 < minDist * minDist)) continue;
     taken.push(cell);
     const n = settlements.length;
-    const type = n < 4 ? "city" : n < 12 ? "town" : "village";
+    const type = n < nCity ? "city" : n < nTown ? "town" : "village";
     settlements.push({
       id: n,
       cellId: cell.id,
@@ -53,13 +59,14 @@ export function placeCivilizations(cells, rng, names) {
     });
   }
 
-  const capitalCount = Math.max(3, Math.min(7, Math.round(settlements.length / 4)));
+  const capitalCount = Math.max(3, Math.min(14, Math.round(settlements.length / 4)));
+  const capSep = 140 * scale;
   const capitals = [];
   for (const s of settlements) {
     if (capitals.length >= capitalCount) break;
     if (s.type === "village") continue;
     const cell = cells[s.cellId];
-    if (capitals.some((c) => (cells[c.cellId].x - cell.x) ** 2 + (cells[c.cellId].y - cell.y) ** 2 < 140 * 140)) {
+    if (capitals.some((c) => (cells[c.cellId].x - cell.x) ** 2 + (cells[c.cellId].y - cell.y) ** 2 < capSep * capSep)) {
       continue;
     }
     s.type = "capital";
