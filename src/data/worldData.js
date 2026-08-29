@@ -6,21 +6,72 @@
 /** @typedef {import("../types.js").WorldData} WorldData */
 /** @typedef {import("../types.js").GenerateConfig} GenerateConfig */
 
+/** Keep generation and frame time in a comfortable band on typical laptops. */
+export const MAX_CELLS = 48000;
+
+/** Baseline hypot(1600, 1000) used by the original default atlas. */
+const BASE_SPAN = 1887;
+
+/**
+ * Estimate hex-lattice count (matches createMesh packing).
+ * @param {number} width
+ * @param {number} height
+ * @param {number} cellSize
+ */
+export function estimateCellCount(width, height, cellSize) {
+  const w = Math.sqrt(3) * cellSize;
+  const h = 1.5 * cellSize;
+  return Math.ceil(width / w + 6) * Math.ceil(height / h + 6);
+}
+
+/**
+ * If the chosen extent × detail would exceed MAX_CELLS, coarsen cellSize.
+ * @param {number} width
+ * @param {number} height
+ * @param {number} cellSize
+ */
+export function clampGrid(width, height, cellSize) {
+  let size = Math.max(3.5, cellSize);
+  while (estimateCellCount(width, height, size) > MAX_CELLS && size < 24) {
+    size += 0.5;
+  }
+  return size;
+}
+
+/**
+ * Convert a world-space length into graph hops for the current cell size.
+ * @param {number} worldUnits
+ * @param {number} cellSize
+ */
+export function hopsFromWorld(worldUnits, cellSize) {
+  return Math.max(1, Math.round(worldUnits / Math.max(3.5, cellSize)));
+}
+
+/**
+ * How much larger this map is than the original ~1600×1000 atlas.
+ * @param {number} width
+ * @param {number} height
+ */
+export function worldScale(width, height) {
+  return Math.max(0.45, Math.hypot(width, height) / BASE_SPAN);
+}
+
 /**
  * @param {GenerateConfig} config
  * @returns {WorldData}
  */
 export function createWorldShell(config) {
-  const width = config.width ?? 1600;
-  const height = config.height ?? 1000;
+  const width = config.width ?? 2560;
+  const height = config.height ?? 1600;
+  const cellSize = clampGrid(width, height, config.cellSize ?? 7);
   return {
     version: 1,
     meta: {
       seed: String(config.seed ?? "terra"),
       width,
       height,
-      cellSize: config.cellSize ?? 11,
-      plateCount: config.plateCount ?? 10,
+      cellSize,
+      plateCount: config.plateCount ?? 12,
       seaLevel: config.seaLevel ?? 0,
       wind: config.wind ?? { x: 1, y: 0 },
       style: "atlas",

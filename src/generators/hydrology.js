@@ -167,7 +167,7 @@ export function extractRivers(cells, threshold = 14) {
     const path = [];
     let id = src.id;
     let guard = 0;
-    while (id >= 0 && guard++ < 4000) {
+    while (id >= 0 && guard++ < 8000) {
       const cell = cells[id];
       path.push(id);
       if (cell.ocean || cell.lake) break;
@@ -187,9 +187,9 @@ export function extractRivers(cells, threshold = 14) {
     }
     const points = chaikin(
       path.map((cid) => [cells[cid].x, cells[cid].y]),
-      2,
+      cells.length > 18000 ? 1 : 2,
     );
-    const width = Math.min(5.2, 0.45 + Math.log(1 + src.flux) * 0.42);
+    const width = Math.min(6.4, 0.38 + Math.log(1 + src.flux) * 0.36);
     rivers.push({ id: rid, cellIds: path, points, width });
   }
   return rivers;

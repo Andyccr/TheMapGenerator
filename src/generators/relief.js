@@ -3,6 +3,7 @@
  * and a light fluvial erosion pass so valleys follow rivers.
  */
 import { assignDownslope, accumulateFlux } from "./hydrology.js";
+import { hopsFromWorld } from "../data/worldData.js";
 
 /**
  * Graph distance from a set of seed cell ids.
@@ -33,9 +34,11 @@ function graphDistance(cells, seeds) {
 
 /**
  * Lower land near the sea into plains; drop a shelf then deepen the abyssal ocean.
+ * Distances are in world units so finer grids keep the same physical shelf width.
  * @param {import("../types.js").Cell[]} cells
+ * @param {number} [cellSize]
  */
-export function gradeCoastsAndShelf(cells) {
+export function gradeCoastsAndShelf(cells, cellSize = 10) {
   const oceanIds = [];
   const landIds = [];
   for (const c of cells) {
@@ -45,20 +48,25 @@ export function gradeCoastsAndShelf(cells) {
   if (!oceanIds.length || !landIds.length) return;
   const fromOcean = graphDistance(cells, oceanIds);
   const fromLand = graphDistance(cells, landIds);
+  const surf = hopsFromWorld(12, cellSize);
+  const shelf = hopsFromWorld(36, cellSize);
+  const abyss = hopsFromWorld(130, cellSize);
+  const hinter = hopsFromWorld(24, cellSize);
+  const inland = hopsFromWorld(80, cellSize);
 
   for (const c of cells) {
     if (c.ocean) {
       const d = fromLand[c.id];
-      if (d <= 1) c.height = Math.max(c.height, -0.07);
-      else if (d <= 3) c.height = Math.min(c.height, -0.12 - d * 0.03);
-      else c.height = Math.min(c.height, -0.22 - Math.min(12, d) * 0.04);
+      if (d <= surf) c.height = Math.max(c.height, -0.07);
+      else if (d <= shelf) c.height = Math.min(c.height, -0.12 - d * 0.03);
+      else c.height = Math.min(c.height, -0.22 - Math.min(abyss, d) * 0.04);
       continue;
     }
     if (c.lake || c.mountain) continue;
     const d = fromOcean[c.id];
-    if (d <= 1 && c.height < 0.38) c.height *= 0.42;
-    else if (d <= 2 && c.height < 0.42) c.height = c.height * 0.62 + 0.015;
-    else if (d >= 7) c.height += Math.min(0.08, (d - 6) * 0.008);
+    if (d <= surf && c.height < 0.38) c.height *= 0.42;
+    else if (d <= hinter && c.height < 0.42) c.height = c.height * 0.62 + 0.015;
+    else if (d >= inland) c.height += Math.min(0.08, (d - inland + 1) * 0.008);
   }
 }
 

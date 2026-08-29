@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { MapGenerator } from "../mapGenerator.js";
+import { MAX_CELLS, clampGrid, createWorldShell, estimateCellCount } from "../../data/worldData.js";
 
 function world(seed) {
   const gen = new MapGenerator();
@@ -73,4 +74,18 @@ test("editing height then recomputing keeps drainage valid", () => {
     if (c.ocean || c.downslope < 0) continue;
     assert.ok(w.cells[c.downslope].filledHeight <= c.filledHeight + 1e-6);
   }
+});
+
+test("default shell is a wide atlas and stays under the cell cap", () => {
+  const shell = createWorldShell({ seed: "defaults" });
+  assert.equal(shell.meta.width, 2560);
+  assert.equal(shell.meta.height, 1600);
+  assert.ok(shell.meta.cellSize <= 7);
+  assert.ok(estimateCellCount(shell.meta.width, shell.meta.height, shell.meta.cellSize) <= MAX_CELLS);
+});
+
+test("clampGrid coarsens maps that would exceed the cell cap", () => {
+  const size = clampGrid(5120, 3200, 4);
+  assert.ok(size > 4);
+  assert.ok(estimateCellCount(5120, 3200, size) <= MAX_CELLS);
 });

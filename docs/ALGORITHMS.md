@@ -8,7 +8,7 @@ Geographic plausibility is the product of **process**, not of prettier noise. Th
 
 ## 1. Polygon mesh
 
-Sites are a **jittered pointy-top hex lattice**, then two Lloyd iterations. Dual vertices are circumcenters of each site and two adjacent neighbors — Patel’s dual-mesh idea without a full Delaunay library.
+Sites are a **jittered pointy-top hex lattice**, then Lloyd iterations (two on small maps, one when the grid is dense). Dual vertices are circumcenters of each site and two adjacent neighbors — Patel’s dual-mesh idea without a full Delaunay library.
 
 ```js
 const cc = circumcenter(cell, neighborA, neighborB);
@@ -26,7 +26,9 @@ Plates are Voronoi seeds with a velocity and a continental/oceanic flag. Strain 
 - mixed, closing → coastal range on the continental side (subduction cartoon)
 - opening → rift, lower elevation
 
-Simplex **fbm is only ±0.09 of relief**. Continents come from plates, not from a noise threshold, so you do not get Swiss-cheese landmasses.
+Simplex **fbm is only ±0.09 of relief**, plus a cell-scale wrinkle so finer grids show more micro-relief. Continents come from plates, not from a noise threshold, so you do not get Swiss-cheese landmasses.
+
+Mountain-belt decay, coastal plains, and continental shelves are measured in **world units**, then converted to graph hops with the current `cellSize`. A 2560×1600 map at cell size 7 keeps the same physical shelf width as a small test map.
 
 ## 3. Ocean, lakes, rivers
 
@@ -41,13 +43,13 @@ Because routing uses `filledHeight`, **a river cannot climb a ridge**. Editing t
 ## 4. Climate and biomes
 
 - Temperature = latitude (north is cold) minus elevation lapse.
-- Precipitation starts high, then an upwind walk adds **rain shadow** when it hits higher / mountain cells (Turner).
+- Precipitation starts high, then an upwind walk (length scales with map span) adds **rain shadow** when it hits higher / mountain cells (Turner).
 - Moisture also bleeds from rivers and lakes (Patel).
 - Biome = Whittaker lookup on `(temperature, moisture)`, with ocean / lake / beach / ice specials.
 
 ## 5. Civilizations
 
-Score land cells for river, coast, lake, moisture; penalize mountains, ice, scorched desert. Poisson-ish spacing. Capitals seed cost-distance realms where mountains cost extra, so borders hug ridges instead of ignoring them.
+Score land cells for river, coast, lake, moisture; penalize mountains, ice, scorched desert. Poisson-ish spacing and town counts scale with map hypot so a continent is not stuck with a dozen towns. Capitals seed cost-distance realms where mountains cost extra, so borders hug ridges instead of ignoring them.
 
 ## Editing as controlled mutation
 

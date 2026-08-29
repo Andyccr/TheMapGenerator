@@ -7,6 +7,7 @@
  * "clumpy random points" artifacts Martin O'Leary warns against.
  */
 import { circumcenter, clipPolygon, polygonCentroid, organicPolygon } from "../util/geometry.js";
+import { estimateCellCount } from "../data/worldData.js";
 
 /** odd-r offset neighbors (pointy-top), even then odd rows */
 const ODD_R = [
@@ -33,8 +34,9 @@ const ODD_R = [
  */
 export function createMesh(opts) {
   const { width, height, cellSize, rng } = opts;
-  const lloydIterations = opts.lloydIterations ?? 2;
   const size = cellSize;
+  const nEst = estimateCellCount(width, height, size);
+  const lloydIterations = opts.lloydIterations ?? (nEst > 14000 ? 1 : 2);
   const w = Math.sqrt(3) * size;
   const h = 1.5 * size;
   const pad = 2;
@@ -128,9 +130,10 @@ export function createMesh(opts) {
   }
 
   const amp = 0.16 * size;
+  const subdivide = cells.length < 12000;
   for (const cell of cells) {
     if (cell.polygon.length >= 3) {
-      cell.polygon = clipPolygon(organicPolygon(cell.polygon, amp), 0, 0, width, height);
+      cell.polygon = clipPolygon(organicPolygon(cell.polygon, amp, subdivide), 0, 0, width, height);
     }
   }
 
