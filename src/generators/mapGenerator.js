@@ -11,6 +11,7 @@ import { createWorldShell } from "../data/worldData.js";
 import { makeRng } from "./rng.js";
 import { createMesh } from "./mesh.js";
 import { assignPlates, assignElevation } from "./tectonics.js";
+import { gradeCoastsAndShelf, erodeFluvial } from "./relief.js";
 import {
   classifyOceanAndCoast,
   fillDepressions,
@@ -40,7 +41,7 @@ export class MapGenerator {
       height: world.meta.height,
       cellSize: world.meta.cellSize,
       rng,
-      lloydIterations: 3,
+      lloydIterations: 2,
     });
     world.cells = cells;
     world.plates = assignPlates(cells, world.meta.plateCount, rng, world.meta.width, world.meta.height);
@@ -122,12 +123,16 @@ export class MapGenerator {
   #hydrologyAndClimate(world) {
     const { cells } = world;
     classifyOceanAndCoast(cells);
+    gradeCoastsAndShelf(cells);
+    fillDepressions(cells);
+    erodeFluvial(cells);
+    classifyOceanAndCoast(cells);
     fillDepressions(cells);
     markLakesFromFill(cells);
     assignDownslope(cells);
     accumulateFlux(cells);
     markMountains(cells);
-    world.rivers = extractRivers(cells, 12);
+    world.rivers = extractRivers(cells, 16);
     assignClimate(cells, world.meta.height, world.meta.wind);
     assignBiomes(cells);
   }

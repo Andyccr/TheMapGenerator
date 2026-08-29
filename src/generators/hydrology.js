@@ -6,6 +6,7 @@
  * 4. Remaining filled basins become lakes.
  */
 import { MinHeap } from "../util/heap.js";
+import { chaikin } from "../util/geometry.js";
 
 /**
  * @param {import("../types.js").Cell[]} cells
@@ -148,8 +149,8 @@ export function extractRivers(cells, threshold = 14) {
   const used = new Uint8Array(cells.length);
 
   const landFlux = cells.filter((c) => !c.ocean && !c.lake).map((c) => c.flux).sort((a, b) => a - b);
-  const percentile = landFlux.length ? landFlux[Math.min(landFlux.length - 1, Math.floor(landFlux.length * 0.9))] : threshold;
-  const cut = Math.max(3.2, Math.min(threshold, percentile));
+  const percentile = landFlux.length ? landFlux[Math.min(landFlux.length - 1, Math.floor(landFlux.length * 0.93))] : threshold;
+  const cut = Math.max(8, percentile);
 
   const sources = cells
     .filter((c) => !c.ocean && !c.lake && c.flux >= cut && c.downslope >= 0)
@@ -157,9 +158,8 @@ export function extractRivers(cells, threshold = 14) {
 
   for (const src of sources) {
     if (used[src.id]) continue;
-    // A source should not already be downstream of a bigger river cell.
     const ups = src.neighbors.some(
-      (nid) => cells[nid].downslope === src.id && cells[nid].flux >= threshold && cells[nid].flux > src.flux,
+      (nid) => cells[nid].downslope === src.id && cells[nid].flux >= cut && cells[nid].flux > src.flux,
     );
     if (ups) continue;
 
@@ -177,7 +177,7 @@ export function extractRivers(cells, threshold = 14) {
       if (next.filledHeight > cell.filledHeight + 1e-6) break;
       id = cell.downslope;
     }
-    if (path.length < 2) continue;
+    if (path.length < 4) continue;
 
     const rid = rivers.length;
     for (const cid of path) {
@@ -185,8 +185,11 @@ export function extractRivers(cells, threshold = 14) {
       used[cid] = 1;
       if (cells[cid].riverId < 0) cells[cid].riverId = rid;
     }
-    const points = path.map((cid) => [cells[cid].x, cells[cid].y]);
-    const width = Math.min(4.2, 0.55 + Math.log(1 + src.flux) * 0.35);
+    const points = chaikin(
+      path.map((cid) => [cells[cid].x, cells[cid].y]),
+      2,
+    );
+    const width = Math.min(5.2, 0.45 + Math.log(1 + src.flux) * 0.42);
     rivers.push({ id: rid, cellIds: path, points, width });
   }
   return rivers;
@@ -197,9 +200,18 @@ export function extractRivers(cells, threshold = 14) {
  * @param {import("../types.js").Cell[]} cells
  */
 export function markMountains(cells) {
-  const land = cells.filter((c) => !c.ocean && !c.lake).map((c) => c.height).sort((a, b) => a - b);
-  const cutoff = land.length ? land[Math.floor(land.length * 0.82)] : 0.45;
+  const land = cells.filter((c) => !c.ocean && !c.lake);
+  if (!land.length) return;
+  const heights = land.map((c) => c.height).sort((a, b) => a - b);
+  const high = heights[Math.floor(heights.length * 0.78)];
   for (const c of cells) {
-    c.mountain = !c.ocean && !c.lake && c.height >= Math.max(0.42, cutoff);
+    if (c.ocean || c.lake) {
+      c.mountain = false;
+      continue;
+    }
+    let prominence = 0;
+    for (const nid of c.neighbors) prominence += c.height - cells[nid].height;
+    prominence /= Math.max(1, c.neighbors.length);
+    c.mountain = c.height >= Math.max(0.36, high) && prominence > 0.012;
   }
 }
