@@ -64,14 +64,14 @@ export function summarizeWorld(world) {
  */
 export function parseWorld(raw) {
   if (!raw || typeof raw !== "object") {
-    throw new Error("Save file is not a JSON object.");
+    throw new Error("存档不是 JSON 对象。");
   }
   const w = /** @type {WorldData} */ (raw);
   if (w.version !== 1) {
-    throw new Error(`Unsupported world version: ${String(w.version)}`);
+    throw new Error(`不支持的世界版本：${String(w.version)}`);
   }
   if (!Array.isArray(w.cells) || !w.meta) {
-    throw new Error("Save file is missing cells or meta.");
+    throw new Error("存档缺少 cells 或 meta。");
   }
   return w;
 }

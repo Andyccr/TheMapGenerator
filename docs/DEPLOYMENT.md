@@ -1,47 +1,37 @@
-# Deploy to GitHub Pages
+# 部署到 GitHub Pages
 
-The app is a Vite static build. There is no backend to configure.
+本项目是**纯静态网站**：仓库里的 `index.html` 和 `src/` 就是可运行的应用，不需要 `npm run build`。
 
-## Local
+## 推荐：从分支根目录发布（零构建）
 
-```bash
-npm install
-npm test
-npm run dev      # http://localhost:5173
-npm run build    # writes dist/
-npm run preview  # serve dist locally
-```
+1. 把改动合并进 `main`。
+2. 仓库 **Settings → Pages → Source** 选 **Deploy from a branch**。
+3. Branch = `main`，Folder = `/ (root)`，Save。
+4. 打开 `https://<用户名>.github.io/<仓库名>/`。
 
-`vite.config.js` sets `base: './'` so asset URLs work on project pages *and* on `username.github.io` user pages.
+本仓库对应地址：https://andyccr.github.io/TheMapGenerator/
 
-## GitHub Pages via Actions (recommended)
+仓库需为 Public。根目录的 `.nojekyll` 会关掉 Jekyll，避免脚本路径被吃掉。
 
-1. In the repository: **Settings → Pages → Build and deployment → Source = GitHub Actions**.
-2. Push to `main`. The workflow in `.github/workflows/pages.yml` runs tests, builds, and publishes `dist/`.
-3. The site URL is `https://<user>.github.io/<repo>/`.
+## 备选：GitHub Actions
 
-## GitHub Pages via `/docs` (manual)
+**Settings → Pages → Source = GitHub Actions**。推送 `main` 后，`.github/workflows/pages.yml` 会先跑 `npm test`，再把 `index.html` + `src/` 发布出去（同样不打包）。
+
+## 本地
 
 ```bash
-npm run build
-rm -rf docs-site && cp -r dist docs-site
+python3 -m http.server 8080
+# 浏览器打开 http://localhost:8080/
 ```
 
-Then either:
+可选开发服务器：`npm install && npm run dev`。
 
-- copy `dist/` contents to a `gh-pages` branch, or
-- set Pages to deploy from `/docs` after copying `dist/*` into `docs/` (do not mix with the design docs in `/docs` — prefer Actions).
+**不要**用 `file://` 双击打开 `index.html`，浏览器会拦截 ES 模块。
 
-## Project-site base path
+## 路径说明
 
-If you ever switch `base` away from `./`, set it to the repo name:
-
-```js
-export default defineConfig({ base: "/TheMapGenerator/" });
-```
-
-Relative `./` is the safer default.
+页面使用相对路径 `./src/main.js`、`./src/styles.css`。GitHub 项目站（`username.github.io/TheMapGenerator/`）下绝对路径 `/src/main.js` 会 404，这是之前无法直接打开的原因。
 
 ## AGPL
 
-This project is licensed under the GNU Affero General Public License v3. Serving the built app on Pages is “remote network interaction”: keep the repository public (or otherwise offer Corresponding Source) as AGPL §13 requires.
+本程序以 GNU Affero GPL v3 发布。在 Pages 上公开提供即构成远程网络交互，请保持源码可获取（仓库公开即可）。

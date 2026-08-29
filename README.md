@@ -1,16 +1,45 @@
-# Fantasy World Map Generator
+# 幻想世界地图生成器 / Fantasy World Map Generator
 
-A **static**, client-side atlas workshop for writers, game masters, and cartographers. Generate a geographically plausible world from a seed, paint the terrain, rename the towns, and export a JSON save or a high-resolution PNG. There is no backend. The build is a handful of files you can host on GitHub Pages.
+纯静态、纯前端的幻想地图工坊：用一个种子生成地理上说得通的大陆、山脉、河流、气候、生物群系、国度与城镇，然后在浏览器里涂改、改名、导出。没有后端，也没有外部 API。
 
-Licensed under the [GNU Affero General Public License v3](LICENSE).
+**GitHub Pages 打开即可使用，不必安装 Node、也不必执行 `npm run build`。**
 
-## Rendering choice: Canvas 2D
+许可证：[GNU Affero General Public License v3](LICENSE)
 
-Use **Canvas 2D** as the map view, not SVG.
+---
 
-Thousands of biome polygons plus live sculpting plus pan/zoom is a pixel problem. Canvas applies one transform and fills paths. SVG would create thousands of DOM nodes and stutter when a brush invalidates layout. Hit-testing is a spatial hash plus point-in-polygon. PNG export is `canvas.toBlob`. SVG remains a good *future* overlay for selectable labels; it is the wrong primary renderer for this density. Full rationale: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+## 中文说明
 
-## Quick start
+### 在线直接使用（GitHub Pages）
+
+合并到 `main` 之后，按下面做一次仓库设置，以后每次推送都会自动更新网站。
+
+1. 打开仓库 **Settings → Pages**。
+2. **Build and deployment → Source** 选一种即可（推荐第一种，零构建）：
+   - **Deploy from a branch**：Branch 选 `main`，Folder 选 `/ (root)`，保存。
+   - 或 **GitHub Actions**：使用本仓库的 `.github/workflows/pages.yml`（同样发布 `index.html` + `src/`，不打包）。
+3. 等一两分钟，打开：
+
+**https://andyccr.github.io/TheMapGenerator/**
+
+仓库必须是 **Public**（免费 Pages 的要求）。请用浏览器访问上述网址，**不要**在资源管理器里双击 `index.html`：`file://` 协议下 ES 模块会被浏览器拦截。
+
+若网页空白，打开开发者工具 Network，确认 `./src/main.js` 和 `./src/styles.css` 返回 200 而不是 404。项目站路径必须是相对路径（`./src/...`），不能写成网站根上的 `/src/...`。
+
+### 本地预览（可选）
+
+任意静态服务器都可以，因为页面就是普通 HTML + ES Module：
+
+```bash
+# 任选一种
+python3 -m http.server 8080
+# 或
+npx --yes serve -p 8080
+```
+
+浏览器打开 http://localhost:8080/ 。
+
+开发时若想热更新，仍可使用 Vite：
 
 ```bash
 npm install
@@ -18,92 +47,58 @@ npm test
 npm run dev
 ```
 
-Open the printed URL, click **Generate world**, scroll to zoom, drag to pan. **Raise** / **Lower** is the MVP editor: paint land, release, and rivers re-route downhill.
+### 怎么用地图
 
-## Project layout
+1. 点 **生成世界** 或 **随机种子**（首次进入会自动生成）。
+2. 拖动平移，滚轮缩放。
+3. **抬升 / 降低** 是主要编辑工具：在陆地上涂抹，松手后河流会按重力重算。
+4. **河流** 从高地拖向大海；**移动** 把城镇拖到陆地上；**命名** 点击城镇改名。
+5. **导出 JSON** 保存完整世界；**导出 PNG** 出图；浏览器会自动写入 LocalStorage。
+
+### 地理规则（为什么看起来像真的地图）
+
+- 大陆来自**板块**，不是噪声色块。山脉出现在板块挤压带，连成山链。
+- 河流只从高处流向海洋或湖泊，**不会翻山**。
+- 气候看纬度和海拔：北方冷，山上更冷；湿气在迎风坡增加，在背风面形成雨影沙漠。
+- 城镇优先靠近河流与海岸。
+
+算法参考 Martin O’Leary、Amit Patel、Scott Turner。详见 [docs/ALGORITHMS.md](docs/ALGORITHMS.md)。
+
+### 渲染为什么用 Canvas 2D
+
+中等地图有数千个多边形，还要边画边改、平移缩放。Canvas 一次变换再填色即可；SVG 会制造数千个 DOM 节点，刷子一动就卡。点选用空间哈希。PNG 导出用 `canvas.toBlob`。说明见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+
+### 四层目录
 
 ```
-index.html
-package.json
-vite.config.js          # base: './' for GitHub Pages
+index.html              # GitHub Pages 入口（相对路径，无需打包）
 src/
-  main.js               # entry
+  main.js
   styles.css
-  types.js              # JSDoc contracts (WorldData, MapGenerator, EditorTool, Renderer)
-  data/worldData.js     # JSON factory / clone / parse  — no logic
-  generators/           # seed → WorldData
-    mapGenerator.js     # pipeline orchestrator
-    mesh.js             # jittered hex dual mesh
-    noise.js            # simplex fbm (detail only)
-    tectonics.js        # plates, strain, elevation
-    hydrology.js        # ocean flood, depression fill, rivers
-    climate.js          # latitude, rain shadow, Whittaker biomes
-    civilization.js     # towns and realms
-    names.js            # seed-local phonology
-  editors/tools.js      # controlled mutations
-  renderers/
-    canvasRenderer.js   # read-only view + pan/zoom
-    styles.js           # atlas / physical / political / parchment / night
-  persistence/storage.js
-  ui/app.js             # controller
-docs/
-  ARCHITECTURE.md
-  ALGORITHMS.md
-  MVP.md
-  DEPLOYMENT.md
+  data/worldData.js     # 纯 JSON 数据，不含逻辑
+  generators/           # 种子 → 世界
+  editors/              # 受控修改
+  renderers/            # Canvas 只读绘制
+  ui/app.js             # 控制器
 ```
 
-## Core interfaces
+### 部署细节
 
-```js
-/** Pure JSON. This object is the save file. */
-WorldData {
-  version: 1,
-  meta, cells, plates, rivers, settlements, regions, view, generatedAt
-}
+见 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)。根目录已放 `.nojekyll`，避免 GitHub 用 Jekyll 处理站点。
 
-class MapGenerator {
-  generate(config) -> WorldData
-  recomputeFromElevation(world) -> WorldData
-}
+---
 
-EditorTool { id, hint, apply(world, pointer, ctx) }
+## English
 
-class Renderer {
-  draw(world, options)
-  screenToWorld / hitTest / pan / zoomAt / renderExport
-}
+A **static**, client-side atlas workshop. GitHub Pages serves `index.html` and `src/` **directly** — no Vite build is required to run the app.
+
+Live site (after Pages is enabled on `main`): https://andyccr.github.io/TheMapGenerator/
+
+```bash
+python3 -m http.server 8080   # open http://localhost:8080/
+npm test && npm run dev       # optional hot reload
 ```
 
-Typedefs live in `src/types.js` so a later TypeScript pass is mechanical.
+Do not open `index.html` via `file://`. Enable Pages: **Settings → Pages → Deploy from a branch → `main` / `/ (root)`**, or use the included GitHub Actions workflow.
 
-## How a world is born
-
-1. **Mesh** — jittered hex lattice, Lloyd relax, dual circumcenters (Patel).
-2. **Plates** — moving continental/oceanic plates; mountains on convergent margins (Turner).
-3. **Noise** — low-amplitude simplex wrinkle, never the landmass itself (O’Leary’s critique of fractal islands).
-4. **Water** — border flood ⇒ ocean; leftover basins ⇒ lakes; priority-flood ⇒ every cell drains; flux ⇒ rivers that **cannot climb**.
-5. **Climate** — north is cold; windward slopes wet; leeward ridges dry; Whittaker biomes.
-6. **People** — towns near rivers and coasts; realms grow around capitals with mountain-expensive borders.
-
-Details and code sketches: [docs/ALGORITHMS.md](docs/ALGORITHMS.md). Stepwise MVP: [docs/MVP.md](docs/MVP.md).
-
-## Editing
-
-| Tool | What it is allowed to change |
-| --- | --- |
-| Pan | Camera only |
-| Raise / Lower | `cell.height`, then full hydrology recompute |
-| River | Monotonic channel heights, then recompute |
-| Move | `settlement.cellId` onto land |
-| Rename | `settlement.name` |
-
-## Deploy
-
-See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Short version: enable GitHub Pages from **Actions**, push `main`, use the workflow in `.github/workflows/pages.yml`.
-
-## Inspirations
-
-- Martin O’Leary, *Generating fantasy maps* — https://mewo2.com/notes/terrain/
-- Amit Patel, *Polygonal Map Generation for Games* — https://www.redblobgames.com/maps/mapgen2/
-- Scott Turner, *Here Dragons Abound* — tectonic and wind-pattern essays on plausible cartography
+Architecture, algorithms, and MVP notes: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/ALGORITHMS.md](docs/ALGORITHMS.md), [docs/MVP.md](docs/MVP.md).
