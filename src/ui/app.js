@@ -11,7 +11,7 @@ import { saveLocal, loadLocal, downloadJson, downloadPng, readJsonFile } from ".
 import { BIOME_LABELS } from "../renderers/styles.js";
 
 const HINTS = {
-  pan: "滚轮平滑缩放，双击放大，Shift+双击缩小。拖动平移。",
+  pan: "滚轮缩放：全图合并色块与干流，近景晕渲、细河与村落。格子数据不变。双击放大，拖动平移。",
   raise: "涂抹以抬升陆地、堆出山脊。水文会在绘制过程中更新。",
   lower: "涂抹以沉陷谷地或开辟海洋。水文会在绘制过程中更新。",
   river: "从高地拖向大海。河道会被强制改为顺流而下。",
@@ -414,6 +414,7 @@ export class App {
       box.innerHTML = `
         <dt>种子</dt><dd>${escapeHtml(this.world.meta.seed)}</dd>
         <dt>画幅</dt><dd>${this.world.meta.width}×${this.world.meta.height} · 格距 ${this.world.meta.cellSize}</dd>
+        <dt>绘制</dt><dd>${escapeHtml(this.renderer.lodLabel(this.world))}（格子不变）</dd>
         <dt>格子</dt><dd>${sum.cells} · 陆地 ${sum.land} · 海洋 ${sum.ocean}</dd>
         <dt>河流</dt><dd>${sum.rivers}</dd>
         <dt>聚落</dt><dd>${sum.settlements}</dd>
@@ -491,7 +492,7 @@ export class App {
   #syncZoomReadout() {
     const el = this.#el("zoom-readout");
     if (!el || !this.world) return;
-    el.textContent = `${this.renderer.zoomPercent(this.world)}%`;
+    el.textContent = `${this.renderer.zoomPercent(this.world)}% · ${this.renderer.lodLabel(this.world)}`;
   }
 
   #setLoading(on) {

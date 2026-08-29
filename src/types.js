@@ -173,6 +173,7 @@
  * @property {boolean} [grid]
  * @property {number} [highlightCell]
  * @property {number[]} [draftPath]
+ * @property {"overview"|"regional"|"local"} [lod]
  */
 
 export {};

@@ -5,9 +5,11 @@
  * would thrash the DOM. The renderer never mutates WorldData (view pan/zoom is
  * written by the App controller onto world.view, which is session camera state).
  */
-import { pointInPolygon } from "../util/geometry.js";
+import { pointInPolygon, simplifyPolyline } from "../util/geometry.js";
 import { buildSpatialIndex } from "../generators/mesh.js";
 import { fillFor, inkFor, BIOME_LABELS, ATLAS_BIOME } from "./styles.js";
+import { lodConfig, lodFromZoom, LOD_LABELS } from "./lod.js";
+import { buildContours } from "./contours.js";
 
 export class CanvasRenderer {
   /** @param {HTMLCanvasElement} canvas */
@@ -19,6 +21,13 @@ export class CanvasRenderer {
     this._indexSeed = "";
     this.dpr = 1;
     this._fitScale = 1;
+    /** @type {Map<string, { canvas: HTMLCanvasElement, scale: number }>} */
+    this._rasters = new Map();
+    this._rasterWorld = "";
+    /** @type {{ coasts: number[][][], shores: number[][][], borders: number[][][] } | null} */
+    this._contours = null;
+    this._contourKey = "";
+    this._lod = "overview";
   }
 
   /** Convert CSS pixels into world units at the current zoom. @param {number} n */
@@ -83,15 +92,29 @@ export class CanvasRenderer {
     const { x, y, scale } = world.view;
     ctx.setTransform(scale * this.dpr, 0, 0, scale * this.dpr, x * this.dpr, y * this.dpr);
     const bounds = this.#viewBounds(world);
+    const relZoom = scale / (this._fitScale || scale || 1);
+    const visibleEst = this.#visibleEstimate(world, bounds);
+    const lod = lodConfig(relZoom, world.cells.length, visibleEst);
+    if (options.lod === "local") {
+      Object.assign(lod, lodConfig(3.4, world.cells.length, 4000));
+      lod.useRaster = false;
+      lod.cellEdges = false;
+      lod.hillshade = true;
+    } else if (options.lod === "overview" || options.lod === "regional") {
+      const forced = lodConfig(options.lod === "overview" ? 1 : 1.8, world.cells.length, visibleEst);
+      Object.assign(lod, forced);
+    }
+    this._lod = lod.level;
 
-    this.#drawCells(world, style, bounds);
+    this.#ensureContours(world);
+    this.#drawTerrain(world, style, bounds, lod);
     if (options.grid) this.#drawGrid(world, ink);
-    this.#drawCoast(world, ink, style, bounds);
-    this.#drawRivers(world, ink, style, bounds);
-    if (options.borders !== false) this.#drawBorders(world, ink, bounds);
-    this.#drawMountains(world, style, bounds, scale);
+    this.#drawCoast(world, ink, style, bounds, lod);
+    this.#drawRivers(world, ink, style, bounds, lod);
+    if (options.borders !== false) this.#drawBorders(world, ink, bounds, lod);
+    this.#drawMountains(world, style, bounds, scale, lod);
     if (options.draftPath?.length) this.#drawDraft(world, options.draftPath);
-    if (options.labels !== false) this.#drawSettlements(world, ink, style, bounds, scale);
+    if (options.labels !== false) this.#drawSettlements(world, ink, style, bounds, scale, lod);
     if (options.highlightCell >= 0) this.#drawHighlight(world, options.highlightCell);
 
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
@@ -114,7 +137,7 @@ export class CanvasRenderer {
     world.view.x = 0;
     world.view.y = 0;
     world.view.scale = exportScale;
-    tmp.draw(world, { labels: true, borders: true, grid: false });
+    tmp.draw(world, { labels: true, borders: true, grid: false, lod: "local" });
     world.view.x = saved.x;
     world.view.y = saved.y;
     world.view.scale = saved.scale;
@@ -232,6 +255,16 @@ export class CanvasRenderer {
     return Math.round((world.view.scale / fit) * 100);
   }
 
+  /**
+   * Cartographic band for the HUD. Does not change WorldData.
+   * @param {import("../types.js").WorldData} world
+   */
+  lodLabel(world) {
+    const fit = this._fitScale || world.view.scale || 1;
+    const level = lodFromZoom((world.view.scale || 1) / fit);
+    return LOD_LABELS[level] || LOD_LABELS.overview;
+  }
+
   legendItems() {
     return Object.entries(BIOME_LABELS).map(([k, label]) => ({ key: k, label, color: ATLAS_BIOME[k] }));
   }
@@ -248,14 +281,105 @@ export class CanvasRenderer {
 
   /**
    * @param {import("../types.js").WorldData} world
-   * @param {string} style
    * @param {{ x0: number, y0: number, x1: number, y1: number }} bounds
    */
-  #drawCells(world, style, bounds) {
+  #visibleEstimate(world, bounds) {
+    const vw = Math.max(1, bounds.x1 - bounds.x0);
+    const vh = Math.max(1, bounds.y1 - bounds.y0);
+    const cs = world.meta.cellSize || 10;
+    return (vw * vh) / (cs * cs * 2.6);
+  }
+
+  /** @param {import("../types.js").WorldData} world @param {string} style */
+  #paintKey(world, style) {
+    const cells = world.cells;
+    let acc = world.rivers.length;
+    const step = Math.max(1, (cells.length / 180) | 0);
+    for (let i = 0; i < cells.length; i += step) acc += cells[i].height;
+    return `${world.meta.seed}:${world.generatedAt}:${style}:${cells.length}:${acc.toFixed(3)}`;
+  }
+
+  /** @param {import("../types.js").WorldData} world */
+  #ensureContours(world) {
+    const key = this.#paintKey(world, world.meta.style || "atlas");
+    if (this._contourKey === key && this._contours) return;
+    this._contours = buildContours(world);
+    this._contourKey = key;
+  }
+
+  /**
+   * @param {import("../types.js").WorldData} world
+   * @param {string} style
+   * @param {"overview"|"regional"|"local"} level
+   */
+  #ensureRaster(world, style, level) {
+    const worldKey = this.#paintKey(world, style);
+    if (this._rasterWorld !== worldKey) {
+      this._rasters.clear();
+      this._rasterWorld = worldKey;
+    }
+    const slot = level === "overview" ? "overview" : "regional";
+    const hit = this._rasters.get(slot);
+    if (hit) return hit;
+    const maxDim = slot === "overview" ? 1280 : 2048;
+    const sx = Math.min(1, maxDim / world.meta.width);
+    const sy = Math.min(1, maxDim / world.meta.height);
+    const bakeScale = Math.max(0.12, Math.min(sx, sy));
+    const w = Math.max(1, Math.round(world.meta.width * bakeScale));
+    const h = Math.max(1, Math.round(world.meta.height * bakeScale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.setTransform(bakeScale, 0, 0, bakeScale, 0, 0);
+    const lodPaint = slot === "overview" ? "overview" : "regional";
+    for (const cell of world.cells) {
+      if (cell.polygon.length < 3) continue;
+      ctx.beginPath();
+      const p = cell.polygon;
+      ctx.moveTo(p[0][0], p[0][1]);
+      for (let i = 1; i < p.length; i++) ctx.lineTo(p[i][0], p[i][1]);
+      ctx.closePath();
+      ctx.fillStyle = fillFor(cell, world, style, lodPaint);
+      ctx.fill();
+    }
+    const rec = { canvas, scale: bakeScale };
+    this._rasters.set(slot, rec);
+    return rec;
+  }
+
+  /**
+   * @param {import("../types.js").WorldData} world
+   * @param {string} style
+   * @param {{ x0: number, y0: number, x1: number, y1: number }} bounds
+   * @param {ReturnType<typeof lodConfig>} lod
+   */
+  #drawTerrain(world, style, bounds, lod) {
     const ctx = this.ctx;
     if (!ctx) return;
-    const relZoom = (world.view.scale || 1) / (this._fitScale || world.view.scale || 1);
-    const hillshade = world.cells.length < 8000 || relZoom >= 1.35 || (world.view.scale || 0) >= 0.9;
+    if (lod.useRaster) {
+      const rec = this.#ensureRaster(world, style, lod.level);
+      if (rec) {
+        ctx.imageSmoothingEnabled = true;
+        if ("imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality = lod.level === "overview" ? "high" : "medium";
+        ctx.drawImage(rec.canvas, 0, 0, world.meta.width, world.meta.height);
+        ctx.imageSmoothingEnabled = false;
+        return;
+      }
+    }
+    this.#drawCells(world, style, bounds, lod);
+  }
+
+  /**
+   * @param {import("../types.js").WorldData} world
+   * @param {string} style
+   * @param {{ x0: number, y0: number, x1: number, y1: number }} bounds
+   * @param {ReturnType<typeof lodConfig>} lod
+   */
+  #drawCells(world, style, bounds, lod) {
+    const ctx = this.ctx;
+    if (!ctx) return;
     for (const cell of world.cells) {
       if (cell.polygon.length < 3 || !this.#inView(cell, bounds)) continue;
       ctx.beginPath();
@@ -263,9 +387,14 @@ export class CanvasRenderer {
       ctx.moveTo(p[0][0], p[0][1]);
       for (let i = 1; i < p.length; i++) ctx.lineTo(p[i][0], p[i][1]);
       ctx.closePath();
-      ctx.fillStyle = fillFor(cell, world, style);
+      ctx.fillStyle = fillFor(cell, world, style, lod.level);
       ctx.fill();
-      if (!hillshade || cell.ocean || cell.lake) continue;
+      if (lod.cellEdges) {
+        ctx.strokeStyle = "rgba(36,26,16,0.16)";
+        ctx.lineWidth = this.#px(0.45);
+        ctx.stroke();
+      }
+      if (!lod.hillshade || cell.ocean || cell.lake) continue;
       let shade = 0;
       let w = 0;
       for (const nid of cell.neighbors) {
@@ -286,38 +415,75 @@ export class CanvasRenderer {
    * @param {import("../types.js").WorldData} world
    * @param {{ coast: string }} ink
    * @param {string} style
+   * @param {{ x0: number, y0: number, x1: number, y1: number }} bounds
+   * @param {ReturnType<typeof lodConfig>} lod
    */
-  #drawCoast(world, ink, style, bounds) {
+  #drawCoast(world, ink, style, bounds, lod) {
+    const ctx = this.ctx;
+    if (!ctx || !this._contours) return;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.strokeStyle = ink.coast;
+    ctx.lineWidth = this.#px(lod.coastWidth * (style === "parchment" ? 1.25 : 1));
+    this.#strokeLines(this._contours.coasts, bounds);
+    ctx.globalAlpha = 0.7;
+    ctx.lineWidth = this.#px(Math.max(0.7, lod.coastWidth * 0.55));
+    this.#strokeLines(this._contours.shores, bounds);
+    ctx.globalAlpha = 1;
+  }
+
+  /**
+   * @param {number[][][]} lines
+   * @param {{ x0: number, y0: number, x1: number, y1: number }} bounds
+   */
+  #strokeLines(lines, bounds) {
     const ctx = this.ctx;
     if (!ctx) return;
-    ctx.strokeStyle = ink.coast;
-    ctx.lineWidth = this.#px(style === "parchment" ? 1.7 : 1.2);
-    ctx.lineJoin = "round";
     ctx.beginPath();
-    for (const cell of world.cells) {
-      if (!cell.coast || cell.ocean || cell.polygon.length < 3 || !this.#inView(cell, bounds)) continue;
-      const p = cell.polygon;
-      ctx.moveTo(p[0][0], p[0][1]);
-      for (let i = 1; i < p.length; i++) ctx.lineTo(p[i][0], p[i][1]);
-      ctx.closePath();
+    for (const line of lines) {
+      if (line.length < 2 || !this.#lineInView(line, bounds)) continue;
+      ctx.moveTo(line[0][0], line[0][1]);
+      for (let i = 1; i < line.length; i++) ctx.lineTo(line[i][0], line[i][1]);
     }
     ctx.stroke();
+  }
+
+  /**
+   * @param {number[][]} line
+   * @param {{ x0: number, y0: number, x1: number, y1: number }} b
+   */
+  #lineInView(line, b) {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const p of line) {
+      if (p[0] < minX) minX = p[0];
+      if (p[1] < minY) minY = p[1];
+      if (p[0] > maxX) maxX = p[0];
+      if (p[1] > maxY) maxY = p[1];
+    }
+    return maxX >= b.x0 && minX <= b.x1 && maxY >= b.y0 && minY <= b.y1;
   }
 
   /**
    * @param {import("../types.js").WorldData} world
    * @param {{ river: string }} ink
    * @param {string} style
+   * @param {{ x0: number, y0: number, x1: number, y1: number }} bounds
+   * @param {ReturnType<typeof lodConfig>} lod
    */
-  #drawRivers(world, ink, style, bounds) {
+  #drawRivers(world, ink, style, bounds, lod) {
     const ctx = this.ctx;
     if (!ctx) return;
     ctx.strokeStyle = ink.river;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.globalAlpha = style === "night" ? 0.9 : 0.88;
+    const minW = lod.riverMinWidth;
+    const simp = lod.riverSimplify;
     for (const river of world.rivers) {
-      if (river.points.length < 2) continue;
+      if (river.points.length < 2 || river.width < minW) continue;
       const last = river.points[river.points.length - 1];
       const first = river.points[0];
       if (
@@ -328,15 +494,17 @@ export class CanvasRenderer {
       ) {
         continue;
       }
-      ctx.lineWidth = Math.max(this.#px(1.15), river.width);
+      const pts = simp > 0 ? simplifyPolyline(river.points, simp) : river.points;
+      const widthScale = lod.level === "overview" ? 1.35 : 1;
+      ctx.lineWidth = Math.max(this.#px(lod.level === "overview" ? 1.6 : 1.05), river.width * widthScale);
       ctx.beginPath();
-      ctx.moveTo(first[0], first[1]);
-      for (let i = 1; i < river.points.length; i++) {
-        const prev = river.points[i - 1];
-        const cur = river.points[i];
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) {
+        const prev = pts[i - 1];
+        const cur = pts[i];
         ctx.quadraticCurveTo(prev[0], prev[1], (prev[0] + cur[0]) / 2, (prev[1] + cur[1]) / 2);
       }
-      ctx.lineTo(last[0], last[1]);
+      ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
       ctx.stroke();
     }
     ctx.globalAlpha = 1;
@@ -345,42 +513,39 @@ export class CanvasRenderer {
   /**
    * @param {import("../types.js").WorldData} world
    * @param {{ border: string }} ink
+   * @param {{ x0: number, y0: number, x1: number, y1: number }} bounds
+   * @param {ReturnType<typeof lodConfig>} lod
    */
-  #drawBorders(world, ink, bounds) {
+  #drawBorders(world, ink, bounds, lod) {
     const ctx = this.ctx;
-    if (!ctx) return;
+    if (!ctx || !this._contours) return;
     ctx.strokeStyle = ink.border;
-    ctx.lineWidth = this.#px(1);
-    ctx.globalAlpha = 0.45;
-    ctx.beginPath();
-    for (const cell of world.cells) {
-      if (cell.ocean || cell.regionId < 0 || !this.#inView(cell, bounds)) continue;
-      for (const nid of cell.neighbors) {
-        if (nid < cell.id) continue;
-        const n = world.cells[nid];
-        if (n.ocean || n.regionId === cell.regionId) continue;
-        ctx.moveTo(cell.x, cell.y);
-        ctx.lineTo(n.x, n.y);
-      }
-    }
-    ctx.stroke();
+    ctx.lineWidth = this.#px(lod.level === "overview" ? 1.55 : 1);
+    ctx.lineJoin = "round";
+    ctx.globalAlpha = lod.borderAlpha;
+    this.#strokeLines(this._contours.borders, bounds);
     ctx.globalAlpha = 1;
   }
 
   /**
    * @param {import("../types.js").WorldData} world
    * @param {string} style
+   * @param {{ x0: number, y0: number, x1: number, y1: number }} bounds
+   * @param {number} scale
+   * @param {ReturnType<typeof lodConfig>} lod
    */
-  #drawMountains(world, style, bounds, scale) {
+  #drawMountains(world, style, bounds, scale, lod) {
     const ctx = this.ctx;
-    if (!ctx) return;
+    if (!ctx || !lod.mountainMarks) return;
     ctx.strokeStyle = style === "night" ? "#c4b8a0" : "#3a2c22";
     ctx.fillStyle = style === "parchment" ? "#6a5640" : "rgba(40,28,18,0.2)";
     ctx.lineWidth = this.#px(0.9);
+    const step = lod.mountainStep || 1;
+    const minPx = lod.level === "regional" ? 5.8 : 4.2;
     for (const cell of world.cells) {
-      if (!cell.mountain || !this.#inView(cell, bounds)) continue;
+      if (!cell.mountain || cell.id % step !== 0 || !this.#inView(cell, bounds)) continue;
       const s = Math.max(this.#px(4.5), Math.min(9 + cell.height * 7, this.#px(16)));
-      if (s * scale < (world.cells.length > 12000 ? 5.5 : 3.2)) continue;
+      if (s * scale < minPx) continue;
       ctx.beginPath();
       ctx.moveTo(cell.x, cell.y - s);
       ctx.lineTo(cell.x - s * 0.72, cell.y + s * 0.38);
@@ -395,19 +560,23 @@ export class CanvasRenderer {
    * @param {import("../types.js").WorldData} world
    * @param {{ text: string }} ink
    * @param {string} style
+   * @param {{ x0: number, y0: number, x1: number, y1: number }} bounds
+   * @param {number} scale
+   * @param {ReturnType<typeof lodConfig>} lod
    */
-  #drawSettlements(world, ink, style, bounds, scale) {
+  #drawSettlements(world, ink, style, bounds, scale, lod) {
     const ctx = this.ctx;
     if (!ctx) return;
     const fit = this._fitScale || scale;
     const zoom = scale / fit;
-    const fs = this.#px(zoom < 1.15 ? 10 : 11.5);
+    const fs = this.#px(lod.level === "overview" ? 11.5 : zoom < 1.15 ? 10 : 11.5);
     ctx.font = `${fs}px Palatino, Georgia, serif`;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
+    const show = lod.labels;
     for (const s of world.settlements) {
-      if (zoom < 0.9 && s.type === "village") continue;
-      if (zoom < 1.25 && s.type === "town") continue;
+      if (s.type === "village" && !show.village) continue;
+      if (s.type === "town" && !show.town) continue;
       const c = world.cells[s.cellId];
       if (!c || !this.#inView(c, bounds)) continue;
       const r = this.#px(s.type === "capital" ? 4.4 : s.type === "city" ? 3.5 : 2.7);
@@ -422,7 +591,7 @@ export class CanvasRenderer {
       }
       ctx.fill();
       ctx.stroke();
-      if (zoom < 0.75 && s.type !== "capital") continue;
+      if (!show.name[s.type]) continue;
       ctx.fillStyle = ink.text;
       ctx.fillText(s.name, c.x + r + this.#px(4), c.y);
     }
