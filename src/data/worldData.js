@@ -75,12 +75,17 @@ export function createWorldShell(config) {
       seaLevel: config.seaLevel ?? 0,
       wind: config.wind ?? { x: 1, y: 0 },
       style: "atlas",
+      societySeed: String(config.societySeed ?? config.seed ?? "terra"),
+      mapName: "",
     },
     cells: [],
     plates: [],
     rivers: [],
     settlements: [],
     regions: [],
+    cultures: [],
+    routes: [],
+    markers: [],
     view: { x: 0, y: 0, scale: 1 },
     generatedAt: new Date().toISOString(),
   };
@@ -105,6 +110,9 @@ export function summarizeWorld(world) {
     rivers: world.rivers.length,
     settlements: world.settlements.length,
     regions: world.regions.length,
+    cultures: world.cultures?.length ?? 0,
+    routes: world.routes?.length ?? 0,
+    markers: world.markers?.length ?? 0,
   };
 }
 
@@ -124,5 +132,33 @@ export function parseWorld(raw) {
   if (!Array.isArray(w.cells) || !w.meta) {
     throw new Error("存档缺少 cells 或 meta。");
   }
+  hydrateWorld(w);
   return w;
+}
+
+/**
+ * Fill optional playability fields so older JSON saves still load.
+ * @param {WorldData} w
+ */
+export function hydrateWorld(w) {
+  if (!w.cultures) w.cultures = [];
+  if (!w.routes) w.routes = [];
+  if (!w.markers) w.markers = [];
+  if (!w.meta.societySeed) w.meta.societySeed = w.meta.seed;
+  if (!w.meta.mapName) w.meta.mapName = "";
+  for (const c of w.cells) {
+    if (c.cultureId == null) c.cultureId = -1;
+  }
+  for (const s of w.settlements) {
+    if (s.cultureId == null) s.cultureId = w.cells[s.cellId]?.cultureId ?? -1;
+    if (s.population == null) s.population = 0;
+    if (s.note == null) s.note = "";
+  }
+  for (const r of w.rivers) {
+    if (r.name == null) r.name = "";
+  }
+  for (const r of w.regions) {
+    if (r.note == null) r.note = "";
+    if (r.cultureId == null) r.cultureId = -1;
+  }
 }

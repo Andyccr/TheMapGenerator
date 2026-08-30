@@ -196,6 +196,84 @@ button:hover {
   margin-bottom: 0.65rem;
 }
 
+.tools-wide {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.check-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.15rem 0.4rem;
+  margin: 0.35rem 0 0.2rem;
+}
+
+.check-grid .check {
+  margin-bottom: 0.15rem;
+}
+
+.keys-hint {
+  margin-top: 0.45rem;
+  font-size: 0.74rem;
+}
+
+.search-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.tab-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-bottom: 0.45rem;
+}
+
+.tab {
+  padding: 0.22rem 0.4rem;
+  font-size: 0.78rem;
+}
+
+.tab.active {
+  background: #3a2a18;
+  border-color: var(--brass);
+}
+
+.roster {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 14rem;
+  overflow: auto;
+}
+
+.roster li {
+  margin: 0;
+}
+
+.roster button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.05rem;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 0.28rem 0.1rem;
+  font-size: 0.82rem;
+}
+
+.roster button span {
+  color: var(--ink-dim);
+  font-size: 0.7rem;
+}
+
+.roster button:hover {
+  color: var(--brass);
+}
+
 .tool.active {
   background: #3a2a18;
   border-color: var(--brass);

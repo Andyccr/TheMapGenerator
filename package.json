@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test src/generators/__tests__/plausibility.test.js src/renderers/__tests__/lod.test.js"
+    "test": "node --test src/generators/__tests__/plausibility.test.js src/renderers/__tests__/lod.test.js src/generators/__tests__/society.test.js"
   },
   "license": "AGPL-3.0-or-later",
   "devDependencies": {

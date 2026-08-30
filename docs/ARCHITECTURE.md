@@ -35,12 +35,15 @@ Plain object, versioned. This is the save file.
 ```js
 {
   version: 1,
-  meta: { seed, width, height, cellSize, plateCount, seaLevel, wind, style },
+  meta: { seed, width, height, cellSize, plateCount, seaLevel, wind, style, societySeed, mapName },
   cells: [ { id, x, y, polygon, neighbors, height, biome, ... } ],
   plates: [ { id, continental, vx, vy, cx, cy } ],
-  rivers: [ { id, cellIds, points, width } ],
-  settlements: [ { id, cellId, name, type, regionId } ],
-  regions: [ { id, name, color, capitalId } ],
+  rivers: [ { id, cellIds, points, width, name } ],
+  settlements: [ { id, cellId, name, type, regionId, cultureId, population, note } ],
+  regions: [ { id, name, color, capitalId, cultureId } ],
+  cultures: [ { id, name, color, type, originId, phonologyId } ],
+  routes: [ { id, kind, fromId, toId, cellIds, points } ],
+  markers: [ { id, cellId, type, name, note } ],
   view: { x, y, scale },
   generatedAt: "ISO-8601"
 }
@@ -53,6 +56,9 @@ class MapGenerator {
   generate(config: GenerateConfig): WorldData
   recomputeFromElevation(world: WorldData): WorldData
   carveRiver(world: WorldData, cellIds: number[]): WorldData
+  regenerateSociety(world: WorldData, seed?: string): WorldData
+  regenerateNames(world: WorldData): WorldData
+  rebuildRoutesAndMarkers(world: WorldData): WorldData
 }
 ```
 
@@ -91,7 +97,7 @@ class CanvasRenderer {
 | High-res PNG export | `canvas.toBlob` | `XMLSerializer` + `foreignObject` hacks |
 | Crisp labels at every zoom | Must redraw text | Scales “for free” |
 
-SVG is the right call for a few hundred labelled paths (O’Leary’s original maps, Azgaar’s UI overlays). This project targets **medium maps with thousands of polygons** and **live sculpting**, so Canvas is the primary view. A later hybrid — Canvas terrain, SVG labels — is compatible with the renderer contract because labels already live in `WorldData.settlements`.
+Style presets include atlas, physical, political, cultural, height, temperature, precipitation, parchment, and night. Overlay toggles (rivers, routes, markers, relief) are draw-only; they never rewrite cells.
 
 ## Persistence
 
