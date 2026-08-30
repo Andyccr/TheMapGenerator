@@ -6,7 +6,7 @@
     <title>幻想世界地图生成器</title>
     <meta
       name="description"
-      content="在浏览器里生成地理上合理的交互式幻想地图。纯静态，可直接部署到 GitHub Pages。"
+      content="在浏览器里生成地理上合理的交互式幻想地图：文化、商路、地标、图层。纯静态，可直接部署到 GitHub Pages。"
     />
     <link rel="stylesheet" href="./src/styles.css" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect fill='%23140f0c' width='64' height='64'/%3E%3Cpath fill='%23b0894a' d='M8 40c8-18 16-10 24-22 8 14 16 4 24 20v12H8z'/%3E%3Ccircle cx='44' cy='18' r='5' fill='%23ead9c1'/%3E%3C/svg%3E" />
@@ -18,7 +18,7 @@
           <span class="folio-mark">FWMG</span>
           <h1>幻想世界地图生成器</h1>
         </div>
-        <p class="tagline">板块运动、水文与气候 — 像地图集一样绘制，像工坊一样编辑。纯静态，GitHub Pages 打开即用。</p>
+        <p class="tagline">板块、水文、文化与商路 — 像地图集一样阅读，像工坊一样涂改。纯静态，GitHub Pages 打开即用。</p>
         <div class="mast-actions">
           <label class="seed-field">
             种子
@@ -68,34 +68,75 @@
         </section>
 
         <section>
+          <h2>图层</h2>
+          <label>预设
+            <select id="opt-style">
+              <option value="atlas" selected>图集生物群系</option>
+              <option value="physical">地势晕渲</option>
+              <option value="height">高程</option>
+              <option value="political">政治疆域</option>
+              <option value="cultural">文化分布</option>
+              <option value="temperature">气温</option>
+              <option value="precipitation">降水</option>
+              <option value="parchment">墨线羊皮纸</option>
+              <option value="night">夜航图</option>
+            </select>
+          </label>
+          <div class="check-grid">
+            <label class="check"><input id="opt-labels" type="checkbox" checked /> 地名</label>
+            <label class="check"><input id="opt-borders" type="checkbox" checked /> 国境</label>
+            <label class="check"><input id="opt-rivers" type="checkbox" checked /> 河流</label>
+            <label class="check"><input id="opt-routes" type="checkbox" checked /> 商路</label>
+            <label class="check"><input id="opt-markers" type="checkbox" checked /> 地标</label>
+            <label class="check"><input id="opt-relief" type="checkbox" checked /> 山纹</label>
+            <label class="check"><input id="opt-grid" type="checkbox" /> 经纬网</label>
+          </div>
+        </section>
+
+        <section>
           <h2>工具</h2>
-          <div class="tool-grid" role="toolbar" aria-label="地图编辑">
-            <button class="tool active" data-tool="pan" type="button" title="平移与查看">平移</button>
-            <button class="tool" data-tool="raise" type="button" title="抬升陆地与山脊">抬升</button>
-            <button class="tool" data-tool="lower" type="button" title="降低谷地与海洋">降低</button>
-            <button class="tool" data-tool="river" type="button" title="开凿顺流而下的河流">河流</button>
-            <button class="tool" data-tool="move" type="button" title="移动聚落">移动</button>
-            <button class="tool" data-tool="rename" type="button" title="重命名聚落">命名</button>
+          <div class="tool-grid tools-wide" role="toolbar" aria-label="地图编辑">
+            <button class="tool active" data-tool="pan" type="button" title="平移与查看（V）">平移</button>
+            <button class="tool" data-tool="raise" type="button" title="抬升陆地（R）">抬升</button>
+            <button class="tool" data-tool="lower" type="button" title="降低谷地（F）">降低</button>
+            <button class="tool" data-tool="river" type="button" title="开凿河流（I）">河流</button>
+            <button class="tool" data-tool="burg" type="button" title="建立聚落（B）">建城</button>
+            <button class="tool" data-tool="erase" type="button" title="删除聚落或地标（X）">擦除</button>
+            <button class="tool" data-tool="marker" type="button" title="放置地标（K）">地标</button>
+            <button class="tool" data-tool="move" type="button" title="移动聚落（M）">移动</button>
+            <button class="tool" data-tool="rename" type="button" title="重命名（N）">命名</button>
+            <button class="tool" data-tool="measure" type="button" title="测量距离（G）">测距</button>
           </div>
           <label>笔刷
             <input id="opt-brush" type="range" min="1" max="8" value="3" />
             <span id="opt-brush-val">3</span>
           </label>
+          <label>地标种类
+            <select id="opt-marker-type">
+              <option value="ruins">废墟</option>
+              <option value="volcano">火山</option>
+              <option value="lighthouse">灯塔</option>
+              <option value="mine">矿坑</option>
+              <option value="shrine">神祠</option>
+              <option value="dungeon">地下城</option>
+              <option value="dragon">龙巢</option>
+              <option value="port">港口</option>
+            </select>
+          </label>
           <p class="hint" id="tool-hint">滚轮缩放：全图合并色块与干流，近景晕渲、细河与村落。格子数据不变。</p>
+          <p class="hint keys-hint">快捷键：V 平移 · R 抬升 · B 建城 · K 地标 · G 测距 · Ctrl+Z 撤销 · / 检索</p>
         </section>
 
         <section>
-          <h2>样式</h2>
-          <select id="opt-style">
-            <option value="atlas" selected>图集生物群系</option>
-            <option value="physical">地势晕渲</option>
-            <option value="political">政治疆域</option>
-            <option value="parchment">墨线羊皮纸</option>
-            <option value="night">夜航图</option>
-          </select>
-          <label class="check"><input id="opt-labels" type="checkbox" checked /> 地名</label>
-          <label class="check"><input id="opt-borders" type="checkbox" checked /> 国境</label>
-          <label class="check"><input id="opt-grid" type="checkbox" /> 经纬网</label>
+          <h2>重掷</h2>
+          <p class="hint">地形不动，只重掷人文层 — 不必整张图推倒重来。</p>
+          <div class="btn-row">
+            <button id="btn-reroll-society" type="button">重掷文明</button>
+            <button id="btn-reroll-names" type="button">重掷地名</button>
+          </div>
+          <div class="btn-row">
+            <button id="btn-reroll-routes" type="button">重掷商路与地标</button>
+          </div>
         </section>
 
         <section>
@@ -115,6 +156,9 @@
           </div>
           <div class="btn-row">
             <button id="btn-undo" type="button">撤销</button>
+            <button id="btn-redo" type="button">重做</button>
+          </div>
+          <div class="btn-row">
             <button id="btn-autosave" type="button">读取自动存档</button>
           </div>
         </section>
@@ -135,6 +179,14 @@
 
       <aside class="panel panel-right" aria-label="格子检视">
         <section>
+          <h2>检索</h2>
+          <label class="search-field">
+            查找
+            <input id="opt-search" type="search" placeholder="聚落、国度、文化、地标…" autocomplete="off" />
+          </label>
+          <ol class="roster" id="search-results"></ol>
+        </section>
+        <section>
           <h2>检视</h2>
           <dl id="inspector" class="inspector">
             <dt>状态</dt>
@@ -142,15 +194,22 @@
           </dl>
         </section>
         <section>
-          <h2>图层</h2>
-          <p class="prose">
-            陆地来自板块，不是噪声色块。河流从高地汇入海洋，湿气在山脊背风面枯竭，城镇紧贴水源。
-          </p>
+          <h2>名册</h2>
+          <div class="tab-row" role="tablist">
+            <button type="button" class="tab active" data-roster="settlements">聚落</button>
+            <button type="button" class="tab" data-roster="regions">国度</button>
+            <button type="button" class="tab" data-roster="cultures">文化</button>
+            <button type="button" class="tab" data-roster="markers">地标</button>
+          </div>
+          <ol class="roster" id="roster-list"></ol>
+        </section>
+        <section>
+          <h2>图例</h2>
           <ol class="legend-list" id="biome-legend"></ol>
         </section>
         <footer class="colophon">
-          算法灵感：Martin O’Leary、Amit Patel、Scott Turner。
-          四层架构：数据 · 生成器 · 编辑器 · 渲染器。无需后端，GitHub Pages 可直接打开。
+          算法灵感：Martin O’Leary、Amit Patel、Scott Turner；玩法层对照 Azgaar FMG 的图层 / 文化 / 商路 / 地标。
+          四层架构：数据 · 生成器 · 编辑器 · 渲染器。无需后端。
         </footer>
       </aside>
     </div>

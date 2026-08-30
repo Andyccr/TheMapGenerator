@@ -1,8 +1,5 @@
-/**
- * Editor tools. Each tool performs a *controlled* mutation and never renders.
- * Hydrology is always rebuilt through MapGenerator after terrain edits so
- * rivers cannot be left flowing uphill.
- */
+import { addSettlement, removeSettlement } from "../generators/civilization.js";
+import { MARKER_TYPES } from "../generators/markers.js";
 
 /**
  * Raise or lower a gaussian brush of cells.
@@ -137,7 +134,7 @@ export class MoveSettlementTool {
 
 export class RenameTool {
   id = "rename";
-  hint = "Click a settlement to rename it. Names are stored in the JSON save.";
+  hint = "Click a settlement, marker, or realm capital to rename it. Names are stored in the JSON save.";
   /**
    * @param {import("../types.js").WorldData} world
    * @param {import("../types.js").PointerEventWorld} ev
@@ -146,8 +143,89 @@ export class RenameTool {
   apply(world, ev, ctx) {
     if (ev.phase !== "down" || ev.cellId < 0) return;
     const s = settlementAt(world, ev.cellId);
-    if (!s || !ctx.promptRename) return;
-    ctx.promptRename(s);
+    if (s && ctx.promptRename) {
+      ctx.promptRename(s);
+      return;
+    }
+    const marker = (world.markers || []).find((m) => m.cellId === ev.cellId);
+    if (marker && ctx.promptRename) {
+      ctx.promptRename(marker);
+    }
+  }
+}
+
+export class BurgTool {
+  id = "burg";
+  hint = "Click land to found a town. Shift-click founds a city.";
+  /**
+   * @param {import("../types.js").WorldData} world
+   * @param {import("../types.js").PointerEventWorld} ev
+   * @param {import("../types.js").EditorContext} ctx
+   */
+  apply(world, ev, ctx) {
+    if (ev.phase !== "down" || ev.cellId < 0) return;
+    const cell = world.cells[ev.cellId];
+    if (!cell || cell.ocean || cell.lake) return;
+    if (settlementAt(world, ev.cellId)) return;
+    const fallback = "新城";
+    const name = ctx.promptText ? ctx.promptText("新聚落名称", fallback) : fallback;
+    if (!name) return;
+    addSettlement(world, ev.cellId, name, ev.shiftKey ? "city" : "town");
+    ctx.commit(world);
+  }
+}
+
+export class EraseTool {
+  id = "erase";
+  hint = "Click a town or marker to remove it. The last capital cannot be deleted.";
+  /**
+   * @param {import("../types.js").WorldData} world
+   * @param {import("../types.js").PointerEventWorld} ev
+   * @param {import("../types.js").EditorContext} ctx
+   */
+  apply(world, ev, ctx) {
+    if (ev.phase !== "down" || ev.cellId < 0) return;
+    const s = settlementAt(world, ev.cellId);
+    if (s) {
+      removeSettlement(world, s.id);
+      ctx.commit(world);
+      return;
+    }
+    const before = world.markers?.length || 0;
+    world.markers = (world.markers || []).filter((m) => m.cellId !== ev.cellId);
+    if ((world.markers?.length || 0) !== before) ctx.commit(world);
+  }
+}
+
+export class MarkerTool {
+  id = "marker";
+  hint = "Click land to plant a place of interest (type chosen in the panel).";
+  /**
+   * @param {import("../types.js").WorldData} world
+   * @param {import("../types.js").PointerEventWorld} ev
+   * @param {import("../types.js").EditorContext} ctx
+   */
+  apply(world, ev, ctx) {
+    if (ev.phase !== "down" || ev.cellId < 0) return;
+    const cell = world.cells[ev.cellId];
+    if (!cell || cell.ocean) return;
+    if ((world.markers || []).some((m) => m.cellId === ev.cellId)) return;
+    const type = ctx.markerType || "ruins";
+    const label = MARKER_TYPES[type]?.label || type;
+    const fallback = `${label}`;
+    const name = ctx.promptText ? ctx.promptText("地标名称", fallback) : fallback;
+    if (!name) return;
+    if (!world.markers) world.markers = [];
+    const id = world.markers.reduce((m, x) => Math.max(m, x.id), -1) + 1;
+    world.markers.push({ id, cellId: ev.cellId, type, name, note: "" });
+  }
+}
+
+export class MeasureTool {
+  id = "measure";
+  hint = "Click two points to measure leagues. Shift+drag still pans.";
+  apply() {
+    /* Camera/measure overlay is owned by the App. */
   }
 }
 
@@ -159,7 +237,11 @@ export function createTools() {
     raise: new RaiseTool(),
     lower: new LowerTool(),
     river,
+    burg: new BurgTool(),
+    erase: new EraseTool(),
+    marker: new MarkerTool(),
     move: new MoveSettlementTool(),
     rename: new RenameTool(),
+    measure: new MeasureTool(),
   };
 }
