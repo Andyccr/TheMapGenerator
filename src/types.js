@@ -46,6 +46,7 @@
  * @property {number} downslope  neighbor id or -1
  * @property {number} riverId    -1 if none
  * @property {number} regionId   -1 if none
+ * @property {number} cultureId  -1 if none
  * @property {number} precipitation
  */
 
@@ -55,6 +56,7 @@
  * @property {number[]} cellIds
  * @property {number[][]} points
  * @property {number} width
+ * @property {string} [name]
  */
 
 /**
@@ -64,6 +66,9 @@
  * @property {string} name
  * @property {"capital"|"city"|"town"|"village"} type
  * @property {number} regionId
+ * @property {number} cultureId
+ * @property {number} population
+ * @property {string} [note]
  */
 
 /**
@@ -72,6 +77,38 @@
  * @property {string} name
  * @property {string} color
  * @property {number} capitalId
+ * @property {number} [cultureId]
+ * @property {string} [note]
+ */
+
+/**
+ * @typedef {Object} Culture
+ * @property {number} id
+ * @property {string} name
+ * @property {string} color
+ * @property {string} type
+ * @property {number} originId
+ * @property {string} phonologyId
+ * @property {string} [note]
+ */
+
+/**
+ * @typedef {Object} Route
+ * @property {number} id
+ * @property {"road"|"trail"|"sea"} kind
+ * @property {number} fromId
+ * @property {number} toId
+ * @property {number[]} cellIds
+ * @property {number[][]} points
+ */
+
+/**
+ * @typedef {Object} Marker
+ * @property {number} id
+ * @property {number} cellId
+ * @property {string} type
+ * @property {string} name
+ * @property {string} [note]
  */
 
 /**
@@ -91,6 +128,8 @@
  * @property {number} seaLevel
  * @property {Vec2} wind
  * @property {string} style
+ * @property {string} [societySeed]
+ * @property {string} [mapName]
  */
 
 /**
@@ -104,6 +143,9 @@
  * @property {River[]} rivers
  * @property {Settlement[]} settlements
  * @property {Region[]} regions
+ * @property {Culture[]} [cultures]
+ * @property {Route[]} [routes]
+ * @property {Marker[]} [markers]
  * @property {WorldView} view
  * @property {string} generatedAt
  */
@@ -117,6 +159,7 @@
  * @property {number} [plateCount]
  * @property {number} [seaLevel]
  * @property {Vec2} [wind]
+ * @property {string} [societySeed]
  */
 
 /**
@@ -134,6 +177,9 @@
  * @typedef {Object} MapGenerator
  * @property {(config: GenerateConfig) => WorldData} generate
  * @property {(world: WorldData) => WorldData} recomputeFromElevation
+ * @property {(world: WorldData, suffix?: string) => WorldData} regenerateSociety
+ * @property {(world: WorldData) => WorldData} regenerateNames
+ * @property {(world: WorldData) => WorldData} rebuildRoutesAndMarkers
  */
 
 /**
@@ -151,6 +197,8 @@
  * @property {() => void} requestRecompute
  * @property {(world: WorldData) => void} commit
  * @property {(html: string) => void} [promptRename]
+ * @property {string} [markerType]
+ * @property {(text: string, fallback?: string) => string | null} [promptText]
  */
 
 /**
@@ -171,8 +219,13 @@
  * @property {boolean} [labels]
  * @property {boolean} [borders]
  * @property {boolean} [grid]
+ * @property {boolean} [rivers]
+ * @property {boolean} [routes]
+ * @property {boolean} [markers]
+ * @property {boolean} [relief]
  * @property {number} [highlightCell]
  * @property {number[]} [draftPath]
+ * @property {{ x0: number, y0: number, x1: number, y1: number } | null} [measure]
  * @property {"overview"|"regional"|"local"} [lod]
  */
 

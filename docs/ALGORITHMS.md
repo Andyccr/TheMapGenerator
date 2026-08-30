@@ -49,20 +49,36 @@ Because routing uses `filledHeight`, **a river cannot climb a ridge**. Editing t
 
 ## 5. Civilizations
 
-Score land cells for river, coast, lake, moisture; penalize mountains, ice, scorched desert. Poisson-ish spacing and town counts scale with map hypot so a continent is not stuck with a dozen towns. Capitals seed cost-distance realms where mountains cost extra, so borders hug ridges instead of ignoring them.
+Cultures expand first. A handful of hearths pick a type (河畔 / 沿海 / 山地 / 草原 / 林猎 / 沙海) and a phonology; cost-distance flood prefers matching biomes. Towns are still scored toward rivers and coasts (O'Leary), but their names come from the local culture so neighboring places sound related. Capitals seed political realms afterward — culture and state are not the same layer.
+
+Population is a cartographic estimate from type, moisture, and water access. It is for the inspector and roster, not a simulation.
+
+## 6. Routes and markers
+
+Roads are A* on the cell graph: mountains cost extra, rivers are cheap corridors, ocean is impassable. Sea lanes only run between coastal towns when the overland path is long. Trails link villages.
+
+Markers are the GM pins: volcanoes on peaks, ruins in the wild, lights on capes, mines near towns, shrines in forest, dragon lairs on remote high peaks. They live in `WorldData.markers` and can be placed or erased by tools.
+
+Rivers pick names from the culture at mid-course.
 
 ## Editing as controlled mutation
 
 | Tool | Mutation | Rebuild |
 | --- | --- | --- |
-| Raise / Lower | `height` brush | hydrology, climate, biomes, realm flood |
+| Raise / Lower | `height` brush | hydrology, climate, biomes, culture/realm flood, routes |
 | River | force a monotonic height channel | same |
+| 建城 / 擦除 | settlements | routes only (markers kept) |
+| 地标 | `markers[]` | none |
 | Move | `settlement.cellId` (land only) | none |
-| Rename | `settlement.name` | none |
+| Rename | name fields | none |
+| 测距 | none (overlay) | none |
+| 重掷文明 | cultures, towns, realms, routes, markers | terrain untouched |
+| 重掷地名 | names only | none |
+| 重掷商路与地标 | routes + markers | none |
 
-Editors never write `biome` or `rivers` by hand.
+Editors never write `biome` or `rivers` by hand. Society can be re-rolled without remeshing.
 
-## 6. Cartographic LOD (draw-only)
+## 7. Cartographic LOD (draw-only)
 
 Zoom does **not** resample the mesh. `WorldData.cells` stay put. The renderer switches bands from relative zoom (`scale / fitScale`):
 

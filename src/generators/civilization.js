@@ -1,43 +1,63 @@
 /**
  * Settlements near water; realms grown by cost-distance from capitals.
  * O'Leary places cities on rivers and penalizes crowding — same here.
+ * Names come from the local culture so neighboring towns sound related.
  */
 import { MinHeap } from "../util/heap.js";
+import { worldScale } from "../data/worldData.js";
+
+const PALETTE = ["#8c3a3a", "#3a5f8c", "#6a7a38", "#7a4e8c", "#8c6a32", "#2f6d62", "#8c4e5c"];
+
+/**
+ * @param {import("../types.js").Cell} c
+ * @param {import("../types.js").Cell[]} cells
+ * @param {() => number} rng
+ */
+export function settlementScore(c, cells, rng) {
+  if (c.ocean || c.lake || c.mountain || c.border) return -1e9;
+  if (c.biome === "SNOW" || c.biome === "SCORCHED" || c.biome === "ICE") return -1e9;
+  let s = 0;
+  if (c.riverId >= 0) s += 3.4;
+  if (c.coast) s += 2.2;
+  if (c.neighbors.some((id) => cells[id].lake)) s += 1.6;
+  s += c.moisture * 1.4;
+  s += (0.35 - Math.abs(c.height - 0.12)) * 1.2;
+  if (c.biome.includes("DESERT")) s -= 1.1;
+  if (c.biome === "MARSH") s -= 0.6;
+  return s + rng() * 0.15;
+}
+
+/**
+ * @param {import("../types.js").Cell} c
+ * @param {string} type
+ */
+export function estimatePopulation(c, type) {
+  const base = type === "capital" ? 14000 : type === "city" ? 6200 : type === "town" ? 1900 : 420;
+  let m = 1 + c.moisture * 0.7;
+  if (c.riverId >= 0) m *= 1.25;
+  if (c.coast) m *= 1.18;
+  if (c.biome.includes("DESERT")) m *= 0.7;
+  return Math.max(80, Math.round(base * m));
+}
 
 /**
  * @param {import("../types.js").Cell[]} cells
  * @param {() => number} rng
- * @param {{ settlement: () => string, realm: () => string }} names
+ * @param {(cultureId: number) => { settlement: () => string, realm: () => string }} namesFor
  * @param {{ width?: number, height?: number }} [extent]
  */
-export function placeCivilizations(cells, rng, names, extent = {}) {
+export function placeCivilizations(cells, rng, namesFor, extent = {}) {
   /** @type {import("../types.js").Settlement[]} */
   const settlements = [];
   /** @type {import("../types.js").Region[]} */
   const regions = [];
 
-  /** @param {import("../types.js").Cell} c */
-  const score = (c) => {
-    if (c.ocean || c.lake || c.mountain || c.border) return -1e9;
-    if (c.biome === "SNOW" || c.biome === "SCORCHED" || c.biome === "ICE") return -1e9;
-    let s = 0;
-    if (c.riverId >= 0) s += 3.4;
-    if (c.coast) s += 2.2;
-    if (c.neighbors.some((id) => cells[id].lake)) s += 1.6;
-    s += c.moisture * 1.4;
-    s += (0.35 - Math.abs(c.height - 0.12)) * 1.2;
-    if (c.biome.includes("DESERT")) s -= 1.1;
-    if (c.biome === "MARSH") s -= 0.6;
-    return s + rng() * 0.15;
-  };
-
   const candidates = cells
-    .map((c) => ({ id: c.id, s: score(c) }))
+    .map((c) => ({ id: c.id, s: settlementScore(c, cells, rng) }))
     .filter((x) => x.s > 0.8)
     .sort((a, b) => b.s - a.s);
 
-  const span = Math.hypot(extent.width ?? 1600, extent.height ?? 1000);
-  const scale = Math.max(0.45, span / 1887);
+  const scale = worldScale(extent.width ?? 1600, extent.height ?? 1000);
   const minDist = 48 * scale;
   const maxTowns = Math.min(90, Math.max(12, Math.round(28 * scale * scale)));
   const nCity = Math.max(3, Math.round(4 * scale));
@@ -50,12 +70,16 @@ export function placeCivilizations(cells, rng, names, extent = {}) {
     taken.push(cell);
     const n = settlements.length;
     const type = n < nCity ? "city" : n < nTown ? "town" : "village";
+    const cultureId = cell.cultureId ?? -1;
     settlements.push({
       id: n,
       cellId: cell.id,
-      name: names.settlement(),
+      name: namesFor(cultureId).settlement(),
       type,
       regionId: -1,
+      cultureId,
+      population: estimatePopulation(cell, type),
+      note: "",
     });
   }
 
@@ -70,21 +94,24 @@ export function placeCivilizations(cells, rng, names, extent = {}) {
       continue;
     }
     s.type = "capital";
+    s.population = estimatePopulation(cells[s.cellId], "capital");
     capitals.push(s);
   }
   if (capitals.length === 0 && settlements[0]) {
     settlements[0].type = "capital";
+    settlements[0].population = estimatePopulation(cells[settlements[0].cellId], "capital");
     capitals.push(settlements[0]);
   }
 
-  const palette = ["#8c3a3a", "#3a5f8c", "#6a7a38", "#7a4e8c", "#8c6a32", "#2f6d62", "#8c4e5c"];
   for (let i = 0; i < capitals.length; i++) {
     const cap = capitals[i];
     regions.push({
       id: i,
-      name: names.realm(),
-      color: palette[i % palette.length],
+      name: namesFor(cap.cultureId).realm(),
+      color: PALETTE[i % PALETTE.length],
       capitalId: cap.id,
+      cultureId: cap.cultureId,
+      note: "",
     });
     cap.regionId = i;
   }
@@ -140,4 +167,51 @@ export function assignRegions(cells, settlements, regions) {
       }
     }
   }
+}
+
+/**
+ * @param {import("../types.js").WorldData} world
+ * @param {number} cellId
+ * @param {string} name
+ * @param {"city"|"town"|"village"} [type]
+ */
+export function addSettlement(world, cellId, name, type = "town") {
+  const cell = world.cells[cellId];
+  if (!cell || cell.ocean || cell.lake) return null;
+  if (world.settlements.some((s) => s.cellId === cellId)) return null;
+  const id = world.settlements.reduce((m, s) => Math.max(m, s.id), -1) + 1;
+  const s = {
+    id,
+    cellId,
+    name,
+    type,
+    regionId: cell.regionId,
+    cultureId: cell.cultureId ?? -1,
+    population: estimatePopulation(cell, type),
+    note: "",
+  };
+  world.settlements.push(s);
+  return s;
+}
+
+/**
+ * @param {import("../types.js").WorldData} world
+ * @param {number} settlementId
+ */
+export function removeSettlement(world, settlementId) {
+  const s = world.settlements.find((x) => x.id === settlementId);
+  if (!s) return false;
+  const capitals = world.settlements.filter((x) => x.type === "capital");
+  if (s.type === "capital" && capitals.length <= 1) return false;
+  if (s.type === "capital") {
+    const heir = world.settlements.find((x) => x.id !== s.id && x.regionId === s.regionId && x.type !== "village");
+    const region = world.regions.find((r) => r.id === s.regionId);
+    if (heir && region) {
+      heir.type = "capital";
+      heir.population = estimatePopulation(world.cells[heir.cellId], "capital");
+      region.capitalId = heir.id;
+    }
+  }
+  world.settlements = world.settlements.filter((x) => x.id !== settlementId);
+  return true;
 }

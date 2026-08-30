@@ -190,7 +190,7 @@ export function extractRivers(cells, threshold = 14) {
       cells.length > 18000 ? 1 : 2,
     );
     const width = Math.min(6.4, 0.38 + Math.log(1 + src.flux) * 0.36);
-    rivers.push({ id: rid, cellIds: path, points, width });
+    rivers.push({ id: rid, cellIds: path, points, width, name: "" });
   }
   return rivers;
 }
