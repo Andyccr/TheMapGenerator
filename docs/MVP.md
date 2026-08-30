@@ -35,6 +35,10 @@ Done when: the far north is not tropical, and most towns sit on rivers or coasts
 
 ## Step 5 — After this prototype
 
+Shipped in the playability pass: cultures, routes, markers, layer presets (cultural / height / temperature / precipitation), independent society re-roll, search roster, measure, redo.
+
+Still later:
+
 - True Delaunay/Voronoi (Delaunator) at 20k+ cells
 - Hydraulic erosion pass (O’Leary)
 - Label collision (Turner's annealing notes)
@@ -42,4 +46,4 @@ Done when: the far north is not tropical, and most towns sit on rivers or coasts
 - TypeScript conversion of `src/types.js`
 - Optional WebWorker around `MapGenerator.generate`
 
-Do not start step 5 until the four-layer folders still have no circular imports.
+Do not start a mesh rewrite until the four-layer folders still have no circular imports.

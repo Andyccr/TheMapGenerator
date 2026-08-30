@@ -2,9 +2,10 @@
  * MapGenerator — the only module that orchestrates procedural algorithms.
  * It writes WorldData and never reads the DOM or canvas.
  *
- * Pipeline (O'Leary + Patel + Turner):
+ * Pipeline (O'Leary + Patel + Turner, then Azgaar-style society):
  *   mesh → plates → elevation → ocean/lakes → depression fill →
- *   rivers → climate / rain shadow → biomes → settlements / realms
+ *   rivers → climate / rain shadow → biomes → cultures →
+ *   settlements / realms → routes → markers
  */
 
 import { createWorldShell } from "../data/worldData.js";
@@ -22,8 +23,11 @@ import {
   markMountains,
 } from "./hydrology.js";
 import { assignClimate, assignBiomes } from "./climate.js";
-import { placeCivilizations, assignRegions } from "./civilization.js";
-import { createNameFactory } from "./names.js";
+import { placeCivilizations, assignRegions, addSettlement, removeSettlement } from "./civilization.js";
+import { placeCultures, assignCultures } from "./cultures.js";
+import { placeRoutes } from "./routes.js";
+import { placeMarkers } from "./markers.js";
+import { createNameFactory, phonologyById } from "./names.js";
 
 /** @typedef {import("../types.js").WorldData} WorldData */
 /** @typedef {import("../types.js").GenerateConfig} GenerateConfig */
@@ -55,14 +59,7 @@ export class MapGenerator {
     );
 
     this.#hydrologyAndClimate(world);
-
-    const names = createNameFactory(rng);
-    const { settlements, regions } = placeCivilizations(cells, rng, names, {
-      width: world.meta.width,
-      height: world.meta.height,
-    });
-    world.settlements = settlements;
-    world.regions = regions;
+    this.#buildSociety(world, world.meta.societySeed || world.meta.seed);
     world.generatedAt = new Date().toISOString();
     return world;
   }
@@ -85,10 +82,67 @@ export class MapGenerator {
       }
     }
     world.settlements = world.settlements.filter((s) => !world.cells[s.cellId].ocean);
+    if (world.cultures?.length) assignCultures(world.cells, world.cultures);
     assignRegions(world.cells, world.settlements, world.regions);
     for (const s of world.settlements) {
       s.regionId = world.cells[s.cellId].regionId;
+      s.cultureId = world.cells[s.cellId].cultureId ?? s.cultureId;
     }
+    this.#nameRivers(world, makeRng(`${world.meta.societySeed || world.meta.seed}:rivers`));
+    this.#routesAndMarkers(world, makeRng(`${world.meta.societySeed || world.meta.seed}:poi`));
+    return world;
+  }
+
+  /**
+   * Keep terrain; re-roll cultures, towns, realms, routes, and markers.
+   * @param {WorldData} world
+   * @param {string} [societySeed]
+   */
+  regenerateSociety(world, societySeed) {
+    world.meta.societySeed = societySeed || `${world.meta.seed}-${Math.random().toString(36).slice(2, 8)}`;
+    this.#buildSociety(world, world.meta.societySeed);
+    return world;
+  }
+
+  /**
+   * Keep places; re-roll names from each culture's phonology.
+   * @param {WorldData} world
+   */
+  regenerateNames(world) {
+    const rng = makeRng(`${world.meta.societySeed || world.meta.seed}:rename:${Date.now()}`);
+    const mills = this.#mills(world, rng);
+    for (const cult of world.cultures || []) {
+      cult.name = mills(cult.id).culture();
+    }
+    for (const s of world.settlements) {
+      s.name = mills(s.cultureId).settlement();
+    }
+    for (const r of world.regions) {
+      r.name = mills(r.cultureId ?? -1).realm();
+    }
+    this.#nameRivers(world, rng);
+    for (const m of world.markers || []) {
+      const label = m.name.includes("·") ? m.name.split("·")[1].trim() : "";
+      m.name = label ? `${mills(world.cells[m.cellId]?.cultureId ?? -1).marker()} · ${label}` : mills(-1).marker();
+    }
+    this.#setMapName(world);
+    return world;
+  }
+
+  /**
+   * @param {WorldData} world
+   */
+  rebuildRoutes(world) {
+    const rng = makeRng(`${world.meta.societySeed || world.meta.seed}:routes:${world.settlements.length}`);
+    world.routes = placeRoutes(world.cells, world.settlements, rng);
+    return world;
+  }
+
+  /**
+   * @param {WorldData} world
+   */
+  rebuildRoutesAndMarkers(world) {
+    this.#routesAndMarkers(world, makeRng(`${world.meta.societySeed || world.meta.seed}:poi:${Date.now()}`));
     return world;
   }
 
@@ -123,6 +177,28 @@ export class MapGenerator {
   /**
    * @param {WorldData} world
    * @param {number} cellId
+   * @param {string} name
+   * @param {"city"|"town"|"village"} [type]
+   */
+  addBurg(world, cellId, name, type = "town") {
+    const s = addSettlement(world, cellId, name, type);
+    if (s) this.rebuildRoutes(world);
+    return s;
+  }
+
+  /**
+   * @param {WorldData} world
+   * @param {number} settlementId
+   */
+  removeBurg(world, settlementId) {
+    if (!removeSettlement(world, settlementId)) return false;
+    this.rebuildRoutes(world);
+    return true;
+  }
+
+  /**
+   * @param {WorldData} world
+   * @param {number} cellId
    */
   #isLand(world, cellId) {
     const c = world.cells[cellId];
@@ -145,5 +221,78 @@ export class MapGenerator {
     world.rivers = extractRivers(cells, 16);
     assignClimate(cells, world.meta.height, world.meta.wind, world.meta.width);
     assignBiomes(cells);
+  }
+
+  /**
+   * @param {WorldData} world
+   * @param {string} societySeed
+   */
+  #buildSociety(world, societySeed) {
+    const rng = makeRng(societySeed);
+    const extent = { width: world.meta.width, height: world.meta.height };
+    world.cultures = placeCultures(world.cells, rng, extent);
+    const mills = this.#mills(world, rng);
+    for (const cult of world.cultures) {
+      cult.name = mills(cult.id).culture();
+    }
+    const { settlements, regions } = placeCivilizations(world.cells, rng, mills, extent);
+    world.settlements = settlements;
+    world.regions = regions;
+    this.#nameRivers(world, rng);
+    this.#routesAndMarkers(world, rng);
+    this.#setMapName(world);
+  }
+
+  /**
+   * @param {WorldData} world
+   * @param {() => number} rng
+   */
+  #mills(world, rng) {
+    /** @type {Map<number, ReturnType<typeof createNameFactory>>} */
+    const cache = new Map();
+    const fallback = createNameFactory(rng);
+    return (cultureId) => {
+      if (cultureId == null || cultureId < 0) return fallback;
+      let mill = cache.get(cultureId);
+      if (mill) return mill;
+      const cult = world.cultures?.[cultureId];
+      mill = createNameFactory(rng, cult ? phonologyById(cult.phonologyId) : undefined);
+      cache.set(cultureId, mill);
+      return mill;
+    };
+  }
+
+  /**
+   * @param {WorldData} world
+   * @param {() => number} rng
+   */
+  #nameRivers(world, rng) {
+    const mills = this.#mills(world, rng);
+    const ranked = world.rivers.slice().sort((a, b) => b.width - a.width);
+    for (const river of ranked) {
+      const mid = river.cellIds[river.cellIds.length >> 1];
+      const cid = world.cells[mid]?.cultureId ?? -1;
+      river.name = mills(cid).river();
+    }
+  }
+
+  /**
+   * @param {WorldData} world
+   * @param {() => number} rng
+   */
+  #routesAndMarkers(world, rng) {
+    const mills = this.#mills(world, rng);
+    world.routes = placeRoutes(world.cells, world.settlements, rng);
+    world.markers = placeMarkers(world.cells, world.settlements, world.cultures || [], rng, mills, {
+      width: world.meta.width,
+      height: world.meta.height,
+    });
+  }
+
+  /** @param {WorldData} world */
+  #setMapName(world) {
+    const primary = world.cultures?.[0];
+    const realm = world.regions[0];
+    world.meta.mapName = realm?.name || primary?.name || world.meta.seed;
   }
 }

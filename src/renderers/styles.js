@@ -66,8 +66,11 @@ export const BIOME_LABELS = {
  */
 export function fillFor(cell, world, style, lod = "local") {
   if (lod === "overview") return fillOverview(cell, world, style);
-  if (style === "physical") return physicalFill(cell);
+  if (style === "physical" || style === "height") return physicalFill(cell);
   if (style === "political") return politicalFill(cell, world, 0.28);
+  if (style === "cultural") return culturalFill(cell, world, 0.22);
+  if (style === "temperature") return temperatureFill(cell);
+  if (style === "precipitation") return precipitationFill(cell);
   if (style === "parchment") return parchmentFill(cell);
   if (style === "night") return nightFill(cell);
   if (cell.ocean) {
@@ -85,7 +88,7 @@ export function fillFor(cell, world, style, lod = "local") {
  * @param {string} style
  */
 function fillOverview(cell, world, style) {
-  if (style === "physical") {
+  if (style === "physical" || style === "height") {
     if (cell.ocean) return cell.height < -0.35 ? "#0e3348" : "#2f6d86";
     if (cell.lake) return "#4a88a0";
     if (cell.mountain) return "#a88862";
@@ -95,6 +98,9 @@ function fillOverview(cell, world, style) {
     return "#c4a07a";
   }
   if (style === "political") return politicalFill(cell, world, 0.1);
+  if (style === "cultural") return culturalFill(cell, world, 0.08);
+  if (style === "temperature") return temperatureFill(cell);
+  if (style === "precipitation") return precipitationFill(cell);
   if (style === "parchment") {
     if (cell.ocean) return "#c4b48a";
     if (cell.lake) return "#b7a57a";
@@ -131,6 +137,40 @@ function physicalFill(cell) {
   if (h < 0.55) return lerpColor("#c4c45c", "#c49a5c", (h - 0.25) / 0.3);
   if (h < 0.8) return lerpColor("#c49a5c", "#9a6b46", (h - 0.55) / 0.25);
   return lerpColor("#9a6b46", "#f2efe8", (h - 0.8) / 0.2);
+}
+
+/**
+ * @param {import("../types.js").Cell} cell
+ * @param {import("../types.js").WorldData} world
+ * @param {number} biomeMix
+ */
+function culturalFill(cell, world, biomeMix = 0.22) {
+  if (cell.ocean) return "#1c3d52";
+  if (cell.lake) return "#3a6e82";
+  const cult = cell.cultureId >= 0 ? world.cultures?.[cell.cultureId] : null;
+  if (cult) return mix(cult.color, ATLAS_BIOME[cell.biome] || "#888", biomeMix);
+  if (cell.regionId >= 0) return politicalFill(cell, world, biomeMix);
+  return "#6a6258";
+}
+
+/** @param {import("../types.js").Cell} cell */
+function temperatureFill(cell) {
+  if (cell.ocean) return lerpColor("#12304a", "#2a6a88", Math.max(0, Math.min(1, (cell.height + 0.7) / 0.8)));
+  if (cell.lake) return "#3a7a96";
+  const t = Math.max(0, Math.min(1, cell.temperature));
+  if (t < 0.35) return lerpColor("#9bb4d8", "#e8eef2", t / 0.35);
+  if (t < 0.6) return lerpColor("#e8eef2", "#e8d07a", (t - 0.35) / 0.25);
+  return lerpColor("#e8d07a", "#c44a28", (t - 0.6) / 0.4);
+}
+
+/** @param {import("../types.js").Cell} cell */
+function precipitationFill(cell) {
+  if (cell.ocean) return "#1a4860";
+  if (cell.lake) return "#3d7f96";
+  const m = Math.max(0, Math.min(1, cell.moisture));
+  if (m < 0.35) return lerpColor("#c4a05a", "#c4c46a", m / 0.35);
+  if (m < 0.65) return lerpColor("#c4c46a", "#5a9e6a", (m - 0.35) / 0.3);
+  return lerpColor("#5a9e6a", "#1a6a78", (m - 0.65) / 0.35);
 }
 
 /**

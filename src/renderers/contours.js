@@ -138,6 +138,8 @@ export function buildContours(world) {
   const shoreSeg = [];
   /** @type {number[][][]} */
   const borderSeg = [];
+  /** @type {number[][][]} */
+  const cultureSeg = [];
 
   for (const cell of cells) {
     if (cell.ocean || cell.polygon.length < 3) continue;
@@ -157,6 +159,10 @@ export function buildContours(world) {
         const e = edgeBetween(cell, n, cs);
         if (e) borderSeg.push(e);
       }
+      if (cell.cultureId >= 0 && n.cultureId >= 0 && cell.cultureId !== n.cultureId) {
+        const e = edgeBetween(cell, n, cs);
+        if (e) cultureSeg.push(e);
+      }
     }
   }
 
@@ -167,5 +173,6 @@ export function buildContours(world) {
     coasts: polish(coastSeg, cs * 0.35),
     shores: polish(shoreSeg, cs * 0.4),
     borders: polish(borderSeg, cs * 0.45),
+    cultures: polish(cultureSeg, cs * 0.5),
   };
 }
