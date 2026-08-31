@@ -29,4 +29,5 @@ Heavy generation belongs in `MapGenerator` so it can run in `src/workers/generat
 
 - Keep WorldData plain JSON (no class methods on the save file).
 - Hydrate new optional fields in `hydrateWorld` so old saves still open.
+- Landform presets live in `src/generators/landforms.js` as recipes; keep `continents` step-free so tectonic seeds stay stable.
 - Prefer Chinese UI copy; keep algorithm comments in English if you wish.

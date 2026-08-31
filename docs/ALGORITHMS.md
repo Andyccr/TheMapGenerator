@@ -30,7 +30,7 @@ Simplex **fbm is only ±0.09 of relief**, plus a cell-scale wrinkle so finer gri
 
 Mountain-belt decay, coastal plains, and continental shelves are measured in **world units**, then converted to graph hops with the current `cellSize`. A 2560×1600 map at cell size 7 keeps the same physical shelf width as a small test map.
 
-After tectonics, an optional **landform mask** (Azgaar-style template) reshapes the coastline: pangea, archipelago, island, peninsula, isthmus, inland sea, lakes. The default `continents` template leaves the plate result alone so old seeds stay stable. `setLandFraction` then re-picks sea level for the template's land ratio.
+After tectonics, an optional **landform recipe** (Azgaar-style template) reshapes the coastline with sequenced hills, pits, ranges, and straits. Built-in presets (`pangea`, `archipelago`, `island`, …) are just stored recipes; the default `continents` template has no extra steps so old seeds stay stable. `setLandFraction` then re-picks sea level for the template's land ratio.
 
 ## 3. Ocean, lakes, rivers
 

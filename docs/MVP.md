@@ -35,12 +35,11 @@ Done when: the far north is not tropical, and most towns sit on rivers or coasts
 
 ## Step 5 — After this prototype
 
-Shipped: cultures, routes, markers, provinces, religions, named features, landform templates, layer presets, independent society re-roll, search roster, measure, redo, help, autosave restore (IndexedDB + slots), worker generation, notes, label collision, status bar.
+Shipped: cultures, routes, markers, provinces, religions, named features, landform templates with editable heightmap recipes (hill / pit / range / strait), layer presets, independent society re-roll, search roster, measure, redo, help, autosave restore (IndexedDB + slots), worker generation, notes, label collision, status bar, neighbor diplomacy in the inspector.
 
 Still later:
-- Heightmap *editor* (blob operations the user can sequence), not just templates
 - Religions as a full simulation (heresy, theocracy)
-- Emblems, military, diplomacy
+- Emblems, military, a turn-based diplomacy sim
 - 3D globe view
 - IndexedDB `.map` interchange with Azgaar
 - True Delaunay/Voronoi (Delaunator) at 20k+ cells

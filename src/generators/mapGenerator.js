@@ -30,7 +30,7 @@ import { placeMarkers } from "./markers.js";
 import { placeProvinces, assignProvinces } from "./provinces.js";
 import { placeReligions, assignReligions } from "./religions.js";
 import { placeFeatures } from "./features.js";
-import { applyLandform } from "./landforms.js";
+import { applyLandform, parseRecipe } from "./landforms.js";
 import { placeDiplomacy } from "./diplomacy.js";
 import { createNameFactory, phonologyById } from "./names.js";
 
@@ -72,6 +72,7 @@ export class MapGenerator {
       world.meta.height,
       world.meta.landform || "continents",
       world.meta.seaLevel,
+      parseRecipe(world.meta.landformSteps),
     );
 
     onProgress?.("hydrology");

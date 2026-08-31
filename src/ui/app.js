@@ -13,7 +13,7 @@ import { cultureTypeLabel } from "../generators/cultures.js";
 import { markerLabel } from "../generators/markers.js";
 import { religionTypeLabel } from "../generators/religions.js";
 import { featureTypeLabel } from "../generators/features.js";
-import { landformLabel } from "../generators/landforms.js";
+import { landformLabel, recipeFor, parseRecipe, stepSummary } from "../generators/landforms.js";
 import { estimatePopulation } from "../generators/civilization.js";
 import { stanceLabel, tiesFor, otherId } from "../generators/diplomacy.js";
 import { APP_VERSION } from "../core/version.js";
@@ -91,6 +91,7 @@ export class App {
     this._burgTarget = null;
     this._dialogDone = null;
     this._confirmDone = null;
+    this.landformSteps = null;
     this.#bind();
   }
 
@@ -105,6 +106,7 @@ export class App {
     const helpVer = this.#el("help-version");
     if (helpVer) helpVer.textContent = `v${APP_VERSION}`;
     this.#fillSlotSelect();
+    this.#syncRecipeList();
     window.addEventListener("resize", () => {
       this.renderer.resize();
       if (this.world) this.redraw();
@@ -168,6 +170,7 @@ export class App {
       const windRaw = windEl instanceof HTMLSelectElement ? windEl.value : "1,0";
       const [wx, wy] = windRaw.split(",").map(Number);
       const landform = landEl instanceof HTMLSelectElement ? landEl.value : "continents";
+      const steps = this.landformSteps;
       const world = await runGeneratorJob(
         "generate",
         {
@@ -180,6 +183,7 @@ export class App {
             seaLevel,
             wind: { x: wx, y: wy },
             landform,
+            landformSteps: steps || undefined,
           },
         },
         (stage) => this.#setLoading(true, STAGE_LABELS[stage] || "正在生成世界…"),
@@ -215,6 +219,12 @@ export class App {
     if (styleEl instanceof HTMLSelectElement && world.meta.style) styleEl.value = world.meta.style;
     const landEl = this.#el("opt-landform");
     if (landEl instanceof HTMLSelectElement && world.meta.landform) landEl.value = world.meta.landform;
+    if (Array.isArray(world.meta.landformSteps)) {
+      this.landformSteps = parseRecipe(world.meta.landformSteps) || [];
+    } else {
+      this.landformSteps = recipeFor(world.meta.landform || "continents");
+    }
+    this.#syncRecipeList();
     this.#syncTitle();
     this.#syncShareUrl();
     this.redraw();
@@ -272,6 +282,23 @@ export class App {
       this.world.meta.style = /** @type {HTMLSelectElement} */ (e.target).value;
       this.#fillLegend();
       this.redraw();
+    });
+    this.#el("opt-landform")?.addEventListener("change", (e) => {
+      const id = /** @type {HTMLSelectElement} */ (e.target).value;
+      this.landformSteps = recipeFor(id);
+      this.#syncRecipeList();
+    });
+    this.doc.querySelectorAll("[data-add-step]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const op = String(btn.getAttribute("data-add-step") || "hill");
+        if (!this.landformSteps) this.landformSteps = recipeFor(this.#currentLandform());
+        this.landformSteps.push(defaultStep(op));
+        this.#syncRecipeList();
+      });
+    });
+    this.#el("btn-recipe-reset")?.addEventListener("click", () => {
+      this.landformSteps = recipeFor(this.#currentLandform());
+      this.#syncRecipeList();
     });
     this.#el("opt-labels")?.addEventListener("change", (e) => {
       this.labels = /** @type {HTMLInputElement} */ (e.target).checked;
@@ -1131,6 +1158,10 @@ export class App {
     setVal("opt-style", share.style);
     setVal("opt-plates", share.plates);
     setVal("opt-sea", share.sea);
+    if (share.landform) {
+      this.landformSteps = recipeFor(share.landform);
+      this.#syncRecipeList();
+    }
   }
 
   #syncShareUrl() {
@@ -1309,6 +1340,36 @@ export class App {
     }
   }
 
+  #currentLandform() {
+    const el = this.#el("opt-landform");
+    return el instanceof HTMLSelectElement ? el.value : "continents";
+  }
+
+  #syncRecipeList() {
+    const list = this.#el("landform-recipe");
+    if (!list) return;
+    const steps = this.landformSteps || recipeFor(this.#currentLandform());
+    this.landformSteps = steps;
+    if (!steps.length) {
+      list.innerHTML = `<li class="empty">无额外步骤（纯板块轮廓）</li>`;
+      return;
+    }
+    list.innerHTML = steps
+      .map(
+        (step, i) =>
+          `<li><span>${escapeHtml(stepSummary(step))}</span><button type="button" data-drop-step="${i}">删</button></li>`,
+      )
+      .join("");
+    list.querySelectorAll("[data-drop-step]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const i = Number(btn.getAttribute("data-drop-step"));
+        if (!this.landformSteps) return;
+        this.landformSteps.splice(i, 1);
+        this.#syncRecipeList();
+      });
+    });
+  }
+
   /** @param {string} id */
   #el(id) {
     return this.doc.getElementById(id);
@@ -1325,4 +1386,15 @@ function randomSeed() {
 /** @param {string} s */
 function escapeHtml(s) {
   return s.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch] || ch);
+}
+
+/** @param {string} op */
+function defaultStep(op) {
+  if (op === "pit") return { op: "pit", n: 1, rx: 0.08, ry: 0.07, amp: 0.28, jitter: true };
+  if (op === "range") return { op: "range", n: 1, rx: 0.22, ry: 0.08, amp: 0.4, jitter: true };
+  if (op === "strait") return { op: "strait", amp: 0.55 };
+  if (op === "sink") return { op: "sink", amp: 0.12 };
+  if (op === "raise") return { op: "raise", amp: 0.08 };
+  if (op === "mask") return { op: "mask", edge: 0.12, amp: 2 };
+  return { op: "hill", n: 1, rx: 0.12, ry: 0.1, amp: 0.35, jitter: true };
 }
