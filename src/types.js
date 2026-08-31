@@ -48,6 +48,8 @@
  * @property {number} regionId   -1 if none
  * @property {number} cultureId  -1 if none
  * @property {number} provinceId -1 if none
+ * @property {number} religionId -1 if none
+ * @property {number} featureId  -1 if none
  * @property {number} precipitation
  */
 
@@ -123,6 +125,27 @@
  */
 
 /**
+ * @typedef {Object} Religion
+ * @property {number} id
+ * @property {string} name
+ * @property {"folk"|"organized"} type
+ * @property {number} cultureId
+ * @property {string} color
+ * @property {number} originId
+ * @property {string} [note]
+ */
+
+/**
+ * @typedef {Object} GeoFeature
+ * @property {number} id
+ * @property {string} name
+ * @property {"continent"|"island"|"lake"|"sea"} type
+ * @property {number} size
+ * @property {number} originId
+ * @property {string} [note]
+ */
+
+/**
  * @typedef {Object} WorldView
  * @property {number} x
  * @property {number} y
@@ -141,6 +164,7 @@
  * @property {string} style
  * @property {string} [societySeed]
  * @property {string} [mapName]
+ * @property {string} [landform]
  */
 
 /**
@@ -158,6 +182,8 @@
  * @property {Route[]} [routes]
  * @property {Marker[]} [markers]
  * @property {Province[]} [provinces]
+ * @property {Religion[]} [religions]
+ * @property {GeoFeature[]} [features]
  * @property {WorldView} view
  * @property {string} generatedAt
  */
@@ -172,6 +198,7 @@
  * @property {number} [seaLevel]
  * @property {Vec2} [wind]
  * @property {string} [societySeed]
+ * @property {string} [landform]
  */
 
 /**

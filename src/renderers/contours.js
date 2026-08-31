@@ -142,6 +142,8 @@ export function buildContours(world) {
   const cultureSeg = [];
   /** @type {number[][][]} */
   const provinceSeg = [];
+  /** @type {number[][][]} */
+  const religionSeg = [];
 
   for (const cell of cells) {
     if (cell.ocean || cell.polygon.length < 3) continue;
@@ -169,6 +171,10 @@ export function buildContours(world) {
         const e = edgeBetween(cell, n, cs);
         if (e) provinceSeg.push(e);
       }
+      if (cell.religionId >= 0 && n.religionId >= 0 && cell.religionId !== n.religionId) {
+        const e = edgeBetween(cell, n, cs);
+        if (e) religionSeg.push(e);
+      }
     }
   }
 
@@ -181,5 +187,6 @@ export function buildContours(world) {
     borders: polish(borderSeg, cs * 0.45),
     cultures: polish(cultureSeg, cs * 0.5),
     provinces: polish(provinceSeg, cs * 0.48),
+    religions: polish(religionSeg, cs * 0.5),
   };
 }

@@ -1,6 +1,6 @@
 # Architecture
 
-Fantasy World Map Generator is a **static** browser app. There is no server, no API, and no runtime npm dependency. Vite bundles ES modules into `dist/` for GitHub Pages.
+Fantasy World Map Generator is a **static** browser app. There is no server, no API, and no runtime npm dependency. GitHub Pages serves `index.html` and `src/` directly. Vite is optional, only for local hot reload.
 
 ## Four layers
 
@@ -35,8 +35,8 @@ Plain object, versioned. This is the save file.
 ```js
 {
   version: 1,
-  meta: { seed, width, height, cellSize, plateCount, seaLevel, wind, style, societySeed, mapName },
-  cells: [ { id, x, y, polygon, neighbors, height, biome, ... } ],
+  meta: { seed, width, height, cellSize, plateCount, seaLevel, wind, style, societySeed, mapName, landform },
+  cells: [ { id, x, y, polygon, neighbors, height, biome, cultureId, provinceId, religionId, featureId, ... } ],
   plates: [ { id, continental, vx, vy, cx, cy } ],
   rivers: [ { id, cellIds, points, width, name } ],
   settlements: [ { id, cellId, name, type, regionId, cultureId, population, note } ],
@@ -45,6 +45,8 @@ Plain object, versioned. This is the save file.
   routes: [ { id, kind, fromId, toId, cellIds, points } ],
   markers: [ { id, cellId, type, name, note } ],
   provinces: [ { id, name, color, regionId, seatId } ],
+  religions: [ { id, name, type, cultureId, color, originId } ],
+  features: [ { id, name, type, size, originId } ],
   view: { x, y, scale },
   generatedAt: "ISO-8601"
 }

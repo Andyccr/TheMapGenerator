@@ -70,6 +70,7 @@ export function fillFor(cell, world, style, lod = "local") {
   if (style === "political") return politicalFill(cell, world, 0.28);
   if (style === "cultural") return culturalFill(cell, world, 0.22);
   if (style === "provinces") return provinceFill(cell, world, 0.2);
+  if (style === "religions") return religionFill(cell, world, 0.2);
   if (style === "temperature") return temperatureFill(cell);
   if (style === "precipitation") return precipitationFill(cell);
   if (style === "parchment") return parchmentFill(cell);
@@ -101,6 +102,7 @@ function fillOverview(cell, world, style) {
   if (style === "political") return politicalFill(cell, world, 0.1);
   if (style === "cultural") return culturalFill(cell, world, 0.08);
   if (style === "provinces") return provinceFill(cell, world, 0.06);
+  if (style === "religions") return religionFill(cell, world, 0.06);
   if (style === "temperature") return temperatureFill(cell);
   if (style === "precipitation") return precipitationFill(cell);
   if (style === "parchment") {
@@ -166,6 +168,19 @@ function provinceFill(cell, world, biomeMix = 0.2) {
   const p = cell.provinceId >= 0 ? world.provinces?.[cell.provinceId] : null;
   if (p) return mix(p.color, ATLAS_BIOME[cell.biome] || "#888", biomeMix);
   return politicalFill(cell, world, biomeMix);
+}
+
+/**
+ * @param {import("../types.js").Cell} cell
+ * @param {import("../types.js").WorldData} world
+ * @param {number} biomeMix
+ */
+function religionFill(cell, world, biomeMix = 0.2) {
+  if (cell.ocean) return "#1c3d52";
+  if (cell.lake) return "#3a6e82";
+  const r = cell.religionId >= 0 ? world.religions?.[cell.religionId] : null;
+  if (r) return mix(r.color, ATLAS_BIOME[cell.biome] || "#888", biomeMix);
+  return culturalFill(cell, world, biomeMix);
 }
 
 /** @param {import("../types.js").Cell} cell */

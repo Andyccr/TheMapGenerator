@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.0
+
+- Landform templates: continents, pangea, archipelago, island, peninsula, isthmus, inland sea, lakes. Tectonics still carve belts; the template decides the silhouette.
+- Religions (folk per culture, organized creeds from great cities) and a dedicated layer.
+- Named geographic features: continents, islands, lakes, seas.
+- IndexedDB autosave so large maps survive refresh; six named slots beside JSON export.
+- Map status bar, header panel toggles, longer toasts, print stylesheet, document title follows the map name.
+- Fixed missing `loadLocal` export that blanked the page after the 1.1 persistence wiring.
+
 ## 1.1.0
 
 - Cultures, routes, markers, provinces, and layer presets (height / temperature / precipitation / cultural / political).

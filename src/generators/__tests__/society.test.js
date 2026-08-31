@@ -79,6 +79,30 @@ test("older saves hydrate playability fields", () => {
   assert.equal(w.settlements[0].population, 0);
   hydrateWorld(w);
   assert.equal(w.meta.societySeed, "old");
+  assert.equal(w.meta.landform, "continents");
+  assert.ok(Array.isArray(w.religions));
+  assert.ok(Array.isArray(w.features));
+  assert.equal(w.cells[0].religionId, -1);
+});
+
+test("religions cover land and never paint ocean", () => {
+  const w = world("faith-cover");
+  assert.ok((w.religions?.length || 0) >= 3, "expected folk faiths");
+  assert.ok(w.religions.some((r) => r.type === "folk"));
+  const land = w.cells.filter((c) => !c.ocean);
+  const painted = land.filter((c) => c.religionId >= 0);
+  assert.ok(painted.length > land.length * 0.75, "most land should have a faith");
+  assert.ok(w.cells.filter((c) => c.ocean).every((c) => c.religionId < 0));
+});
+
+test("geographic features name land and water", () => {
+  const w = world("geo-names");
+  assert.ok((w.features?.length || 0) > 0, "expected named features");
+  for (const f of w.features) {
+    assert.ok(f.name.length > 1);
+    assert.ok(["continent", "island", "lake", "sea"].includes(f.type));
+    assert.ok(w.cells[f.originId], `feature ${f.name} missing origin`);
+  }
 });
 
 test("provinces stay inside their parent realm", () => {
