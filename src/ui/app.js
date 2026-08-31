@@ -219,8 +219,11 @@ export class App {
     if (styleEl instanceof HTMLSelectElement && world.meta.style) styleEl.value = world.meta.style;
     const landEl = this.#el("opt-landform");
     if (landEl instanceof HTMLSelectElement && world.meta.landform) landEl.value = world.meta.landform;
-    const parsed = parseRecipe(world.meta.landformSteps);
-    this.landformSteps = parsed && parsed.length ? parsed : recipeFor(world.meta.landform || "continents");
+    if (Array.isArray(world.meta.landformSteps)) {
+      this.landformSteps = parseRecipe(world.meta.landformSteps) || [];
+    } else {
+      this.landformSteps = recipeFor(world.meta.landform || "continents");
+    }
     this.#syncRecipeList();
     this.#syncTitle();
     this.#syncShareUrl();
