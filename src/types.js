@@ -142,7 +142,16 @@
  * @property {"continent"|"island"|"lake"|"sea"} type
  * @property {number} size
  * @property {number} originId
+ * @property {number} [cx]
+ * @property {number} [cy]
  * @property {string} [note]
+ */
+
+/**
+ * @typedef {Object} DiplomacyTie
+ * @property {number} a
+ * @property {number} b
+ * @property {"ally"|"peace"|"rival"|"war"} stance
  */
 
 /**
@@ -184,6 +193,7 @@
  * @property {Province[]} [provinces]
  * @property {Religion[]} [religions]
  * @property {GeoFeature[]} [features]
+ * @property {DiplomacyTie[]} [diplomacy]
  * @property {WorldView} view
  * @property {string} generatedAt
  */

@@ -31,6 +31,7 @@ import { placeProvinces, assignProvinces } from "./provinces.js";
 import { placeReligions, assignReligions } from "./religions.js";
 import { placeFeatures } from "./features.js";
 import { applyLandform } from "./landforms.js";
+import { placeDiplomacy } from "./diplomacy.js";
 import { createNameFactory, phonologyById } from "./names.js";
 
 /** @typedef {import("../types.js").WorldData} WorldData */
@@ -110,6 +111,11 @@ export class MapGenerator {
     this.#nameRivers(world, makeRng(`${world.meta.societySeed || world.meta.seed}:rivers`));
     this.#routesAndMarkers(world, makeRng(`${world.meta.societySeed || world.meta.seed}:poi`));
     this.#placeFeatures(world);
+    world.diplomacy = placeDiplomacy(
+      world.regions,
+      world.cells,
+      makeRng(`${world.meta.societySeed || world.meta.seed}:diplo`),
+    );
     return world;
   }
 
@@ -280,6 +286,7 @@ export class MapGenerator {
     world.regions = regions;
     world.provinces = placeProvinces(world.cells, settlements, regions, rng, mills);
     world.religions = placeReligions(world.cells, world.cultures, settlements, rng, mills);
+    world.diplomacy = placeDiplomacy(regions, world.cells, rng);
     this.#nameRivers(world, rng);
     onProgress?.("routes");
     this.#routesAndMarkers(world, rng);

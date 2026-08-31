@@ -46,7 +46,8 @@ Plain object, versioned. This is the save file.
   markers: [ { id, cellId, type, name, note } ],
   provinces: [ { id, name, color, regionId, seatId } ],
   religions: [ { id, name, type, cultureId, color, originId } ],
-  features: [ { id, name, type, size, originId } ],
+  features: [ { id, name, type, size, originId, cx, cy } ],
+  diplomacy: [ { a, b, stance } ],
   view: { x, y, scale },
   generatedAt: "ISO-8601"
 }

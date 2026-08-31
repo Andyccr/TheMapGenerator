@@ -90,6 +90,7 @@ export function createWorldShell(config) {
     provinces: [],
     religions: [],
     features: [],
+    diplomacy: [],
     view: { x: 0, y: 0, scale: 1 },
     generatedAt: new Date().toISOString(),
   };
@@ -154,6 +155,7 @@ export function hydrateWorld(w) {
   if (!w.provinces) w.provinces = [];
   if (!w.religions) w.religions = [];
   if (!w.features) w.features = [];
+  if (!w.diplomacy) w.diplomacy = [];
   if (!w.meta.societySeed) w.meta.societySeed = w.meta.seed;
   if (!w.meta.mapName) w.meta.mapName = "";
   if (!w.meta.landform) w.meta.landform = "continents";
@@ -162,6 +164,13 @@ export function hydrateWorld(w) {
     if (c.provinceId == null) c.provinceId = -1;
     if (c.religionId == null) c.religionId = -1;
     if (c.featureId == null) c.featureId = -1;
+  }
+  for (const f of w.features) {
+    if (f.cx == null || f.cy == null) {
+      const origin = w.cells[f.originId];
+      f.cx = origin?.x ?? 0;
+      f.cy = origin?.y ?? 0;
+    }
   }
   for (const s of w.settlements) {
     if (s.cultureId == null) s.cultureId = w.cells[s.cellId]?.cultureId ?? -1;

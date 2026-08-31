@@ -1,0 +1,10 @@
+{
+  "name": "幻想世界地图生成器",
+  "short_name": "FWMG",
+  "description": "在浏览器里生成地理上合理的交互式幻想地图。纯静态，无需后端。",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#140f0c",
+  "theme_color": "#140f0c",
+  "lang": "zh-CN"
+}
