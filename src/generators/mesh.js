@@ -76,6 +76,7 @@ export function createMesh(opts) {
         riverId: -1,
         regionId: -1,
         cultureId: -1,
+        provinceId: -1,
         precipitation: 0,
       });
       at.set(`${c},${r}`, id);

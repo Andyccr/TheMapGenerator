@@ -27,6 +27,7 @@ import { placeCivilizations, assignRegions, addSettlement, removeSettlement } fr
 import { placeCultures, assignCultures } from "./cultures.js";
 import { placeRoutes } from "./routes.js";
 import { placeMarkers } from "./markers.js";
+import { placeProvinces, assignProvinces } from "./provinces.js";
 import { createNameFactory, phonologyById } from "./names.js";
 
 /** @typedef {import("../types.js").WorldData} WorldData */
@@ -35,11 +36,13 @@ import { createNameFactory, phonologyById } from "./names.js";
 export class MapGenerator {
   /**
    * @param {GenerateConfig} config
+   * @param {(stage: string) => void} [onProgress]
    * @returns {WorldData}
    */
-  generate(config) {
+  generate(config, onProgress) {
     const world = createWorldShell(config);
     const rng = makeRng(world.meta.seed);
+    onProgress?.("mesh");
     const { cells } = createMesh({
       width: world.meta.width,
       height: world.meta.height,
@@ -47,6 +50,7 @@ export class MapGenerator {
       rng,
     });
     world.cells = cells;
+    onProgress?.("tectonics");
     world.plates = assignPlates(cells, world.meta.plateCount, rng, world.meta.width, world.meta.height);
     assignElevation(
       cells,
@@ -58,8 +62,10 @@ export class MapGenerator {
       world.meta.cellSize,
     );
 
+    onProgress?.("hydrology");
     this.#hydrologyAndClimate(world);
-    this.#buildSociety(world, world.meta.societySeed || world.meta.seed);
+    onProgress?.("society");
+    this.#buildSociety(world, world.meta.societySeed || world.meta.seed, onProgress);
     world.generatedAt = new Date().toISOString();
     return world;
   }
@@ -84,6 +90,7 @@ export class MapGenerator {
     world.settlements = world.settlements.filter((s) => !world.cells[s.cellId].ocean);
     if (world.cultures?.length) assignCultures(world.cells, world.cultures);
     assignRegions(world.cells, world.settlements, world.regions);
+    if (world.provinces?.length) assignProvinces(world.cells, world.settlements, world.provinces);
     for (const s of world.settlements) {
       s.regionId = world.cells[s.cellId].regionId;
       s.cultureId = world.cells[s.cellId].cultureId ?? s.cultureId;
@@ -119,6 +126,10 @@ export class MapGenerator {
     }
     for (const r of world.regions) {
       r.name = mills(r.cultureId ?? -1).realm();
+    }
+    for (const p of world.provinces || []) {
+      const seat = world.settlements.find((s) => s.id === p.seatId);
+      p.name = mills(seat?.cultureId ?? -1).settlement();
     }
     this.#nameRivers(world, rng);
     for (const m of world.markers || []) {
@@ -226,8 +237,9 @@ export class MapGenerator {
   /**
    * @param {WorldData} world
    * @param {string} societySeed
+   * @param {(stage: string) => void} [onProgress]
    */
-  #buildSociety(world, societySeed) {
+  #buildSociety(world, societySeed, onProgress) {
     const rng = makeRng(societySeed);
     const extent = { width: world.meta.width, height: world.meta.height };
     world.cultures = placeCultures(world.cells, rng, extent);
@@ -238,7 +250,9 @@ export class MapGenerator {
     const { settlements, regions } = placeCivilizations(world.cells, rng, mills, extent);
     world.settlements = settlements;
     world.regions = regions;
+    world.provinces = placeProvinces(world.cells, settlements, regions, rng, mills);
     this.#nameRivers(world, rng);
+    onProgress?.("routes");
     this.#routesAndMarkers(world, rng);
     this.#setMapName(world);
   }

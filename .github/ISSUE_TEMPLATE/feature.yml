@@ -1,0 +1,17 @@
+name: Feature
+description: A playability or workshop improvement
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: why
+    attributes:
+      label: Why this belongs in a map workshop
+      placeholder: Who uses it (GM, writer, cartographer) and what it unblocks.
+    validations:
+      required: true
+  - type: textarea
+    id: how
+    attributes:
+      label: Sketch
+      placeholder: Which layer (data / generator / editor / renderer) should own it?

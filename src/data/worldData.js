@@ -86,6 +86,7 @@ export function createWorldShell(config) {
     cultures: [],
     routes: [],
     markers: [],
+    provinces: [],
     view: { x: 0, y: 0, scale: 1 },
     generatedAt: new Date().toISOString(),
   };
@@ -113,6 +114,7 @@ export function summarizeWorld(world) {
     cultures: world.cultures?.length ?? 0,
     routes: world.routes?.length ?? 0,
     markers: world.markers?.length ?? 0,
+    provinces: world.provinces?.length ?? 0,
   };
 }
 
@@ -144,10 +146,12 @@ export function hydrateWorld(w) {
   if (!w.cultures) w.cultures = [];
   if (!w.routes) w.routes = [];
   if (!w.markers) w.markers = [];
+  if (!w.provinces) w.provinces = [];
   if (!w.meta.societySeed) w.meta.societySeed = w.meta.seed;
   if (!w.meta.mapName) w.meta.mapName = "";
   for (const c of w.cells) {
     if (c.cultureId == null) c.cultureId = -1;
+    if (c.provinceId == null) c.provinceId = -1;
   }
   for (const s of w.settlements) {
     if (s.cultureId == null) s.cultureId = w.cells[s.cellId]?.cultureId ?? -1;

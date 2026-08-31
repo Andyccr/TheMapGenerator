@@ -142,15 +142,26 @@ export class RenameTool {
    */
   apply(world, ev, ctx) {
     if (ev.phase !== "down" || ev.cellId < 0) return;
-    const s = settlementAt(world, ev.cellId);
-    if (s && ctx.promptRename) {
-      ctx.promptRename(s);
+    if (s && ctx.askText) {
+      ctx.askText("重命名", s.name, (next) => {
+        if (!next) return;
+        ctx.beginEdit?.();
+        s.name = next;
+        ctx.commit(world);
+      });
       return;
     }
     const marker = (world.markers || []).find((m) => m.cellId === ev.cellId);
-    if (marker && ctx.promptRename) {
-      ctx.promptRename(marker);
+    if (marker && ctx.askText) {
+      ctx.askText("重命名地标", marker.name, (next) => {
+        if (!next) return;
+        ctx.beginEdit?.();
+        marker.name = next;
+        ctx.commit(world);
+      });
+      return;
     }
+    if (s && ctx.promptRename) ctx.promptRename(s);
   }
 }
 
@@ -168,8 +179,18 @@ export class BurgTool {
     if (!cell || cell.ocean || cell.lake) return;
     if (settlementAt(world, ev.cellId)) return;
     const fallback = "新城";
+    if (ctx.askText) {
+      ctx.askText("新聚落名称", fallback, (name) => {
+        if (!name) return;
+        ctx.beginEdit?.();
+        addSettlement(world, ev.cellId, name, ev.shiftKey ? "city" : "town");
+        ctx.commit(world);
+      });
+      return;
+    }
     const name = ctx.promptText ? ctx.promptText("新聚落名称", fallback) : fallback;
     if (!name) return;
+    ctx.beginEdit?.();
     addSettlement(world, ev.cellId, name, ev.shiftKey ? "city" : "town");
     ctx.commit(world);
   }
@@ -213,11 +234,19 @@ export class MarkerTool {
     const type = ctx.markerType || "ruins";
     const label = MARKER_TYPES[type]?.label || type;
     const fallback = `${label}`;
-    const name = ctx.promptText ? ctx.promptText("地标名称", fallback) : fallback;
-    if (!name) return;
-    if (!world.markers) world.markers = [];
-    const id = world.markers.reduce((m, x) => Math.max(m, x.id), -1) + 1;
-    world.markers.push({ id, cellId: ev.cellId, type, name, note: "" });
+    const place = (name) => {
+      if (!name) return;
+      ctx.beginEdit?.();
+      if (!world.markers) world.markers = [];
+      const id = world.markers.reduce((m, x) => Math.max(m, x.id), -1) + 1;
+      world.markers.push({ id, cellId: ev.cellId, type, name, note: "" });
+      ctx.commit(world);
+    };
+    if (ctx.askText) {
+      ctx.askText("地标名称", fallback, place);
+      return;
+    }
+    place(ctx.promptText ? ctx.promptText("地标名称", fallback) : fallback);
   }
 }
 

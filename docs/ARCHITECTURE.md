@@ -44,6 +44,7 @@ Plain object, versioned. This is the save file.
   cultures: [ { id, name, color, type, originId, phonologyId } ],
   routes: [ { id, kind, fromId, toId, cellIds, points } ],
   markers: [ { id, cellId, type, name, note } ],
+  provinces: [ { id, name, color, regionId, seatId } ],
   view: { x, y, scale },
   generatedAt: "ISO-8601"
 }
@@ -53,7 +54,7 @@ Plain object, versioned. This is the save file.
 
 ```js
 class MapGenerator {
-  generate(config: GenerateConfig): WorldData
+  generate(config: GenerateConfig, onProgress?: (stage: string) => void): WorldData
   recomputeFromElevation(world: WorldData): WorldData
   carveRiver(world: WorldData, cellIds: number[]): WorldData
   regenerateSociety(world: WorldData, seed?: string): WorldData
@@ -97,11 +98,13 @@ class CanvasRenderer {
 | High-res PNG export | `canvas.toBlob` | `XMLSerializer` + `foreignObject` hacks |
 | Crisp labels at every zoom | Must redraw text | Scales “for free” |
 
-Style presets include atlas, physical, political, cultural, height, temperature, precipitation, parchment, and night. Overlay toggles (rivers, routes, markers, relief) are draw-only; they never rewrite cells.
+Style presets include atlas, physical, political, cultural, provinces, height, temperature, precipitation, parchment, and night. Overlay toggles (rivers, routes, markers, relief) are draw-only; they never rewrite cells.
+
+`MapGenerator.generate` accepts an optional `onProgress(stage)` callback. The UI runs it in `src/workers/generateWorker.js` so the tab stays responsive, and falls back to the main thread if workers cannot start.
 
 ## Persistence
 
-- `localStorage` key `fwmg-autosave-v1` (debounced)
+- `localStorage` key `fwmg-autosave-v1` (debounced). Refresh restores this save instead of generating a new world.
 - Export/import one JSON document
 - PNG at 1× / 2× / 3× via an offscreen canvas
 
