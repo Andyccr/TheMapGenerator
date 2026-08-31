@@ -1,6 +1,6 @@
 {
   "name": "fantasy-world-map-generator",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "private": true,
   "description": "Static, geographically plausible fantasy map generator for writers, game masters, and cartographers. Runs entirely in the browser and deploys to GitHub Pages.",
   "type": "module",
@@ -9,7 +9,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test src/generators/__tests__/plausibility.test.js src/generators/__tests__/society.test.js src/generators/__tests__/landforms.test.js src/renderers/__tests__/lod.test.js"
+    "test": "node --test src/generators/__tests__/plausibility.test.js src/generators/__tests__/society.test.js src/generators/__tests__/landforms.test.js src/generators/__tests__/diplomacy.test.js src/ui/__tests__/share.test.js src/renderers/__tests__/lod.test.js"
   },
   "license": "AGPL-3.0-or-later",
   "devDependencies": {

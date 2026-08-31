@@ -55,7 +55,7 @@ Cultures expand first. A handful of hearths pick a type (河畔 / 沿海 / 山�
 
 Population is a cartographic estimate from type, moisture, and water access. It is for the inspector and roster, not a simulation.
 
-Folk religions follow culture; a few **organized** creeds expand from the largest cities with a limited cost radius so they read as state churches. Connected land and water components become named **features** (continents, islands, lakes, seas).
+Folk religions follow culture; a few **organized** creeds expand from the largest cities with a limited cost radius so they read as state churches. Connected land and water components become named **features** (continents, islands, lakes, seas). Neighboring realms roll a **diplomacy** stance (ally / peace / rival / war) for the inspector — not a turn-based sim.
 
 ## 6. Routes and markers
 

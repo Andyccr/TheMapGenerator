@@ -46,8 +46,23 @@ export function placeFeatures(cells, mills, extent = {}) {
     const mill = mills(cid);
     const name =
       type === "lake" ? `${mill.river()}湖` : type === "island" ? `${mill.feature()}岛` : mill.realm();
+    let sx = 0;
+    let sy = 0;
+    for (const id0 of ids) {
+      sx += cells[id0].x;
+      sy += cells[id0].y;
+    }
     const id = features.length;
-    features.push({ id, name, type, size: ids.length, originId, note: "" });
+    features.push({
+      id,
+      name,
+      type,
+      size: ids.length,
+      originId,
+      cx: sx / ids.length,
+      cy: sy / ids.length,
+      note: "",
+    });
     for (const cid0 of ids) cells[cid0].featureId = id;
   }
 
@@ -63,8 +78,23 @@ export function placeFeatures(cells, mills, extent = {}) {
       return c.x > (extent.width || 0) * 0.08 && c.x < (extent.width || 1) * 0.92;
     });
     const name = enclosed && ids.length < cells.length * 0.35 ? `${mill.feature()}海` : `${mill.realm()}洋`;
+    let sx = 0;
+    let sy = 0;
+    for (const id0 of ids) {
+      sx += cells[id0].x;
+      sy += cells[id0].y;
+    }
     const id = features.length;
-    features.push({ id, name, type: "sea", size: ids.length, originId, note: "" });
+    features.push({
+      id,
+      name,
+      type: "sea",
+      size: ids.length,
+      originId,
+      cx: sx / ids.length,
+      cy: sy / ids.length,
+      note: "",
+    });
     for (const cid0 of ids) cells[cid0].featureId = id;
   }
 
