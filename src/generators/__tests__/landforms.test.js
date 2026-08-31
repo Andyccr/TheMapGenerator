@@ -77,3 +77,9 @@ test("custom landformSteps are honored", () => {
   assert.ok(Array.isArray(extra.meta.landformSteps));
   assert.ok(landRatio(extra) < 0.55);
 });
+
+test("empty landformSteps stay empty instead of falling back to the preset", () => {
+  const gen = new MapGenerator();
+  const w = gen.generate({ ...cfg("archipelago"), landformSteps: [] });
+  assert.deepEqual(w.meta.landformSteps, []);
+});
