@@ -9,15 +9,15 @@ export function saveLocal(world) {
   }
 }
 
-/** @returns {import("../types.js").WorldData | null} */
-export function loadLocal() {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
+/** @returns {{ seed: string, mapName: string, generatedAt: string } | null} */
+export function peekAutosave() {
+  const w = loadLocal();
+  if (!w?.meta) return null;
+  return {
+    seed: String(w.meta.seed || ""),
+    mapName: String(w.meta.mapName || w.meta.seed || ""),
+    generatedAt: String(w.generatedAt || ""),
+  };
 }
 
 /** @param {import("../types.js").WorldData} world @param {string} filename */

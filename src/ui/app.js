@@ -7,10 +7,11 @@ import { MapGenerator } from "../generators/mapGenerator.js";
 import { CanvasRenderer } from "../renderers/canvasRenderer.js";
 import { createTools } from "../editors/tools.js";
 import { cloneWorld, parseWorld, summarizeWorld } from "../data/worldData.js";
-import { saveLocal, loadLocal, downloadJson, downloadPng, readJsonFile } from "../persistence/storage.js";
+import { saveLocal, loadLocal, downloadJson, downloadPng, readJsonFile, peekAutosave } from "../persistence/storage.js";
 import { BIOME_LABELS } from "../renderers/styles.js";
 import { cultureTypeLabel } from "../generators/cultures.js";
 import { markerLabel } from "../generators/markers.js";
+import { runGeneratorJob, STAGE_LABELS } from "./generateClient.js";
 
 const HINTS = {
   pan: "滚轮缩放：全图合并色块与干流，近景晕渲、细河与村落。格子数据不变。双击放大，拖动平移。",
@@ -78,6 +79,9 @@ export class App {
     /** @type {{ x0: number, y0: number, x1: number, y1: number } | null} */
     this.measure = null;
     this._zoomRaf = 0;
+    this._toastTimer = 0;
+    this._noteTarget = null;
+    this._dialogDone = null;
     this.#bind();
   }
 
@@ -93,6 +97,17 @@ export class App {
     });
     requestAnimationFrame(() => {
       this.renderer.resize();
+      const saved = loadLocal();
+      if (saved) {
+        try {
+          this.#applyWorld(parseWorld(saved), { fit: true });
+          const peek = peekAutosave();
+          this.#toast(`已恢复「${peek?.mapName || peek?.seed || "自动存档"}」。点「生成世界」可另开一张。`);
+          return;
+        } catch {
+          /* corrupt autosave — generate fresh */
+        }
+      }
       this.generate();
     });
   }
@@ -118,32 +133,56 @@ export class App {
       const seaLevel = Number(seaEl instanceof HTMLInputElement ? seaEl.value : 0);
       const windRaw = windEl instanceof HTMLSelectElement ? windEl.value : "1,0";
       const [wx, wy] = windRaw.split(",").map(Number);
-      const world = this.generator.generate({
-        seed,
-        width,
-        height,
-        cellSize,
-        plateCount,
-        seaLevel,
-        wind: { x: wx, y: wy },
-      });
+      const world = await runGeneratorJob(
+        "generate",
+        {
+          config: {
+            seed,
+            width,
+            height,
+            cellSize,
+            plateCount,
+            seaLevel,
+            wind: { x: wx, y: wy },
+          },
+        },
+        (stage) => this.#setLoading(true, STAGE_LABELS[stage] || "正在生成世界…"),
+      );
       const styleEl = this.#el("opt-style");
       world.meta.style = styleEl instanceof HTMLSelectElement ? styleEl.value : "atlas";
-      this.world = world;
-      this.undo = [];
-      this.redo = [];
-      this.measure = null;
-      this.renderer.resize();
-      this.renderer.fit(world);
-      this.redraw();
-      this.#scheduleAutosave();
-      this.#inspect(-1);
-      this.#fillLegend();
-      this.#fillRoster();
-      this.#syncZoomReadout();
+      this.#applyWorld(world, { fit: true });
+      this.#toast(`已生成「${world.meta.mapName || seed}」`);
+    } catch (err) {
+      this.#toast(err instanceof Error ? err.message : "生成失败。", true);
     } finally {
       this.#setLoading(false);
     }
+  }
+
+  /**
+   * @param {import("../types.js").WorldData} world
+   * @param {{ fit?: boolean }} [opts]
+   */
+  #applyWorld(world, opts = {}) {
+    this.world = world;
+    this.undo = [];
+    this.redo = [];
+    this.measure = null;
+    this.highlight = -1;
+    this.renderer.resize();
+    if (opts.fit) this.renderer.fit(world);
+    const seed = this.#el("seed-input");
+    if (seed instanceof HTMLInputElement) seed.value = world.meta.seed;
+    const name = this.#el("map-name");
+    if (name instanceof HTMLInputElement) name.value = world.meta.mapName || "";
+    const styleEl = this.#el("opt-style");
+    if (styleEl instanceof HTMLSelectElement && world.meta.style) styleEl.value = world.meta.style;
+    this.redraw();
+    this.#scheduleAutosave();
+    this.#inspect(-1);
+    this.#fillLegend();
+    this.#fillRoster();
+    this.#syncZoomReadout();
   }
 
   redraw() {
@@ -295,16 +334,8 @@ export class App {
       if (!file) return;
       try {
         const raw = await readJsonFile(file);
-        this.world = parseWorld(raw);
-        this.undo = [];
-        this.redo = [];
-        this.renderer.resize();
-        this.renderer.fit(this.world);
-        this.redraw();
-        this.#fillLegend();
-        this.#fillRoster();
-        const seed = this.#el("seed-input");
-        if (seed instanceof HTMLInputElement) seed.value = this.world.meta.seed;
+        this.#applyWorld(parseWorld(raw), { fit: true });
+        this.#toast("存档已导入。");
       } catch (err) {
         alert(err instanceof Error ? err.message : "导入失败。");
       }
@@ -326,11 +357,8 @@ export class App {
         return;
       }
       try {
-        this.world = parseWorld(w);
-        this.renderer.fit(this.world);
-        this.redraw();
-        this.#fillLegend();
-        this.#fillRoster();
+        this.#applyWorld(parseWorld(w), { fit: true });
+        this.#toast("已读取自动存档。");
       } catch (err) {
         alert(err instanceof Error ? err.message : "自动存档无法读取。");
       }
@@ -338,6 +366,36 @@ export class App {
     this.#el("btn-reroll-society")?.addEventListener("click", () => this.#reroll("society"));
     this.#el("btn-reroll-names")?.addEventListener("click", () => this.#reroll("names"));
     this.#el("btn-reroll-routes")?.addEventListener("click", () => this.#reroll("routes"));
+    this.#el("btn-help")?.addEventListener("click", () => this.#el("help-dialog")?.showModal?.());
+    this.#el("btn-copy-seed")?.addEventListener("click", () => this.#copySeed());
+    this.#el("btn-fold-left")?.addEventListener("click", () => this.#togglePanel("left"));
+    this.#el("btn-fold-right")?.addEventListener("click", () => this.#togglePanel("right"));
+    this.#el("map-name")?.addEventListener("change", (e) => {
+      if (!this.world) return;
+      this.world.meta.mapName = /** @type {HTMLInputElement} */ (e.target).value.trim();
+      this.#scheduleAutosave();
+    });
+    this.#el("entity-note")?.addEventListener("input", (e) => {
+      if (!this._noteTarget) return;
+      this._noteTarget.note = /** @type {HTMLTextAreaElement} */ (e.target).value;
+      this.#scheduleAutosave();
+    });
+    this.#el("text-form")?.addEventListener("submit", (e) => {
+      const btn = /** @type {HTMLButtonElement | null} */ (e.submitter);
+      const input = this.#el("dialog-input");
+      if (btn?.value === "ok" && input instanceof HTMLInputElement) {
+        this._dialogDone?.(input.value.trim() || input.defaultValue || null);
+      } else {
+        this._dialogDone?.(null);
+      }
+      this._dialogDone = null;
+    });
+    this.#el("text-dialog")?.addEventListener("close", () => {
+      if (this._dialogDone) {
+        this._dialogDone(null);
+        this._dialogDone = null;
+      }
+    });
 
     window.addEventListener("keydown", (ev) => this.#onKey(ev));
   }
@@ -361,14 +419,24 @@ export class App {
     this.#setLoading(true, kind === "society" ? "正在重掷文明…" : "正在重掷名称与路线…");
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     try {
-      if (kind === "society") this.generator.regenerateSociety(this.world);
-      else if (kind === "names") this.generator.regenerateNames(this.world);
-      else this.generator.rebuildRoutesAndMarkers(this.world);
+      if (kind === "society") {
+        this.world = await runGeneratorJob("society", { world: this.world }, (stage) =>
+          this.#setLoading(true, STAGE_LABELS[stage] || "正在重掷文明…"),
+        );
+      } else if (kind === "names") this.generator.regenerateNames(this.world);
+      else {
+        this.world = await runGeneratorJob("routes", { world: this.world });
+      }
+      const name = this.#el("map-name");
+      if (name instanceof HTMLInputElement) name.value = this.world.meta.mapName || "";
       this.redraw();
       this.#inspect(-1);
       this.#fillLegend();
       this.#fillRoster();
       this.#scheduleAutosave();
+      this.#toast(kind === "names" ? "地名已重掷。" : kind === "society" ? "文明已重掷，地形未动。" : "商路与地标已重掷。");
+    } catch (err) {
+      this.#toast(err instanceof Error ? err.message : "重掷失败。", true);
     } finally {
       this.#setLoading(false);
     }
@@ -385,6 +453,16 @@ export class App {
       return;
     }
     if (typing) return;
+    if (ev.key === "Escape") {
+      this.#el("help-dialog")?.close?.();
+      this.#el("text-dialog")?.close?.();
+      return;
+    }
+    if (ev.key === "F1" || ev.key === "?") {
+      ev.preventDefault();
+      this.#el("help-dialog")?.showModal?.();
+      return;
+    }
     if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "z") {
       ev.preventDefault();
       if (ev.shiftKey) this.#redo();
@@ -394,6 +472,28 @@ export class App {
     if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "y") {
       ev.preventDefault();
       this.#redo();
+      return;
+    }
+    if (ev.key === "[") {
+      ev.preventDefault();
+      this.#togglePanel("left");
+      return;
+    }
+    if (ev.key === "]") {
+      ev.preventDefault();
+      this.#togglePanel("right");
+      return;
+    }
+    if (ev.key.toLowerCase() === "h") {
+      ev.preventDefault();
+      const app = this.#el("app");
+      if (app instanceof HTMLElement) {
+        const both = app.classList.contains("hide-left") && app.classList.contains("hide-right");
+        app.classList.toggle("hide-left", !both);
+        app.classList.toggle("hide-right", !both);
+        this.renderer.resize();
+        this.redraw();
+      }
       return;
     }
     const tool = TOOL_KEYS[ev.key.toLowerCase()];
@@ -421,6 +521,20 @@ export class App {
     }
     if (this.toolId === "measure") {
       this.measure = { x0: worldX, y0: worldY, x1: worldX, y1: worldY };
+      this.redraw();
+      return;
+    }
+
+    const clickOnce = this.toolId === "burg" || this.toolId === "erase" || this.toolId === "marker" || this.toolId === "rename";
+    if (clickOnce) {
+      if (this.toolId === "erase") this.#pushUndo();
+      const ctx = this.#editorContext();
+      this.tools[this.toolId]?.apply(this.world, { worldX, worldY, cellId, phase: "down", shiftKey: ev.shiftKey }, ctx);
+      if (this.toolId === "erase") {
+        this.generator.rebuildRoutes(this.world);
+        this.#scheduleAutosave();
+        this.#fillRoster();
+      }
       this.redraw();
       return;
     }
@@ -523,23 +637,27 @@ export class App {
       markerType,
       requestRecompute: () => this.#scheduleRecompute(),
       commit: () => {
+        if (this.world && (this.toolId === "burg" || this.toolId === "erase")) {
+          this.generator.rebuildRoutes(this.world);
+        }
         this.#scheduleAutosave();
+        this.redraw();
+        this.#fillRoster();
+        this.#fillLegend();
       },
       promptRename: (s) => {
-        const next = window.prompt("重命名", s.name);
-        if (next && next.trim()) {
-          s.name = next.trim();
+        this.#askText("重命名", s.name, (next) => {
+          if (!next) return;
+          this.#pushUndo();
+          s.name = next;
           this.#scheduleAutosave();
           this.redraw();
           this.#fillRoster();
-        }
+        });
       },
-      promptText: (label, fallback) => {
-        const next = window.prompt(label, fallback || "");
-        if (next == null) return null;
-        const t = next.trim();
-        return t || fallback || "";
-      },
+      promptText: (label, fallback) => fallback || "",
+      beginEdit: () => this.#pushUndo(),
+      askText: (label, fallback, done) => this.#askText(label, fallback, done),
     };
   }
 
@@ -597,6 +715,9 @@ export class App {
     if (cellId < 0) {
       const sum = summarizeWorld(this.world);
       const mapName = this.world.meta.mapName || this.world.meta.seed;
+      this._noteTarget = null;
+      const noteWrap = this.#el("note-wrap");
+      if (noteWrap instanceof HTMLElement) noteWrap.hidden = true;
       box.innerHTML = `
         <dt>图名</dt><dd>${escapeHtml(mapName)}</dd>
         <dt>种子</dt><dd>${escapeHtml(this.world.meta.seed)}</dd>
@@ -607,6 +728,7 @@ export class App {
         <dt>聚落</dt><dd>${sum.settlements}</dd>
         <dt>国度</dt><dd>${sum.regions}</dd>
         <dt>文化</dt><dd>${sum.cultures}</dd>
+        <dt>行省</dt><dd>${sum.provinces}</dd>
         <dt>商路</dt><dd>${sum.routes}</dd>
         <dt>地标</dt><dd>${sum.markers}</dd>`;
       return;
@@ -617,8 +739,14 @@ export class App {
     const cult = c.cultureId >= 0 ? this.world.cultures?.[c.cultureId] : null;
     const marker = (this.world.markers || []).find((m) => m.cellId === cellId);
     const river = c.riverId >= 0 ? this.world.rivers[c.riverId] : null;
+    const province = c.provinceId >= 0 ? this.world.provinces?.[c.provinceId] : null;
     const biomeName = BIOME_LABELS[c.biome] || c.biome;
     const typeName = town ? SETTLEMENT_TYPE[town.type] || town.type : "";
+    this._noteTarget = town || marker || province || realm || cult || null;
+    const noteWrap = this.#el("note-wrap");
+    const noteEl = this.#el("entity-note");
+    if (noteWrap instanceof HTMLElement) noteWrap.hidden = !this._noteTarget;
+    if (noteEl instanceof HTMLTextAreaElement) noteEl.value = this._noteTarget?.note || "";
     box.innerHTML = `
       <dt>格子</dt><dd>#${c.id}</dd>
       <dt>海拔</dt><dd>${c.height.toFixed(2)}</dd>
@@ -637,6 +765,7 @@ export class App {
         .join(" · ") || "—"}</dd>
       <dt>文化</dt><dd>${cult ? escapeHtml(`${cult.name}（${cultureTypeLabel(cult.type)}）`) : "—"}</dd>
       <dt>国度</dt><dd>${realm ? escapeHtml(realm.name) : "—"}</dd>
+      <dt>行省</dt><dd>${province ? escapeHtml(province.name) : "—"}</dd>
       <dt>聚落</dt><dd>${town ? escapeHtml(`${town.name}（${typeName} · ${town.population || "?"}人）`) : "—"}</dd>
       <dt>地标</dt><dd>${marker ? escapeHtml(marker.name) : "—"}</dd>`;
   }
@@ -663,7 +792,6 @@ export class App {
     if (town) card.textContent = `${town.name} · ${SETTLEMENT_TYPE[town.type] || town.type}`;
     else if (marker) card.textContent = marker.name;
     else card.textContent = [BIOME_LABELS[c.biome] || c.biome.replaceAll("_", " "), cult?.name].filter(Boolean).join(" · ");
-    this.#inspect(cellId);
   }
 
   #fillLegend() {
@@ -693,6 +821,11 @@ export class App {
       items = this.world.regions.map((r) => {
         const cap = this.world.settlements.find((s) => s.id === r.capitalId);
         return { label: r.name, hint: cap ? `都城 ${cap.name}` : "", cellId: cap?.cellId ?? -1 };
+      });
+    } else if (this.rosterKind === "provinces") {
+      items = (this.world.provinces || []).map((p) => {
+        const seat = this.world.settlements.find((s) => s.id === p.seatId);
+        return { label: p.name, hint: seat ? `治所 ${seat.name}` : "行省", cellId: seat?.cellId ?? -1 };
       });
     } else if (this.rosterKind === "cultures") {
       items = (this.world.cultures || []).map((c) => ({
@@ -738,6 +871,12 @@ export class App {
         hits.push({ label: r.name, hint: "国度", cellId: cap?.cellId ?? -1 });
       }
     }
+    for (const p of this.world.provinces || []) {
+      if (p.name.toLowerCase().includes(q)) {
+        const seat = this.world.settlements.find((s) => s.id === p.seatId);
+        hits.push({ label: p.name, hint: "行省", cellId: seat?.cellId ?? -1 });
+      }
+    }
     for (const c of this.world.cultures || []) {
       if (c.name.toLowerCase().includes(q)) hits.push({ label: c.name, hint: "文化", cellId: c.originId });
     }
@@ -780,14 +919,74 @@ export class App {
   }
 
   /**
+   * @param {string} label
+   * @param {string} fallback
+   * @param {(value: string | null) => void} done
+   */
+  #askText(label, fallback, done) {
+    const dialog = this.#el("text-dialog");
+    const lab = this.#el("dialog-label");
+    const input = this.#el("dialog-input");
+    if (!(dialog instanceof HTMLDialogElement) || !(input instanceof HTMLInputElement)) {
+      done(window.prompt(label, fallback));
+      return;
+    }
+    if (lab) lab.textContent = label;
+    input.value = fallback || "";
+    this._dialogDone = done;
+    dialog.showModal();
+    input.focus();
+    input.select();
+  }
+
+  /** @param {"left"|"right"} side */
+  #togglePanel(side) {
+    const app = this.#el("app");
+    if (!(app instanceof HTMLElement)) return;
+    app.classList.toggle(side === "left" ? "hide-left" : "hide-right");
+    this.renderer.resize();
+    if (this.world) this.redraw();
+  }
+
+  async #copySeed() {
+    const seed = this.#el("seed-input");
+    const value = seed instanceof HTMLInputElement ? seed.value : this.world?.meta.seed;
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      this.#toast("种子已复制。");
+    } catch {
+      this.#toast(value);
+    }
+  }
+
+  /**
+   * @param {string} msg
+   * @param {boolean} [danger]
+   */
+  #toast(msg, danger) {
+    const el = this.#el("toast");
+    if (!(el instanceof HTMLElement)) return;
+    el.hidden = false;
+    el.textContent = msg;
+    el.style.borderColor = danger ? "#a33b24" : "";
+    if (this._toastTimer) window.clearTimeout(this._toastTimer);
+    this._toastTimer = window.setTimeout(() => {
+      el.hidden = true;
+    }, 4200);
+  }
+
+  /**
    * @param {boolean} on
    * @param {string} [msg]
    */
   #setLoading(on, msg) {
     const el = this.#el("loading");
-    if (el instanceof HTMLElement) {
-      el.hidden = !on;
-      if (on && msg) el.textContent = msg;
+    const text = this.#el("loading-msg");
+    if (el instanceof HTMLElement) el.hidden = !on;
+    if (on && msg) {
+      if (text) text.textContent = msg;
+      else if (el) el.textContent = msg;
     }
   }
 
