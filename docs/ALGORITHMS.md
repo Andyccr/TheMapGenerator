@@ -49,7 +49,7 @@ Because routing uses `filledHeight`, **a river cannot climb a ridge**. Editing t
 
 ## 5. Civilizations
 
-Cultures expand first. A handful of hearths pick a type (河畔 / 沿海 / 山地 / 草原 / 林猎 / 沙海) and a phonology; cost-distance flood prefers matching biomes. Towns are still scored toward rivers and coasts (O'Leary), but their names come from the local culture so neighboring places sound related. Capitals seed political realms afterward — culture and state are not the same layer.
+Cultures expand first. A handful of hearths pick a type (河畔 / 沿海 / 山地 / 草原 / 林猎 / 沙海) and a phonology; cost-distance flood prefers matching biomes. Towns are still scored toward rivers and coasts (O'Leary), but their names come from the local culture so neighboring places sound related. Capitals seed political realms afterward — culture and state are not the same layer. Realms then split into **provinces** seated at secondary towns; the flood cannot cross a kingdom border.
 
 Population is a cartographic estimate from type, moisture, and water access. It is for the inspector and roster, not a simulation.
 

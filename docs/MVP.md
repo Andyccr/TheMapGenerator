@@ -35,7 +35,7 @@ Done when: the far north is not tropical, and most towns sit on rivers or coasts
 
 ## Step 5 — After this prototype
 
-Shipped in the playability pass: cultures, routes, markers, layer presets (cultural / height / temperature / precipitation), independent society re-roll, search roster, measure, redo.
+Shipped in the playability pass: cultures, routes, markers, provinces, layer presets, independent society re-roll, search roster, measure, redo, help, autosave restore, worker generation, notes, label collision.
 
 Still later:
 

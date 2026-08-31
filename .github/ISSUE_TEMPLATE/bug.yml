@@ -1,0 +1,21 @@
+name: Bug
+description: Something is wrong with generation, editing, or the UI
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      placeholder: Seed, map size, tool, and what you expected.
+    validations:
+      required: true
+  - type: input
+    id: seed
+    attributes:
+      label: Seed (if relevant)
+  - type: textarea
+    id: env
+    attributes:
+      label: Browser
+      placeholder: Firefox 140 / Chromium 128, GitHub Pages or localhost

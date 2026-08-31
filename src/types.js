@@ -47,6 +47,7 @@
  * @property {number} riverId    -1 if none
  * @property {number} regionId   -1 if none
  * @property {number} cultureId  -1 if none
+ * @property {number} provinceId -1 if none
  * @property {number} precipitation
  */
 
@@ -103,6 +104,16 @@
  */
 
 /**
+ * @typedef {Object} Province
+ * @property {number} id
+ * @property {string} name
+ * @property {string} color
+ * @property {number} regionId
+ * @property {number} seatId
+ * @property {string} [note]
+ */
+
+/**
  * @typedef {Object} Marker
  * @property {number} id
  * @property {number} cellId
@@ -146,6 +157,7 @@
  * @property {Culture[]} [cultures]
  * @property {Route[]} [routes]
  * @property {Marker[]} [markers]
+ * @property {Province[]} [provinces]
  * @property {WorldView} view
  * @property {string} generatedAt
  */
@@ -175,7 +187,7 @@
  * Generator contract: algorithms in, plain WorldData out. Never touches the DOM.
  *
  * @typedef {Object} MapGenerator
- * @property {(config: GenerateConfig) => WorldData} generate
+ * @property {(config: GenerateConfig, onProgress?: (stage: string) => void) => WorldData} generate
  * @property {(world: WorldData) => WorldData} recomputeFromElevation
  * @property {(world: WorldData, suffix?: string) => WorldData} regenerateSociety
  * @property {(world: WorldData) => WorldData} regenerateNames
@@ -196,6 +208,8 @@
  * @property {number} brush
  * @property {() => void} requestRecompute
  * @property {(world: WorldData) => void} commit
+ * @property {() => void} [beginEdit]
+ * @property {(label: string, fallback: string, done: (value: string | null) => void) => void} [askText]
  * @property {(html: string) => void} [promptRename]
  * @property {string} [markerType]
  * @property {(text: string, fallback?: string) => string | null} [promptText]
