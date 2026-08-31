@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { MapGenerator } from "../mapGenerator.js";
-import { LANDFORMS, landformById } from "../landforms.js";
+import { LANDFORMS, landformById, recipeFor, parseRecipe, stepSummary } from "../landforms.js";
 
 function cfg(landform) {
   return {
@@ -36,10 +36,44 @@ test("island is wetter than pangea for the same seed", () => {
   assert.equal(pangea.meta.landform, "pangea");
 });
 
-test("archipelago breaks land into several named islands", () => {
+test("archipelago breaks land into several masses", () => {
   const gen = new MapGenerator();
   const w = gen.generate(cfg("archipelago"));
-  const islands = (w.features || []).filter((f) => f.type === "island");
-  const continents = (w.features || []).filter((f) => f.type === "continent");
-  assert.ok(islands.length + continents.length >= 2, "expected several landmasses");
+  const landIds = w.cells.filter((c) => !c.ocean).map((c) => c.id);
+  const seen = new Set();
+  let parts = 0;
+  for (const id of landIds) {
+    if (seen.has(id)) continue;
+    parts++;
+    const stack = [id];
+    seen.add(id);
+    while (stack.length) {
+      const cur = stack.pop();
+      for (const nid of w.cells[cur].neighbors) {
+        if (seen.has(nid) || w.cells[nid].ocean) continue;
+        seen.add(nid);
+        stack.push(nid);
+      }
+    }
+  }
+  assert.ok(parts >= 2, `expected several landmasses, got ${parts}`);
+});
+
+test("recipes are data, parseRecipe drops unknown ops", () => {
+  const arch = recipeFor("archipelago");
+  assert.ok(arch.some((s) => s.op === "hill"));
+  assert.equal(recipeFor("continents").length, 0);
+  const parsed = parseRecipe([{ op: "hill", n: 2 }, { op: "laser" }, "nope"]);
+  assert.equal(parsed?.length, 1);
+  assert.ok(stepSummary({ op: "hill", n: 3 }).includes("丘"));
+});
+
+test("custom landformSteps are honored", () => {
+  const gen = new MapGenerator();
+  const extra = gen.generate({
+    ...cfg("continents"),
+    landformSteps: [{ op: "sink", amp: 0.35 }, { op: "hill", n: 4, rx: 0.08, ry: 0.07, amp: 0.45, jitter: true }],
+  });
+  assert.ok(Array.isArray(extra.meta.landformSteps));
+  assert.ok(landRatio(extra) < 0.55);
 });

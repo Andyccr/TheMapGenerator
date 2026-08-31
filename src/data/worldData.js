@@ -78,6 +78,7 @@ export function createWorldShell(config) {
       societySeed: String(config.societySeed ?? config.seed ?? "terra"),
       mapName: "",
       landform: config.landform || "continents",
+      landformSteps: Array.isArray(config.landformSteps) ? config.landformSteps : undefined,
     },
     cells: [],
     plates: [],
