@@ -174,6 +174,7 @@
  * @property {string} [societySeed]
  * @property {string} [mapName]
  * @property {string} [landform]
+ * @property {object[]} [landformSteps]
  */
 
 /**
@@ -209,6 +210,7 @@
  * @property {Vec2} [wind]
  * @property {string} [societySeed]
  * @property {string} [landform]
+ * @property {object[]} [landformSteps]
  */
 
 /**

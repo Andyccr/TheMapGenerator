@@ -485,6 +485,43 @@ button:hover {
   color: var(--ink-dim);
 }
 
+.recipe-list {
+  margin: 0.35rem 0 0.25rem;
+  padding: 0;
+  list-style: none;
+  max-height: 9rem;
+  overflow: auto;
+  border: 1px solid var(--panel-edge);
+}
+
+.recipe-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.35rem;
+  align-items: center;
+  padding: 0.2rem 0.35rem;
+  font-size: 0.78rem;
+  border-bottom: 1px solid var(--panel-edge);
+}
+
+.recipe-list li:last-child {
+  border-bottom: 0;
+}
+
+.recipe-list button {
+  padding: 0.1rem 0.35rem;
+  font-size: 0.72rem;
+}
+
+.recipe-add {
+  flex-wrap: wrap;
+}
+
+.recipe-list .empty {
+  color: var(--ink-dim);
+  padding: 0.35rem;
+}
+
 .note-field textarea {
   width: 100%;
   min-height: 4.2rem;
