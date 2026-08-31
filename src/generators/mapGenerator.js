@@ -28,6 +28,10 @@ import { placeCultures, assignCultures } from "./cultures.js";
 import { placeRoutes } from "./routes.js";
 import { placeMarkers } from "./markers.js";
 import { placeProvinces, assignProvinces } from "./provinces.js";
+import { placeReligions, assignReligions } from "./religions.js";
+import { placeFeatures } from "./features.js";
+import { applyLandform } from "./landforms.js";
+import { placeDiplomacy } from "./diplomacy.js";
 import { createNameFactory, phonologyById } from "./names.js";
 
 /** @typedef {import("../types.js").WorldData} WorldData */
@@ -61,6 +65,14 @@ export class MapGenerator {
       world.meta.seaLevel,
       world.meta.cellSize,
     );
+    applyLandform(
+      cells,
+      rng,
+      world.meta.width,
+      world.meta.height,
+      world.meta.landform || "continents",
+      world.meta.seaLevel,
+    );
 
     onProgress?.("hydrology");
     this.#hydrologyAndClimate(world);
@@ -91,12 +103,19 @@ export class MapGenerator {
     if (world.cultures?.length) assignCultures(world.cells, world.cultures);
     assignRegions(world.cells, world.settlements, world.regions);
     if (world.provinces?.length) assignProvinces(world.cells, world.settlements, world.provinces);
+    if (world.religions?.length) assignReligions(world.cells, world.religions);
     for (const s of world.settlements) {
       s.regionId = world.cells[s.cellId].regionId;
       s.cultureId = world.cells[s.cellId].cultureId ?? s.cultureId;
     }
     this.#nameRivers(world, makeRng(`${world.meta.societySeed || world.meta.seed}:rivers`));
     this.#routesAndMarkers(world, makeRng(`${world.meta.societySeed || world.meta.seed}:poi`));
+    this.#placeFeatures(world);
+    world.diplomacy = placeDiplomacy(
+      world.regions,
+      world.cells,
+      makeRng(`${world.meta.societySeed || world.meta.seed}:diplo`),
+    );
     return world;
   }
 
@@ -130,6 +149,21 @@ export class MapGenerator {
     for (const p of world.provinces || []) {
       const seat = world.settlements.find((s) => s.id === p.seatId);
       p.name = mills(seat?.cultureId ?? -1).settlement();
+    }
+    for (const rel of world.religions || []) {
+      if (rel.type === "folk") {
+        const cult = world.cultures?.[rel.cultureId];
+        rel.name = mills(rel.cultureId).religionFolk(cult?.name || "");
+      } else {
+        rel.name = mills(rel.cultureId).religion();
+      }
+    }
+    for (const feat of world.features || []) {
+      const mill = mills(world.cells[feat.originId]?.cultureId ?? -1);
+      if (feat.type === "lake") feat.name = `${mill.river()}湖`;
+      else if (feat.type === "island") feat.name = `${mill.feature()}岛`;
+      else if (feat.type === "sea") feat.name = mill.feature() + (feat.name.endsWith("洋") ? "洋" : "海");
+      else feat.name = mill.realm();
     }
     this.#nameRivers(world, rng);
     for (const m of world.markers || []) {
@@ -251,9 +285,12 @@ export class MapGenerator {
     world.settlements = settlements;
     world.regions = regions;
     world.provinces = placeProvinces(world.cells, settlements, regions, rng, mills);
+    world.religions = placeReligions(world.cells, world.cultures, settlements, rng, mills);
+    world.diplomacy = placeDiplomacy(regions, world.cells, rng);
     this.#nameRivers(world, rng);
     onProgress?.("routes");
     this.#routesAndMarkers(world, rng);
+    this.#placeFeatures(world);
     this.#setMapName(world);
   }
 
@@ -304,9 +341,22 @@ export class MapGenerator {
   }
 
   /** @param {WorldData} world */
+  #placeFeatures(world) {
+    const rng = makeRng(`${world.meta.societySeed || world.meta.seed}:geo`);
+    const mills = this.#mills(world, rng);
+    world.features = placeFeatures(world.cells, mills, {
+      width: world.meta.width,
+      height: world.meta.height,
+    });
+  }
+
+  /** @param {WorldData} world */
   #setMapName(world) {
+    const continent = (world.features || [])
+      .filter((f) => f.type === "continent")
+      .sort((a, b) => b.size - a.size)[0];
     const primary = world.cultures?.[0];
     const realm = world.regions[0];
-    world.meta.mapName = realm?.name || primary?.name || world.meta.seed;
+    world.meta.mapName = continent?.name || realm?.name || primary?.name || world.meta.seed;
   }
 }

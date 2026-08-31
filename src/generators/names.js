@@ -124,5 +124,12 @@ export function createNameFactory(rng, phonology) {
     culture: () => unique(2, 3),
     river: () => unique(2, 2),
     marker: () => unique(2, 2),
+    feature: () => unique(2, 3),
+    religion: () => {
+      const base = unique(2, 3);
+      const tails = ["教", "宗", "会", "道"];
+      return base + tails[(rng() * tails.length) | 0];
+    },
+    religionFolk: (cultureName) => `${cultureName || unique(2, 2)}祖灵`,
   };
 }

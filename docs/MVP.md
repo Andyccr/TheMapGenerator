@@ -35,15 +35,17 @@ Done when: the far north is not tropical, and most towns sit on rivers or coasts
 
 ## Step 5 — After this prototype
 
-Shipped in the playability pass: cultures, routes, markers, provinces, layer presets, independent society re-roll, search roster, measure, redo, help, autosave restore, worker generation, notes, label collision.
+Shipped: cultures, routes, markers, provinces, religions, named features, landform templates, layer presets, independent society re-roll, search roster, measure, redo, help, autosave restore (IndexedDB + slots), worker generation, notes, label collision, status bar.
 
 Still later:
-
+- Heightmap *editor* (blob operations the user can sequence), not just templates
+- Religions as a full simulation (heresy, theocracy)
+- Emblems, military, diplomacy
+- 3D globe view
+- IndexedDB `.map` interchange with Azgaar
 - True Delaunay/Voronoi (Delaunator) at 20k+ cells
 - Hydraulic erosion pass (O’Leary)
-- Label collision (Turner's annealing notes)
 - SVG overlay for selectable labels
 - TypeScript conversion of `src/types.js`
-- Optional WebWorker around `MapGenerator.generate`
 
 Do not start a mesh rewrite until the four-layer folders still have no circular imports.

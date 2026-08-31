@@ -25,7 +25,7 @@ export class CanvasRenderer {
     /** @type {Map<string, { canvas: HTMLCanvasElement, scale: number }>} */
     this._rasters = new Map();
     this._rasterWorld = "";
-    /** @type {{ coasts: number[][][], shores: number[][][], borders: number[][][], cultures: number[][][], provinces: number[][][] } | null} */
+    /** @type {{ coasts: number[][][], shores: number[][][], borders: number[][][], cultures: number[][][], provinces: number[][][], religions: number[][][] } | null} */
     this._contours = null;
     this._contourKey = "";
     this._lod = "overview";
@@ -116,12 +116,16 @@ export class CanvasRenderer {
     if (options.borders !== false) {
       if (style === "cultural") this.#drawCultureBorders(world, ink, bounds, lod);
       else if (style === "provinces") this.#drawProvinceBorders(world, ink, bounds, lod);
+      else if (style === "religions") this.#drawReligionBorders(world, ink, bounds, lod);
       else this.#drawBorders(world, ink, bounds, lod);
     }
     if (options.relief !== false) this.#drawMountains(world, style, bounds, scale, lod);
     if (options.draftPath?.length) this.#drawDraft(world, options.draftPath);
     if (options.measure) this.#drawMeasure(world, options.measure, ink);
-    if (options.labels !== false) this.#drawSettlements(world, ink, style, bounds, scale, lod);
+    if (options.labels !== false) {
+      this.#drawAtlasLabels(world, ink, style, bounds, scale, lod);
+      this.#drawSettlements(world, ink, style, bounds, scale, lod);
+    }
     if (options.markers !== false) this.#drawMarkers(world, ink, style, bounds, scale, lod);
     if (options.highlightCell >= 0) this.#drawHighlight(world, options.highlightCell);
 
@@ -299,6 +303,9 @@ export class CanvasRenderer {
     }
     if (style === "provinces" && world?.provinces?.length) {
       return world.provinces.slice(0, 24).map((p) => ({ key: `p${p.id}`, label: p.name, color: p.color }));
+    }
+    if (style === "religions" && world?.religions?.length) {
+      return world.religions.slice(0, 24).map((r) => ({ key: `rel${r.id}`, label: r.name, color: r.color }));
     }
     if (style === "temperature") {
       return [
@@ -654,6 +661,24 @@ export class CanvasRenderer {
 
   /**
    * @param {import("../types.js").WorldData} world
+   * @param {{ border: string }} ink
+   * @param {{ x0: number, y0: number, x1: number, y1: number }} bounds
+   * @param {ReturnType<typeof lodConfig>} lod
+   */
+  #drawReligionBorders(world, ink, bounds, lod) {
+    const ctx = this.ctx;
+    if (!ctx || !this._contours?.religions) return;
+    ctx.strokeStyle = ink.border;
+    ctx.lineWidth = this.#px(lod.level === "overview" ? 1.6 : 1.1);
+    ctx.setLineDash([this.#px(6), this.#px(3.5)]);
+    ctx.globalAlpha = lod.borderAlpha + 0.1;
+    this.#strokeLines(this._contours.religions, bounds);
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+  }
+
+  /**
+   * @param {import("../types.js").WorldData} world
    * @param {{ river: string }} ink
    * @param {string} style
    * @param {{ x0: number, y0: number, x1: number, y1: number }} bounds
@@ -720,6 +745,51 @@ export class CanvasRenderer {
       ctx.fill();
       ctx.stroke();
     }
+  }
+
+  /**
+   * Continent / sea names at overview, realm names near capitals — the layer
+   * that makes a fit-view look like an atlas instead of a mesh preview.
+   * @param {import("../types.js").WorldData} world
+   * @param {{ text: string }} ink
+   * @param {string} style
+   * @param {{ x0: number, y0: number, x1: number, y1: number }} bounds
+   * @param {number} scale
+   * @param {ReturnType<typeof lodConfig>} lod
+   */
+  #drawAtlasLabels(world, ink, style, bounds, scale, lod) {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const night = style === "night";
+    if (lod.level === "overview") {
+      const geo = (world.features || [])
+        .filter((f) => f.type === "continent" || f.type === "sea")
+        .sort((a, b) => b.size - a.size)
+        .slice(0, 7);
+      ctx.fillStyle = night ? "rgba(232, 214, 176, 0.72)" : "rgba(26, 18, 12, 0.55)";
+      for (const f of geo) {
+        const x = f.cx ?? world.cells[f.originId]?.x;
+        const y = f.cy ?? world.cells[f.originId]?.y;
+        if (x == null || y == null || x < bounds.x0 || x > bounds.x1 || y < bounds.y0 || y > bounds.y1) continue;
+        const fs = this.#px(f.type === "sea" ? 13 : 16);
+        ctx.font = `italic ${fs}px Palatino, Georgia, serif`;
+        ctx.fillText(f.name, x, y);
+      }
+    }
+    if (lod.level === "overview" || lod.level === "regional") {
+      ctx.fillStyle = ink.text;
+      const fs = this.#px(lod.level === "overview" ? 13.5 : 11);
+      ctx.font = `${fs}px Palatino, Georgia, serif`;
+      for (const r of world.regions || []) {
+        const cap = world.settlements.find((s) => s.id === r.capitalId);
+        const c = cap ? world.cells[cap.cellId] : null;
+        if (!c || !this.#inView(c, bounds)) continue;
+        ctx.fillText(r.name, c.x, c.y - this.#px(lod.level === "overview" ? 14 : 11));
+      }
+    }
+    ctx.textAlign = "left";
   }
 
   /**
