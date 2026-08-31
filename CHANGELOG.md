@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.0
+
+- Landform templates are recipes of heightmap steps (hill / pit / range / strait / sink / raise / mask). The left panel lists them; you can add, delete, and reset before generating.
+
 ## 1.3.0
 
 - Shareable query strings (`?seed=&landform=&extent=&style=`) so a map can be opened from a link. Header **链接** copies it. Opening a seed URL skips autosave restore.

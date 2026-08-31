@@ -35,7 +35,7 @@ Plain object, versioned. This is the save file.
 ```js
 {
   version: 1,
-  meta: { seed, width, height, cellSize, plateCount, seaLevel, wind, style, societySeed, mapName, landform },
+  meta: { seed, width, height, cellSize, plateCount, seaLevel, wind, style, societySeed, mapName, landform, landformSteps },
   cells: [ { id, x, y, polygon, neighbors, height, biome, cultureId, provinceId, religionId, featureId, ... } ],
   plates: [ { id, continental, vx, vy, cx, cy } ],
   rivers: [ { id, cellIds, points, width, name } ],
