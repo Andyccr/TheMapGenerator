@@ -30,6 +30,8 @@ Simplex **fbm is only ±0.09 of relief**, plus a cell-scale wrinkle so finer gri
 
 Mountain-belt decay, coastal plains, and continental shelves are measured in **world units**, then converted to graph hops with the current `cellSize`. A 2560×1600 map at cell size 7 keeps the same physical shelf width as a small test map.
 
+After tectonics, an optional **landform mask** (Azgaar-style template) reshapes the coastline: pangea, archipelago, island, peninsula, isthmus, inland sea, lakes. The default `continents` template leaves the plate result alone so old seeds stay stable. `setLandFraction` then re-picks sea level for the template's land ratio.
+
 ## 3. Ocean, lakes, rivers
 
 1. Height `< 0` **and** connected to a map-border cell ⇒ ocean (Patel).
@@ -52,6 +54,8 @@ Because routing uses `filledHeight`, **a river cannot climb a ridge**. Editing t
 Cultures expand first. A handful of hearths pick a type (河畔 / 沿海 / 山地 / 草原 / 林猎 / 沙海) and a phonology; cost-distance flood prefers matching biomes. Towns are still scored toward rivers and coasts (O'Leary), but their names come from the local culture so neighboring places sound related. Capitals seed political realms afterward — culture and state are not the same layer. Realms then split into **provinces** seated at secondary towns; the flood cannot cross a kingdom border.
 
 Population is a cartographic estimate from type, moisture, and water access. It is for the inspector and roster, not a simulation.
+
+Folk religions follow culture; a few **organized** creeds expand from the largest cities with a limited cost radius so they read as state churches. Connected land and water components become named **features** (continents, islands, lakes, seas).
 
 ## 6. Routes and markers
 

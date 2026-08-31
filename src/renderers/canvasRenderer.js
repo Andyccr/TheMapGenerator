@@ -25,7 +25,7 @@ export class CanvasRenderer {
     /** @type {Map<string, { canvas: HTMLCanvasElement, scale: number }>} */
     this._rasters = new Map();
     this._rasterWorld = "";
-    /** @type {{ coasts: number[][][], shores: number[][][], borders: number[][][], cultures: number[][][], provinces: number[][][] } | null} */
+    /** @type {{ coasts: number[][][], shores: number[][][], borders: number[][][], cultures: number[][][], provinces: number[][][], religions: number[][][] } | null} */
     this._contours = null;
     this._contourKey = "";
     this._lod = "overview";
@@ -116,6 +116,7 @@ export class CanvasRenderer {
     if (options.borders !== false) {
       if (style === "cultural") this.#drawCultureBorders(world, ink, bounds, lod);
       else if (style === "provinces") this.#drawProvinceBorders(world, ink, bounds, lod);
+      else if (style === "religions") this.#drawReligionBorders(world, ink, bounds, lod);
       else this.#drawBorders(world, ink, bounds, lod);
     }
     if (options.relief !== false) this.#drawMountains(world, style, bounds, scale, lod);
@@ -299,6 +300,9 @@ export class CanvasRenderer {
     }
     if (style === "provinces" && world?.provinces?.length) {
       return world.provinces.slice(0, 24).map((p) => ({ key: `p${p.id}`, label: p.name, color: p.color }));
+    }
+    if (style === "religions" && world?.religions?.length) {
+      return world.religions.slice(0, 24).map((r) => ({ key: `rel${r.id}`, label: r.name, color: r.color }));
     }
     if (style === "temperature") {
       return [
@@ -649,6 +653,24 @@ export class CanvasRenderer {
     }
     ctx.globalAlpha = Math.min(1, lod.borderAlpha + 0.2);
     this.#strokeLines(this._contours.borders, bounds);
+    ctx.globalAlpha = 1;
+  }
+
+  /**
+   * @param {import("../types.js").WorldData} world
+   * @param {{ border: string }} ink
+   * @param {{ x0: number, y0: number, x1: number, y1: number }} bounds
+   * @param {ReturnType<typeof lodConfig>} lod
+   */
+  #drawReligionBorders(world, ink, bounds, lod) {
+    const ctx = this.ctx;
+    if (!ctx || !this._contours?.religions) return;
+    ctx.strokeStyle = ink.border;
+    ctx.lineWidth = this.#px(lod.level === "overview" ? 1.6 : 1.1);
+    ctx.setLineDash([this.#px(6), this.#px(3.5)]);
+    ctx.globalAlpha = lod.borderAlpha + 0.1;
+    this.#strokeLines(this._contours.religions, bounds);
+    ctx.setLineDash([]);
     ctx.globalAlpha = 1;
   }
 

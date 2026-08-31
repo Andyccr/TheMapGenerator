@@ -7,10 +7,14 @@ import { MapGenerator } from "../generators/mapGenerator.js";
 import { CanvasRenderer } from "../renderers/canvasRenderer.js";
 import { createTools } from "../editors/tools.js";
 import { cloneWorld, parseWorld, summarizeWorld } from "../data/worldData.js";
-import { saveLocal, loadLocal, downloadJson, downloadPng, readJsonFile, peekAutosave } from "../persistence/storage.js";
+import { saveAutosave, loadAutosave, downloadJson, downloadPng, readJsonFile, peekAutosave, saveSlot, loadSlot, listSlotMeta, SLOT_COUNT } from "../persistence/storage.js";
 import { BIOME_LABELS } from "../renderers/styles.js";
 import { cultureTypeLabel } from "../generators/cultures.js";
 import { markerLabel } from "../generators/markers.js";
+import { religionTypeLabel } from "../generators/religions.js";
+import { featureTypeLabel } from "../generators/features.js";
+import { landformLabel } from "../generators/landforms.js";
+import { APP_VERSION } from "../core/version.js";
 import { runGeneratorJob, STAGE_LABELS } from "./generateClient.js";
 
 const HINTS = {
@@ -91,25 +95,35 @@ export class App {
       seed.value = randomSeed();
     }
     this.#fillLegend();
+    const ver = this.#el("app-version");
+    if (ver) ver.textContent = APP_VERSION;
+    const helpVer = this.#el("help-version");
+    if (helpVer) helpVer.textContent = `v${APP_VERSION}`;
+    this.#fillSlotSelect();
     window.addEventListener("resize", () => {
       this.renderer.resize();
       if (this.world) this.redraw();
     });
     requestAnimationFrame(() => {
       this.renderer.resize();
-      const saved = loadLocal();
-      if (saved) {
-        try {
-          this.#applyWorld(parseWorld(saved), { fit: true });
-          const peek = peekAutosave();
-          this.#toast(`已恢复「${peek?.mapName || peek?.seed || "自动存档"}」。点「生成世界」可另开一张。`);
-          return;
-        } catch {
-          /* corrupt autosave — generate fresh */
-        }
-      }
-      this.generate();
+      this.#boot();
     });
+  }
+
+  async #boot() {
+    const saved = await loadAutosave();
+    if (saved) {
+      try {
+        this.#applyWorld(parseWorld(saved), { fit: true });
+        const peek = peekAutosave();
+        const label = this.world?.meta.mapName || peek?.mapName || peek?.seed || "自动存档";
+        this.#toast(`已恢复「${label}」。点「生成世界」可另开一张。`);
+        return;
+      } catch {
+        /* corrupt autosave — generate fresh */
+      }
+    }
+    this.generate();
   }
 
   async generate() {
@@ -122,6 +136,7 @@ export class App {
       const platesEl = this.#el("opt-plates");
       const seaEl = this.#el("opt-sea");
       const windEl = this.#el("opt-wind");
+      const landEl = this.#el("opt-landform");
       const seed = seedEl instanceof HTMLInputElement ? seedEl.value.trim() || randomSeed() : randomSeed();
       if (seedEl instanceof HTMLInputElement) seedEl.value = seed;
       const extentRaw = extentEl instanceof HTMLSelectElement ? extentEl.value : "2560,1600";
@@ -133,6 +148,7 @@ export class App {
       const seaLevel = Number(seaEl instanceof HTMLInputElement ? seaEl.value : 0);
       const windRaw = windEl instanceof HTMLSelectElement ? windEl.value : "1,0";
       const [wx, wy] = windRaw.split(",").map(Number);
+      const landform = landEl instanceof HTMLSelectElement ? landEl.value : "continents";
       const world = await runGeneratorJob(
         "generate",
         {
@@ -144,6 +160,7 @@ export class App {
             plateCount,
             seaLevel,
             wind: { x: wx, y: wy },
+            landform,
           },
         },
         (stage) => this.#setLoading(true, STAGE_LABELS[stage] || "正在生成世界…"),
@@ -177,12 +194,16 @@ export class App {
     if (name instanceof HTMLInputElement) name.value = world.meta.mapName || "";
     const styleEl = this.#el("opt-style");
     if (styleEl instanceof HTMLSelectElement && world.meta.style) styleEl.value = world.meta.style;
+    const landEl = this.#el("opt-landform");
+    if (landEl instanceof HTMLSelectElement && world.meta.landform) landEl.value = world.meta.landform;
+    this.#syncTitle();
     this.redraw();
     this.#scheduleAutosave();
     this.#inspect(-1);
     this.#fillLegend();
     this.#fillRoster();
     this.#syncZoomReadout();
+    this.#setStatus(-1);
   }
 
   redraw() {
@@ -337,7 +358,7 @@ export class App {
         this.#applyWorld(parseWorld(raw), { fit: true });
         this.#toast("存档已导入。");
       } catch (err) {
-        alert(err instanceof Error ? err.message : "导入失败。");
+        this.#toast(err instanceof Error ? err.message : "导入失败。", true);
       }
       input.value = "";
     });
@@ -350,29 +371,34 @@ export class App {
     });
     this.#el("btn-undo")?.addEventListener("click", () => this.#undo());
     this.#el("btn-redo")?.addEventListener("click", () => this.#redo());
-    this.#el("btn-autosave")?.addEventListener("click", () => {
-      const w = loadLocal();
+    this.#el("btn-autosave")?.addEventListener("click", async () => {
+      const w = await loadAutosave();
       if (!w) {
-        alert("没有找到自动存档。");
+        this.#toast("没有找到自动存档。", true);
         return;
       }
       try {
         this.#applyWorld(parseWorld(w), { fit: true });
         this.#toast("已读取自动存档。");
       } catch (err) {
-        alert(err instanceof Error ? err.message : "自动存档无法读取。");
+        this.#toast(err instanceof Error ? err.message : "自动存档无法读取。", true);
       }
     });
     this.#el("btn-reroll-society")?.addEventListener("click", () => this.#reroll("society"));
     this.#el("btn-reroll-names")?.addEventListener("click", () => this.#reroll("names"));
     this.#el("btn-reroll-routes")?.addEventListener("click", () => this.#reroll("routes"));
-    this.#el("btn-help")?.addEventListener("click", () => this.#el("help-dialog")?.showModal?.());
+    this.#el("btn-help")?.addEventListener("click", () => this.#openHelp());
     this.#el("btn-copy-seed")?.addEventListener("click", () => this.#copySeed());
     this.#el("btn-fold-left")?.addEventListener("click", () => this.#togglePanel("left"));
     this.#el("btn-fold-right")?.addEventListener("click", () => this.#togglePanel("right"));
+    this.#el("btn-panel-left")?.addEventListener("click", () => this.#togglePanel("left"));
+    this.#el("btn-panel-right")?.addEventListener("click", () => this.#togglePanel("right"));
+    this.#el("btn-save-slot")?.addEventListener("click", () => this.#saveToSlot());
+    this.#el("btn-load-slot")?.addEventListener("click", () => this.#loadFromSlot());
     this.#el("map-name")?.addEventListener("change", (e) => {
       if (!this.world) return;
       this.world.meta.mapName = /** @type {HTMLInputElement} */ (e.target).value.trim();
+      this.#syncTitle();
       this.#scheduleAutosave();
     });
     this.#el("entity-note")?.addEventListener("input", (e) => {
@@ -429,6 +455,7 @@ export class App {
       }
       const name = this.#el("map-name");
       if (name instanceof HTMLInputElement) name.value = this.world.meta.mapName || "";
+      this.#syncTitle();
       this.redraw();
       this.#inspect(-1);
       this.#fillLegend();
@@ -454,13 +481,13 @@ export class App {
     }
     if (typing) return;
     if (ev.key === "Escape") {
-      this.#el("help-dialog")?.close?.();
+      this.#closeHelp();
       this.#el("text-dialog")?.close?.();
       return;
     }
     if (ev.key === "F1" || ev.key === "?") {
       ev.preventDefault();
-      this.#el("help-dialog")?.showModal?.();
+      this.#openHelp();
       return;
     }
     if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "z") {
@@ -567,6 +594,7 @@ export class App {
     }
     this.highlight = cellId;
     this.#hover(cellId, x, y);
+    this.#setStatus(cellId);
     if (!this.painting) {
       this.redraw();
       return;
@@ -704,7 +732,7 @@ export class App {
   #scheduleAutosave() {
     if (this.autosaveTimer) window.clearTimeout(this.autosaveTimer);
     this.autosaveTimer = window.setTimeout(() => {
-      if (this.world) saveLocal(this.world);
+      if (this.world) saveAutosave(this.world);
     }, 400);
   }
 
@@ -721,6 +749,7 @@ export class App {
       box.innerHTML = `
         <dt>图名</dt><dd>${escapeHtml(mapName)}</dd>
         <dt>种子</dt><dd>${escapeHtml(this.world.meta.seed)}</dd>
+        <dt>陆形</dt><dd>${escapeHtml(landformLabel(this.world.meta.landform))}</dd>
         <dt>画幅</dt><dd>${this.world.meta.width}×${this.world.meta.height} · 格距 ${this.world.meta.cellSize}</dd>
         <dt>绘制</dt><dd>${escapeHtml(this.renderer.lodLabel(this.world))}（格子不变）</dd>
         <dt>格子</dt><dd>${sum.cells} · 陆地 ${sum.land} · 海洋 ${sum.ocean}</dd>
@@ -729,8 +758,11 @@ export class App {
         <dt>国度</dt><dd>${sum.regions}</dd>
         <dt>文化</dt><dd>${sum.cultures}</dd>
         <dt>行省</dt><dd>${sum.provinces}</dd>
+        <dt>信仰</dt><dd>${sum.religions}</dd>
+        <dt>地貌</dt><dd>${sum.features}</dd>
         <dt>商路</dt><dd>${sum.routes}</dd>
         <dt>地标</dt><dd>${sum.markers}</dd>`;
+      this.#setStatus(-1);
       return;
     }
     const c = this.world.cells[cellId];
@@ -740,9 +772,11 @@ export class App {
     const marker = (this.world.markers || []).find((m) => m.cellId === cellId);
     const river = c.riverId >= 0 ? this.world.rivers[c.riverId] : null;
     const province = c.provinceId >= 0 ? this.world.provinces?.[c.provinceId] : null;
+    const religion = c.religionId >= 0 ? this.world.religions?.[c.religionId] : null;
+    const feat = c.featureId >= 0 ? this.world.features?.[c.featureId] : null;
     const biomeName = BIOME_LABELS[c.biome] || c.biome;
     const typeName = town ? SETTLEMENT_TYPE[town.type] || town.type : "";
-    this._noteTarget = town || marker || province || realm || cult || null;
+    this._noteTarget = town || marker || province || realm || cult || religion || feat || null;
     const noteWrap = this.#el("note-wrap");
     const noteEl = this.#el("entity-note");
     if (noteWrap instanceof HTMLElement) noteWrap.hidden = !this._noteTarget;
@@ -766,8 +800,11 @@ export class App {
       <dt>文化</dt><dd>${cult ? escapeHtml(`${cult.name}（${cultureTypeLabel(cult.type)}）`) : "—"}</dd>
       <dt>国度</dt><dd>${realm ? escapeHtml(realm.name) : "—"}</dd>
       <dt>行省</dt><dd>${province ? escapeHtml(province.name) : "—"}</dd>
+      <dt>信仰</dt><dd>${religion ? escapeHtml(`${religion.name}（${religionTypeLabel(religion.type)}）`) : "—"}</dd>
+      <dt>地貌</dt><dd>${feat ? escapeHtml(`${feat.name}（${featureTypeLabel(feat.type)}）`) : "—"}</dd>
       <dt>聚落</dt><dd>${town ? escapeHtml(`${town.name}（${typeName} · ${town.population || "?"}人）`) : "—"}</dd>
       <dt>地标</dt><dd>${marker ? escapeHtml(marker.name) : "—"}</dd>`;
+    this.#setStatus(cellId);
   }
 
   /**
@@ -833,6 +870,18 @@ export class App {
         hint: cultureTypeLabel(c.type),
         cellId: c.originId,
       }));
+    } else if (this.rosterKind === "religions") {
+      items = (this.world.religions || []).map((r) => ({
+        label: r.name,
+        hint: religionTypeLabel(r.type),
+        cellId: r.originId,
+      }));
+    } else if (this.rosterKind === "features") {
+      items = (this.world.features || []).map((f) => ({
+        label: f.name,
+        hint: `${featureTypeLabel(f.type)} · ${f.size}格`,
+        cellId: f.originId,
+      }));
     } else {
       items = (this.world.markers || []).map((m) => ({
         label: m.name,
@@ -879,6 +928,12 @@ export class App {
     }
     for (const c of this.world.cultures || []) {
       if (c.name.toLowerCase().includes(q)) hits.push({ label: c.name, hint: "文化", cellId: c.originId });
+    }
+    for (const r of this.world.religions || []) {
+      if (r.name.toLowerCase().includes(q)) hits.push({ label: r.name, hint: religionTypeLabel(r.type), cellId: r.originId });
+    }
+    for (const f of this.world.features || []) {
+      if (f.name.toLowerCase().includes(q)) hits.push({ label: f.name, hint: featureTypeLabel(f.type), cellId: f.originId });
     }
     for (const m of this.world.markers || []) {
       if (m.name.toLowerCase().includes(q)) hits.push({ label: m.name, hint: markerLabel(m.type), cellId: m.cellId });
@@ -960,6 +1015,110 @@ export class App {
     }
   }
 
+  #openHelp() {
+    const d = this.#el("help-dialog");
+    if (d instanceof HTMLDialogElement) {
+      try {
+        if (!d.open) d.showModal();
+        return;
+      } catch {
+        /* some embedded browsers reject showModal */
+      }
+    }
+    if (d instanceof HTMLElement) {
+      d.setAttribute("open", "");
+      d.classList.add("open");
+    }
+  }
+
+  #closeHelp() {
+    const d = this.#el("help-dialog");
+    if (d instanceof HTMLDialogElement) {
+      try {
+        d.close();
+      } catch {
+        /* ignore */
+      }
+    }
+    if (d instanceof HTMLElement) {
+      d.removeAttribute("open");
+      d.classList.remove("open");
+    }
+  }
+
+  #syncTitle() {
+    const name = this.world?.meta.mapName || this.world?.meta.seed;
+    this.doc.title = name ? `${name} · 幻想世界地图生成器` : "幻想世界地图生成器";
+  }
+
+  /** @param {number} cellId */
+  #setStatus(cellId) {
+    const el = this.#el("map-status");
+    if (!(el instanceof HTMLElement) || !this.world) return;
+    if (cellId < 0) {
+      const sum = summarizeWorld(this.world);
+      el.textContent = `${this.world.meta.mapName || this.world.meta.seed} · ${landformLabel(this.world.meta.landform)} · 陆地 ${sum.land} · 聚落 ${sum.settlements}`;
+      return;
+    }
+    const c = this.world.cells[cellId];
+    if (!c) return;
+    const town = this.world.settlements.find((s) => s.cellId === cellId);
+    const cult = c.cultureId >= 0 ? this.world.cultures?.[c.cultureId] : null;
+    const realm = c.regionId >= 0 ? this.world.regions[c.regionId] : null;
+    const rel = c.religionId >= 0 ? this.world.religions?.[c.religionId] : null;
+    const feat = c.featureId >= 0 ? this.world.features?.[c.featureId] : null;
+    const bits = [
+      `#${c.id}`,
+      `海拔 ${c.height.toFixed(2)}`,
+      BIOME_LABELS[c.biome] || c.biome,
+      feat?.name,
+      cult?.name,
+      realm?.name,
+      rel?.name,
+      town?.name,
+    ].filter(Boolean);
+    el.textContent = bits.join(" · ");
+  }
+
+  #fillSlotSelect() {
+    const sel = this.#el("opt-slot");
+    if (!(sel instanceof HTMLSelectElement)) return;
+    const meta = listSlotMeta();
+    const current = sel.value;
+    sel.innerHTML = meta
+      .map((row, i) => {
+        const label = row.empty ? `槽位 ${i + 1}（空）` : `槽位 ${i + 1} · ${row.mapName || row.seed}`;
+        return `<option value="${i}">${escapeHtml(label)}</option>`;
+      })
+      .join("");
+    if (current && Number(current) < SLOT_COUNT) sel.value = current;
+  }
+
+  async #saveToSlot() {
+    if (!this.world) return;
+    const sel = this.#el("opt-slot");
+    const index = Number(sel instanceof HTMLSelectElement ? sel.value : 0);
+    const ok = await saveSlot(index, this.world);
+    this.#fillSlotSelect();
+    this.#toast(ok ? `已写入槽位 ${index + 1}。` : "槽位写入失败：本机存储已满。", !ok);
+  }
+
+  async #loadFromSlot() {
+    const sel = this.#el("opt-slot");
+    const index = Number(sel instanceof HTMLSelectElement ? sel.value : 0);
+    const w = await loadSlot(index);
+    if (!w) {
+      this.#toast(`槽位 ${index + 1} 是空的。`, true);
+      return;
+    }
+    try {
+      this.#applyWorld(parseWorld(w), { fit: true });
+      this.#toast(`已读出槽位 ${index + 1}。`);
+    } catch (err) {
+      this.#toast(err instanceof Error ? err.message : "槽位无法读取。", true);
+    }
+  }
+
   /**
    * @param {string} msg
    * @param {boolean} [danger]
@@ -973,7 +1132,7 @@ export class App {
     if (this._toastTimer) window.clearTimeout(this._toastTimer);
     this._toastTimer = window.setTimeout(() => {
       el.hidden = true;
-    }, 4200);
+    }, 6400);
   }
 
   /**

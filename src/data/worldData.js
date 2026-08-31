@@ -77,6 +77,7 @@ export function createWorldShell(config) {
       style: "atlas",
       societySeed: String(config.societySeed ?? config.seed ?? "terra"),
       mapName: "",
+      landform: config.landform || "continents",
     },
     cells: [],
     plates: [],
@@ -87,6 +88,8 @@ export function createWorldShell(config) {
     routes: [],
     markers: [],
     provinces: [],
+    religions: [],
+    features: [],
     view: { x: 0, y: 0, scale: 1 },
     generatedAt: new Date().toISOString(),
   };
@@ -115,6 +118,8 @@ export function summarizeWorld(world) {
     routes: world.routes?.length ?? 0,
     markers: world.markers?.length ?? 0,
     provinces: world.provinces?.length ?? 0,
+    religions: world.religions?.length ?? 0,
+    features: world.features?.length ?? 0,
   };
 }
 
@@ -147,11 +152,16 @@ export function hydrateWorld(w) {
   if (!w.routes) w.routes = [];
   if (!w.markers) w.markers = [];
   if (!w.provinces) w.provinces = [];
+  if (!w.religions) w.religions = [];
+  if (!w.features) w.features = [];
   if (!w.meta.societySeed) w.meta.societySeed = w.meta.seed;
   if (!w.meta.mapName) w.meta.mapName = "";
+  if (!w.meta.landform) w.meta.landform = "continents";
   for (const c of w.cells) {
     if (c.cultureId == null) c.cultureId = -1;
     if (c.provinceId == null) c.provinceId = -1;
+    if (c.religionId == null) c.religionId = -1;
+    if (c.featureId == null) c.featureId = -1;
   }
   for (const s of w.settlements) {
     if (s.cultureId == null) s.cultureId = w.cells[s.cellId]?.cultureId ?? -1;
