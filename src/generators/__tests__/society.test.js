@@ -81,6 +81,23 @@ test("older saves hydrate playability fields", () => {
   assert.equal(w.meta.societySeed, "old");
 });
 
+test("provinces stay inside their parent realm", () => {
+  const w = world("province-bounds");
+  assert.ok((w.provinces?.length || 0) > 0, "expected provinces");
+  for (const p of w.provinces) {
+    const seat = w.settlements.find((s) => s.id === p.seatId);
+    assert.ok(seat, `province ${p.name} missing seat`);
+    assert.equal(seat.regionId, p.regionId);
+  }
+  for (const c of w.cells) {
+    if (c.provinceId < 0) continue;
+    assert.equal(c.ocean, false);
+    const p = w.provinces[c.provinceId];
+    assert.ok(p);
+    if (c.regionId >= 0) assert.equal(c.regionId, p.regionId);
+  }
+});
+
 test("culture step treats ocean as expensive, not a homeland", () => {
   const ocean = { ocean: true, mountain: false, lake: false, height: -0.2, riverId: -1, coast: false, biome: "OCEAN" };
   assert.ok(cultureStep(ocean, "naval") > 5);

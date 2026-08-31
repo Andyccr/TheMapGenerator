@@ -25,7 +25,7 @@ export class CanvasRenderer {
     /** @type {Map<string, { canvas: HTMLCanvasElement, scale: number }>} */
     this._rasters = new Map();
     this._rasterWorld = "";
-    /** @type {{ coasts: number[][][], shores: number[][][], borders: number[][][], cultures: number[][][] } | null} */
+    /** @type {{ coasts: number[][][], shores: number[][][], borders: number[][][], cultures: number[][][], provinces: number[][][] } | null} */
     this._contours = null;
     this._contourKey = "";
     this._lod = "overview";
@@ -115,6 +115,7 @@ export class CanvasRenderer {
     if (options.routes !== false) this.#drawRoutes(world, ink, style, bounds, lod);
     if (options.borders !== false) {
       if (style === "cultural") this.#drawCultureBorders(world, ink, bounds, lod);
+      else if (style === "provinces") this.#drawProvinceBorders(world, ink, bounds, lod);
       else this.#drawBorders(world, ink, bounds, lod);
     }
     if (options.relief !== false) this.#drawMountains(world, style, bounds, scale, lod);
@@ -295,6 +296,9 @@ export class CanvasRenderer {
     }
     if (style === "cultural" && world?.cultures?.length) {
       return world.cultures.map((c) => ({ key: `c${c.id}`, label: c.name, color: c.color }));
+    }
+    if (style === "provinces" && world?.provinces?.length) {
+      return world.provinces.slice(0, 24).map((p) => ({ key: `p${p.id}`, label: p.name, color: p.color }));
     }
     if (style === "temperature") {
       return [
@@ -628,6 +632,28 @@ export class CanvasRenderer {
 
   /**
    * @param {import("../types.js").WorldData} world
+   * @param {{ border: string }} ink
+   * @param {{ x0: number, y0: number, x1: number, y1: number }} bounds
+   * @param {ReturnType<typeof lodConfig>} lod
+   */
+  #drawProvinceBorders(world, ink, bounds, lod) {
+    const ctx = this.ctx;
+    if (!ctx || !this._contours) return;
+    if (this._contours.provinces?.length) {
+      ctx.strokeStyle = ink.border;
+      ctx.lineWidth = this.#px(lod.level === "overview" ? 1.35 : 0.95);
+      ctx.setLineDash([this.#px(3), this.#px(2.5)]);
+      ctx.globalAlpha = lod.borderAlpha;
+      this.#strokeLines(this._contours.provinces, bounds);
+      ctx.setLineDash([]);
+    }
+    ctx.globalAlpha = Math.min(1, lod.borderAlpha + 0.2);
+    this.#strokeLines(this._contours.borders, bounds);
+    ctx.globalAlpha = 1;
+  }
+
+  /**
+   * @param {import("../types.js").WorldData} world
    * @param {{ river: string }} ink
    * @param {string} style
    * @param {{ x0: number, y0: number, x1: number, y1: number }} bounds
@@ -714,7 +740,12 @@ export class CanvasRenderer {
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     const show = lod.labels;
-    for (const s of world.settlements) {
+    const rank = { capital: 0, city: 1, town: 2, village: 3 };
+    const ordered = world.settlements.slice().sort((a, b) => (rank[a.type] ?? 9) - (rank[b.type] ?? 9));
+    /** @type {{ x: number, y: number, w: number, h: number }[]} */
+    const boxes = [];
+    const pad = this.#px(3);
+    for (const s of ordered) {
       if (s.type === "village" && !show.village) continue;
       if (s.type === "town" && !show.town) continue;
       const c = world.cells[s.cellId];
@@ -732,6 +763,19 @@ export class CanvasRenderer {
       ctx.fill();
       ctx.stroke();
       if (!show.name[s.type]) continue;
+      const tw = ctx.measureText(s.name).width;
+      const th = fs;
+      const lx = c.x + r + this.#px(4);
+      const ly = c.y - th / 2;
+      let hit = false;
+      for (const b of boxes) {
+        if (lx < b.x + b.w && lx + tw > b.x && ly < b.y + b.h && ly + th > b.y) {
+          hit = true;
+          break;
+        }
+      }
+      if (hit && s.type !== "capital") continue;
+      boxes.push({ x: lx - pad, y: ly - pad, w: tw + pad * 2, h: th + pad * 2 });
       ctx.fillStyle = ink.text;
       ctx.fillText(s.name, c.x + r + this.#px(4), c.y);
     }
