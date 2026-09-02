@@ -70,7 +70,9 @@ Rivers pick names from the culture at mid-course.
 | Tool | Mutation | Rebuild |
 | --- | --- | --- |
 | Raise / Lower | `height` brush | hydrology, climate, biomes, culture/realm flood, routes |
+| 印戳 | one hill / pit / range blob at the click | same |
 | River | force a monotonic height channel | same |
+| 连路 | append a `routes[]` path between two towns | none |
 | 建城 / 擦除 | settlements | routes only (markers kept) |
 | 地标 | `markers[]` | none |
 | Move | `settlement.cellId` (land only) | none |

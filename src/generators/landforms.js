@@ -246,6 +246,34 @@ function blob(cells, cx, cy, rx, ry, amp) {
   }
 }
 
+/**
+ * Drop one hill / pit / range on an existing heightmap (no land-fraction reset).
+ * Coordinates are world units; size is a fraction of the shorter map edge.
+ * @param {import("../types.js").Cell[]} cells
+ * @param {number} width
+ * @param {number} height
+ * @param {string} op
+ * @param {number} worldX
+ * @param {number} worldY
+ * @param {number} [size]
+ * @param {number} [amp]
+ */
+export function stampAt(cells, width, height, op, worldX, worldY, size = 0.1, amp = 0.4) {
+  const allowed = new Set(["hill", "pit", "range", "trough"]);
+  const kind = allowed.has(op) ? op : "hill";
+  const rx = Math.max(0.03, size);
+  applyStep(cells, () => 0.5, width, height, {
+    op: kind,
+    n: 1,
+    x: worldX / width,
+    y: worldY / height,
+    rx,
+    ry: kind === "range" || kind === "trough" ? rx * 0.38 : rx * 0.88,
+    amp,
+    jitter: false,
+  });
+}
+
 /** @param {number} t */
 function clamp01(t) {
   return Math.max(0.05, Math.min(0.95, t));

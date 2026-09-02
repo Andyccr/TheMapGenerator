@@ -1,5 +1,7 @@
 import { addSettlement, removeSettlement } from "../generators/civilization.js";
 import { MARKER_TYPES } from "../generators/markers.js";
+import { stampAt } from "../generators/landforms.js";
+import { addRouteBetween } from "../generators/routes.js";
 
 /**
  * Raise or lower a gaussian brush of cells.
@@ -142,6 +144,7 @@ export class RenameTool {
    */
   apply(world, ev, ctx) {
     if (ev.phase !== "down" || ev.cellId < 0) return;
+    const s = settlementAt(world, ev.cellId);
     if (s && ctx.askText) {
       ctx.askText("重命名", s.name, (next) => {
         if (!next) return;
@@ -258,6 +261,61 @@ export class MeasureTool {
   }
 }
 
+export class StampTool {
+  id = "stamp";
+  hint = "Click to drop a hill, pit, or range. Hydrology updates after the click.";
+  /**
+   * @param {import("../types.js").WorldData} world
+   * @param {import("../types.js").PointerEventWorld} ev
+   * @param {import("../types.js").EditorContext} ctx
+   */
+  apply(world, ev, ctx) {
+    if (ev.phase !== "down") return;
+    const op = ctx.stampOp || "hill";
+    const size = 0.045 + (ctx.brush || 3) * 0.018;
+    stampAt(world.cells, world.meta.width, world.meta.height, op, ev.worldX, ev.worldY, size, 0.42);
+  }
+}
+
+export class RoadTool {
+  id = "road";
+  hint = "Click two towns to draw a road. Shift-click the second town for a sea lane.";
+  constructor() {
+    /** @type {number | null} */
+    this.fromId = null;
+  }
+  /**
+   * @param {import("../types.js").WorldData} world
+   * @param {import("../types.js").PointerEventWorld} ev
+   * @param {import("../types.js").EditorContext} ctx
+   */
+  apply(world, ev, ctx) {
+    if (ev.phase !== "down" || ev.cellId < 0) return;
+    const s = settlementAt(world, ev.cellId);
+    if (!s) {
+      this.fromId = null;
+      ctx.toast?.("请点在聚落上连路。");
+      return;
+    }
+    if (this.fromId == null) {
+      this.fromId = s.id;
+      ctx.toast?.(`已选「${s.name}」，再点另一个聚落。`);
+      return;
+    }
+    if (this.fromId === s.id) return;
+    ctx.beginEdit?.();
+    const kind = ev.shiftKey ? "sea" : "road";
+    const route = addRouteBetween(world, this.fromId, s.id, kind);
+    this.fromId = null;
+    if (!route) {
+      ctx.toast?.("这两座城之间已经有路，或无法通行。", true);
+      return;
+    }
+    ctx.commit(world);
+    ctx.toast?.(`已连${kind === "sea" ? "海路" : "商路"}。`);
+  }
+}
+
 /** @returns {Record<string, import("../types.js").EditorTool>} */
 export function createTools() {
   const river = new RiverTool();
@@ -265,7 +323,9 @@ export function createTools() {
     pan: new PanTool(),
     raise: new RaiseTool(),
     lower: new LowerTool(),
+    stamp: new StampTool(),
     river,
+    road: new RoadTool(),
     burg: new BurgTool(),
     erase: new EraseTool(),
     marker: new MarkerTool(),
