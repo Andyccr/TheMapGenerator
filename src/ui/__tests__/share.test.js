@@ -10,6 +10,11 @@ test("parseShare reads seed and known landform", () => {
   assert.equal(shareHasSeed(s), true);
 });
 
+test("parseShare accepts the population layer", () => {
+  const s = parseShare("?seed=p&style=population");
+  assert.equal(s.style, "population");
+});
+
 test("parseShare drops unknown keys and out-of-range numbers", () => {
   const s = parseShare("seed=ok&landform=mars&plates=99&sea=-40&detail=3");
   assert.equal(s.seed, "ok");

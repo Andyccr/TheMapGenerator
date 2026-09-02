@@ -3,6 +3,7 @@
  * Colors are chosen for atlas printing, not a generic UI palette.
  */
 import { macroBiome } from "./lod.js";
+import { hinterlandPressure } from "../data/population.js";
 
 /** Posterized atlas colors used only at overview zoom. */
 const ATLAS_MACRO = {
@@ -73,6 +74,7 @@ export function fillFor(cell, world, style, lod = "local") {
   if (style === "religions") return religionFill(cell, world, 0.2);
   if (style === "temperature") return temperatureFill(cell);
   if (style === "precipitation") return precipitationFill(cell);
+  if (style === "population") return populationFill(cell, world);
   if (style === "parchment") return parchmentFill(cell);
   if (style === "night") return nightFill(cell);
   if (cell.ocean) {
@@ -105,6 +107,7 @@ function fillOverview(cell, world, style) {
   if (style === "religions") return religionFill(cell, world, 0.06);
   if (style === "temperature") return temperatureFill(cell);
   if (style === "precipitation") return precipitationFill(cell);
+  if (style === "population") return populationFill(cell, world);
   if (style === "parchment") {
     if (cell.ocean) return "#c4b48a";
     if (cell.lake) return "#b7a57a";
@@ -201,6 +204,20 @@ function precipitationFill(cell) {
   if (m < 0.35) return lerpColor("#c4a05a", "#c4c46a", m / 0.35);
   if (m < 0.65) return lerpColor("#c4c46a", "#5a9e6a", (m - 0.35) / 0.3);
   return lerpColor("#5a9e6a", "#1a6a78", (m - 0.65) / 0.35);
+}
+
+/**
+ * @param {import("../types.js").Cell} cell
+ * @param {import("../types.js").WorldData} world
+ */
+function populationFill(cell, world) {
+  if (cell.ocean) return "#1a3040";
+  if (cell.lake) return "#3a6e82";
+  const p = hinterlandPressure(cell, world);
+  const t = Math.max(0, Math.min(1, Math.log1p(p) / 4.2));
+  if (t < 0.35) return lerpColor("#cbb992", "#d4b46a", t / 0.35);
+  if (t < 0.7) return lerpColor("#d4b46a", "#c45a28", (t - 0.35) / 0.35);
+  return lerpColor("#c45a28", "#7a1820", (t - 0.7) / 0.3);
 }
 
 /**

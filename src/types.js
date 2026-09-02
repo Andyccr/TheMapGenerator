@@ -250,7 +250,8 @@
  * @property {() => void} [beginEdit]
  * @property {(label: string, fallback: string, done: (value: string | null) => void) => void} [askText]
  * @property {(html: string) => void} [promptRename]
- * @property {string} [markerType]
+ * @property {string} [stampOp]
+ * @property {(msg: string, danger?: boolean) => void} [toast]
  * @property {(text: string, fallback?: string) => string | null} [promptText]
  */
 
