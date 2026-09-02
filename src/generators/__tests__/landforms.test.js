@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { MapGenerator } from "../mapGenerator.js";
-import { LANDFORMS, landformById, recipeFor, parseRecipe, stepSummary } from "../landforms.js";
+import { LANDFORMS, landformById, recipeFor, parseRecipe, stepSummary, stampAt } from "../landforms.js";
 
 function cfg(landform) {
   return {
@@ -82,4 +82,17 @@ test("empty landformSteps stay empty instead of falling back to the preset", () 
   const gen = new MapGenerator();
   const w = gen.generate({ ...cfg("archipelago"), landformSteps: [] });
   assert.deepEqual(w.meta.landformSteps, []);
+});
+
+test("stampAt raises the clicked cell without a land-fraction reset", () => {
+  const gen = new MapGenerator();
+  const w = gen.generate(cfg("continents"));
+  const mid = w.cells.reduce((best, c) => {
+    const d = (c.x - w.meta.width / 2) ** 2 + (c.y - w.meta.height / 2) ** 2;
+    const bd = (best.x - w.meta.width / 2) ** 2 + (best.y - w.meta.height / 2) ** 2;
+    return d < bd ? c : best;
+  });
+  const before = mid.height;
+  stampAt(w.cells, w.meta.width, w.meta.height, "hill", mid.x, mid.y, 0.12, 0.5);
+  assert.ok(mid.height > before + 0.05, `expected stamp to raise ${before} -> ${mid.height}`);
 });

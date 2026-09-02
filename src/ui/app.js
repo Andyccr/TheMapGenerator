@@ -19,12 +19,15 @@ import { stanceLabel, tiesFor, otherId } from "../generators/diplomacy.js";
 import { APP_VERSION } from "../core/version.js";
 import { runGeneratorJob, STAGE_LABELS } from "./generateClient.js";
 import { parseShare, serializeShare, shareHasSeed } from "./share.js";
+import { EXAMPLE_WORLDS } from "./examples.js";
 
 const HINTS = {
   pan: "滚轮缩放：全图合并色块与干流，近景晕渲、细河与村落。格子数据不变。双击放大，拖动平移。",
   raise: "涂抹以抬升陆地、堆出山脊。水文会在绘制过程中更新。",
   lower: "涂抹以沉陷谷地或开辟海洋。水文会在绘制过程中更新。",
+  stamp: "点击放下丘、洼或岭。松手后按重力重算河流。笔刷控制印戳大小。",
   river: "从高地拖向大海。河道会被强制改为顺流而下。",
+  road: "先点一座聚落，再点另一座连商路。第二次按住 Shift 则走海路。",
   burg: "在陆地上点击以建立城镇。按住 Shift 建立城市。",
   erase: "点击聚落或地标以删除。最后一个都城不能删。",
   marker: "在陆地上点击放置兴趣点。种类在左侧选择。",
@@ -44,7 +47,9 @@ const TOOL_KEYS = {
   v: "pan",
   r: "raise",
   f: "lower",
+  t: "stamp",
   i: "river",
+  l: "road",
   b: "burg",
   x: "erase",
   k: "marker",
@@ -107,6 +112,7 @@ export class App {
     if (helpVer) helpVer.textContent = `v${APP_VERSION}`;
     this.#fillSlotSelect();
     this.#syncRecipeList();
+    this.#fillExamples();
     window.addEventListener("resize", () => {
       this.renderer.resize();
       if (this.world) this.redraw();
@@ -413,7 +419,12 @@ export class App {
       if (!this.world) return;
       const scaleEl = this.#el("opt-png-scale");
       const scale = Number(scaleEl instanceof HTMLSelectElement ? scaleEl.value : 2);
-      const off = this.renderer.renderExport(this.world, scale);
+      const land = landformLabel(this.world.meta.landform);
+      const off = this.renderer.renderExport(this.world, scale, {
+        folio: true,
+        title: this.world.meta.mapName || this.world.meta.seed,
+        subtitle: `种子 ${this.world.meta.seed} · ${land} · ${this.world.meta.width}×${this.world.meta.height}`,
+      });
       downloadPng(off, `world-${this.world.meta.seed}.png`);
     });
     this.#el("btn-undo")?.addEventListener("click", () => this.#undo());
@@ -435,6 +446,7 @@ export class App {
     this.#el("btn-reroll-names")?.addEventListener("click", () => this.#reroll("names"));
     this.#el("btn-reroll-routes")?.addEventListener("click", () => this.#reroll("routes"));
     this.#el("btn-help")?.addEventListener("click", () => this.#openHelp());
+    this.#el("btn-examples")?.addEventListener("click", () => this.#openExamples());
     this.#el("btn-copy-seed")?.addEventListener("click", () => this.#copySeed());
     this.#el("btn-copy-link")?.addEventListener("click", () => this.#copyLink());
     this.#el("btn-fold-left")?.addEventListener("click", () => this.#togglePanel("left"));
@@ -553,6 +565,7 @@ export class App {
     if (typing) return;
     if (ev.key === "Escape") {
       this.#closeHelp();
+      this.#closeExamples();
       this.#el("text-dialog")?.close?.();
       this.#el("confirm-dialog")?.close?.();
       return;
@@ -624,15 +637,27 @@ export class App {
       return;
     }
 
-    const clickOnce = this.toolId === "burg" || this.toolId === "erase" || this.toolId === "marker" || this.toolId === "rename";
+    const clickOnce =
+      this.toolId === "burg" ||
+      this.toolId === "erase" ||
+      this.toolId === "marker" ||
+      this.toolId === "rename" ||
+      this.toolId === "stamp" ||
+      this.toolId === "road";
     if (clickOnce) {
-      if (this.toolId === "erase") this.#pushUndo();
+      if (this.toolId === "erase" || this.toolId === "stamp") this.#pushUndo();
       const ctx = this.#editorContext();
       this.tools[this.toolId]?.apply(this.world, { worldX, worldY, cellId, phase: "down", shiftKey: ev.shiftKey }, ctx);
       if (this.toolId === "erase") {
         this.generator.rebuildRoutes(this.world);
         this.#scheduleAutosave();
         this.#fillRoster();
+      }
+      if (this.toolId === "stamp") {
+        this.generator.recomputeFromElevation(this.world);
+        this.#scheduleAutosave();
+        this.#fillRoster();
+        this.#fillLegend();
       }
       this.redraw();
       return;
@@ -732,9 +757,13 @@ export class App {
     const brush = Number(brushEl instanceof HTMLInputElement ? brushEl.value : 3);
     const markerEl = this.#el("opt-marker-type");
     const markerType = markerEl instanceof HTMLSelectElement ? markerEl.value : "ruins";
+    const stampEl = this.#el("opt-stamp-op");
+    const stampOp = stampEl instanceof HTMLSelectElement ? stampEl.value : "hill";
     return {
       brush,
       markerType,
+      stampOp,
+      toast: (msg, danger) => this.#toast(msg, danger),
       requestRecompute: () => this.#scheduleRecompute(),
       commit: () => {
         if (this.world && (this.toolId === "burg" || this.toolId === "erase")) {
@@ -765,7 +794,7 @@ export class App {
     if (this.recomputeTimer) return;
     this.recomputeTimer = window.setTimeout(() => {
       this.recomputeTimer = 0;
-      if (this.world && (this.toolId === "raise" || this.toolId === "lower")) {
+      if (this.world && (this.toolId === "raise" || this.toolId === "lower" || this.toolId === "stamp")) {
         this.generator.recomputeFromElevation(this.world);
         this.redraw();
       }
@@ -1223,6 +1252,59 @@ export class App {
       d.removeAttribute("open");
       d.classList.remove("open");
     }
+  }
+
+  #fillExamples() {
+    const list = this.#el("example-list");
+    if (!list) return;
+    list.innerHTML = EXAMPLE_WORLDS.map(
+      (ex) =>
+        `<li><button type="button" data-example="${escapeHtml(ex.id)}"><strong>${escapeHtml(ex.title)}</strong><span>${escapeHtml(ex.blurb)}</span></button></li>`,
+    ).join("");
+    list.querySelectorAll("[data-example]").forEach((btn) => {
+      btn.addEventListener("click", () => this.#loadExample(String(btn.getAttribute("data-example") || "")));
+    });
+  }
+
+  #openExamples() {
+    const d = this.#el("examples-dialog");
+    if (d instanceof HTMLDialogElement) {
+      try {
+        if (!d.open) d.showModal();
+        return;
+      } catch {
+        /* ignore */
+      }
+    }
+    if (d instanceof HTMLElement) {
+      d.setAttribute("open", "");
+      d.classList.add("open");
+    }
+  }
+
+  #closeExamples() {
+    const d = this.#el("examples-dialog");
+    if (d instanceof HTMLDialogElement) {
+      try {
+        d.close();
+      } catch {
+        /* ignore */
+      }
+    }
+    if (d instanceof HTMLElement) {
+      d.removeAttribute("open");
+      d.classList.remove("open");
+    }
+  }
+
+  /** @param {string} id */
+  async #loadExample(id) {
+    const ex = EXAMPLE_WORLDS.find((e) => e.id === id);
+    if (!ex) return;
+    this.#closeExamples();
+    this.#applyShare(parseShare(ex.query));
+    await this.generate({ force: true });
+    this.#toast(`已打开范例「${ex.title}」。`);
   }
 
   #syncTitle() {

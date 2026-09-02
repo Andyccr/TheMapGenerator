@@ -11,6 +11,7 @@ import { fillFor, inkFor, BIOME_LABELS, ATLAS_BIOME } from "./styles.js";
 import { lodConfig, lodFromZoom, LOD_LABELS } from "./lod.js";
 import { buildContours } from "./contours.js";
 import { markerGlyph } from "../generators/markers.js";
+import { layoutAtlasChrome, paintAtlasChrome } from "./atlasExport.js";
 
 export class CanvasRenderer {
   /** @param {HTMLCanvasElement} canvas */
@@ -137,8 +138,9 @@ export class CanvasRenderer {
   /**
    * @param {import("../types.js").WorldData} world
    * @param {number} exportScale
+   * @param {{ folio?: boolean, title?: string, subtitle?: string }} [opts]
    */
-  renderExport(world, exportScale) {
+  renderExport(world, exportScale, opts = {}) {
     const off = document.createElement("canvas");
     off.width = Math.floor(world.meta.width * exportScale);
     off.height = Math.floor(world.meta.height * exportScale);
@@ -153,7 +155,22 @@ export class CanvasRenderer {
     world.view.x = saved.x;
     world.view.y = saved.y;
     world.view.scale = saved.scale;
-    return off;
+    if (opts.folio === false) return off;
+    const legend = this.legendItems(world).slice(0, 14);
+    const chrome = layoutAtlasChrome(off.width, off.height, legend.length);
+    const plate = document.createElement("canvas");
+    plate.width = chrome.width;
+    plate.height = chrome.height;
+    const ctx = plate.getContext("2d");
+    if (!ctx) return off;
+    paintAtlasChrome(ctx, {
+      ...chrome,
+      title: opts.title || world.meta.mapName || world.meta.seed || "未命名世界",
+      subtitle: opts.subtitle || "",
+      legend,
+      mapCanvas: off,
+    });
+    return plate;
   }
 
   /**
@@ -321,6 +338,14 @@ export class CanvasRenderer {
         { key: "mid", label: "适中", color: "#c4c46a" },
         { key: "wet", label: "湿润", color: "#5a9e6a" },
         { key: "rain", label: "多雨", color: "#1a6a78" },
+      ];
+    }
+    if (style === "population") {
+      return [
+        { key: "wild", label: "荒原", color: "#cbb992" },
+        { key: "rural", label: "乡野", color: "#d4b46a" },
+        { key: "town", label: "城镇圈", color: "#c45a28" },
+        { key: "city", label: "稠密", color: "#7a1820" },
       ];
     }
     if (style === "physical" || style === "height") {

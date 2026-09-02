@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.0
+
+- Campaign workshop: click-to-stamp hills / pits / ranges, click two towns to draw a road or sea lane, population hinterland layer.
+- PNG export is a folio plate (title, seed, legend) rather than a bare canvas.
+- Example worlds in the header so a first visit can open a finished-looking atlas.
+- Rename tool no longer throws when clicking a settlement (`s` was undeclared).
+
 ## 1.4.0
 
 - Landform templates are recipes of heightmap steps (hill / pit / range / strait / sink / raise / mask). The left panel lists them; you can add, delete, and reset before generating.

@@ -662,6 +662,36 @@ button:hover {
   line-height: 1.5;
 }
 
+.example-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.8rem;
+}
+
+.example-list li {
+  margin: 0 0 0.4rem;
+}
+
+.example-list button {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.55rem 0.7rem;
+}
+
+.example-list strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.example-list span {
+  color: var(--ink-dim);
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+}
+
 kbd {
   font-family: ui-monospace, monospace;
   font-size: 0.78em;

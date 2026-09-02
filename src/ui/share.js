@@ -27,6 +27,7 @@ const STYLES = new Set([
   "religions",
   "temperature",
   "precipitation",
+  "population",
   "parchment",
   "night",
 ]);
