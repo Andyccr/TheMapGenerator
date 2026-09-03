@@ -274,6 +274,24 @@ export function stampAt(cells, width, height, op, worldX, worldY, size = 0.1, am
   });
 }
 
+/**
+ * Apply recipe steps onto an existing heightmap (no sea-level restamp).
+ * @param {import("../types.js").Cell[]} cells
+ * @param {() => number} rng
+ * @param {number} width
+ * @param {number} height
+ * @param {LandformStep[]} steps
+ */
+export function applyStepsOnly(cells, rng, width, height, steps) {
+  if (!Array.isArray(steps) || !steps.length) return 0;
+  let n = 0;
+  for (const step of steps) {
+    applyStep(cells, rng, width, height, step);
+    n += 1;
+  }
+  return n;
+}
+
 /** @param {number} t */
 function clamp01(t) {
   return Math.max(0.05, Math.min(0.95, t));
