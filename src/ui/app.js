@@ -485,6 +485,7 @@ export class App {
       this.#scheduleAutosave();
       this.#fillRoster();
       this.redraw();
+      if (this._inspectCellId >= 0) this.#inspect(this._inspectCellId);
     });
     this.#el("opt-cell-biome")?.addEventListener("change", (e) => this.#editInspected("biome", /** @type {HTMLSelectElement} */ (e.target).value));
     this.#el("opt-cell-culture")?.addEventListener("change", (e) => this.#editInspected("culture", /** @type {HTMLSelectElement} */ (e.target).value));
