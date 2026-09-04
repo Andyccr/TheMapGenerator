@@ -172,6 +172,7 @@ export function hydrateWorld(w) {
       f.cx = origin?.x ?? 0;
       f.cy = origin?.y ?? 0;
     }
+    if (f.note == null) f.note = "";
   }
   for (const s of w.settlements) {
     if (s.cultureId == null) s.cultureId = w.cells[s.cellId]?.cultureId ?? -1;
@@ -180,9 +181,22 @@ export function hydrateWorld(w) {
   }
   for (const r of w.rivers) {
     if (r.name == null) r.name = "";
+    if (r.note == null) r.note = "";
   }
   for (const r of w.regions) {
     if (r.note == null) r.note = "";
     if (r.cultureId == null) r.cultureId = -1;
+  }
+  for (const c of w.cultures) {
+    if (c.note == null) c.note = "";
+  }
+  for (const p of w.provinces) {
+    if (p.note == null) p.note = "";
+  }
+  for (const rel of w.religions) {
+    if (rel.note == null) rel.note = "";
+  }
+  for (const m of w.markers) {
+    if (m.note == null) m.note = "";
   }
 }

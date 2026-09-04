@@ -83,6 +83,9 @@ test("older saves hydrate playability fields", () => {
   assert.ok(Array.isArray(w.religions));
   assert.ok(Array.isArray(w.features));
   assert.equal(w.cells[0].religionId, -1);
+  assert.equal(w.rivers[0].name, "");
+  assert.equal(w.rivers[0].note, "");
+  assert.equal(w.regions[0].note, "");
 });
 
 test("religions cover land and never paint ocean", () => {

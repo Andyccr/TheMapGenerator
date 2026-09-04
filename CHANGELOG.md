@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.0
+
+- Every generated layer is editable: paint biome / culture / faith / realm / province, and change them in the inspector.
+- Entity names (including rivers and features) and neighbor diplomacy stances can be rewritten without a reroll.
+- Landform recipes can be applied onto the current heightmap; autosave state is visible on the map.
+- Erase can drop a road without regenerating the rest of the network. Empty paint pigment samples a cell (eyedrop) and does not push undo until a stroke actually paints.
+
 ## 1.5.0
 
 - Campaign workshop: click-to-stamp hills / pits / ranges, click two towns to draw a road or sea lane, population hinterland layer.

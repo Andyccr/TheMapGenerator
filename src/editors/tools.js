@@ -1,7 +1,8 @@
 import { addSettlement, removeSettlement } from "../generators/civilization.js";
 import { MARKER_TYPES } from "../generators/markers.js";
 import { stampAt } from "../generators/landforms.js";
-import { addRouteBetween } from "../generators/routes.js";
+import { addRouteBetween, removeRoutesThrough, pruneRoutes } from "../generators/routes.js";
+import { cellsInBrush, eyedrop, paintCells } from "./paint.js";
 
 /**
  * Raise or lower a gaussian brush of cells.
@@ -136,7 +137,7 @@ export class MoveSettlementTool {
 
 export class RenameTool {
   id = "rename";
-  hint = "Click a settlement, marker, or realm capital to rename it. Names are stored in the JSON save.";
+  hint = "Click a settlement, marker, river, or named feature to rename it. Names are stored in the JSON save.";
   /**
    * @param {import("../types.js").WorldData} world
    * @param {import("../types.js").PointerEventWorld} ev
@@ -164,7 +165,30 @@ export class RenameTool {
       });
       return;
     }
-    if (s && ctx.promptRename) ctx.promptRename(s);
+    if (s && ctx.promptRename) {
+      ctx.promptRename(s);
+      return;
+    }
+    const cell = world.cells[ev.cellId];
+    const river = cell?.riverId >= 0 ? world.rivers[cell.riverId] : null;
+    if (river && ctx.askText) {
+      ctx.askText("重命名河流", river.name || "河流", (next) => {
+        if (!next) return;
+        ctx.beginEdit?.();
+        river.name = next;
+        ctx.commit(world);
+      });
+      return;
+    }
+    const feat = cell?.featureId >= 0 ? world.features?.[cell.featureId] : null;
+    if (feat && ctx.askText) {
+      ctx.askText("重命名地貌", feat.name, (next) => {
+        if (!next) return;
+        ctx.beginEdit?.();
+        feat.name = next;
+        ctx.commit(world);
+      });
+    }
   }
 }
 
@@ -201,7 +225,7 @@ export class BurgTool {
 
 export class EraseTool {
   id = "erase";
-  hint = "Click a town or marker to remove it. The last capital cannot be deleted.";
+  hint = "Click a town, marker, or road cell to remove it. The last capital cannot be deleted.";
   /**
    * @param {import("../types.js").WorldData} world
    * @param {import("../types.js").PointerEventWorld} ev
@@ -211,13 +235,32 @@ export class EraseTool {
     if (ev.phase !== "down" || ev.cellId < 0) return;
     const s = settlementAt(world, ev.cellId);
     if (s) {
+      const lastCap = s.type === "capital" && world.settlements.filter((x) => x.type === "capital").length <= 1;
+      if (lastCap) {
+        ctx.toast?.("最后一个都城不能删。", true);
+        return;
+      }
+      ctx.beginEdit?.();
       removeSettlement(world, s.id);
+      pruneRoutes(world);
       ctx.commit(world);
       return;
     }
     const before = world.markers?.length || 0;
-    world.markers = (world.markers || []).filter((m) => m.cellId !== ev.cellId);
-    if ((world.markers?.length || 0) !== before) ctx.commit(world);
+    const kept = (world.markers || []).filter((m) => m.cellId !== ev.cellId);
+    if (kept.length !== before) {
+      ctx.beginEdit?.();
+      world.markers = kept;
+      ctx.commit(world);
+      return;
+    }
+    if (!(world.routes || []).some((r) => r.cellIds.includes(ev.cellId))) return;
+    ctx.beginEdit?.();
+    const dropped = removeRoutesThrough(world, ev.cellId);
+    if (dropped) {
+      ctx.commit(world);
+      ctx.toast?.(`已删去 ${dropped} 条经过这里的路。`);
+    }
   }
 }
 
@@ -316,6 +359,41 @@ export class RoadTool {
   }
 }
 
+export class PaintTool {
+  id = "paint";
+  hint = "Paint biome, culture, faith, realm, or province. Empty pigment click-samples the cell.";
+  constructor() {
+    this.dirty = false;
+  }
+  /**
+   * @param {import("../types.js").WorldData} world
+   * @param {import("../types.js").PointerEventWorld} ev
+   * @param {import("../types.js").EditorContext} ctx
+   */
+  apply(world, ev, ctx) {
+    if (ev.phase === "down") this.dirty = false;
+    if (ev.phase !== "down" && ev.phase !== "move") return;
+    if (ev.cellId < 0) return;
+    const layer = ctx.paintLayer || "biome";
+    const value = ctx.paintValue;
+    if (value == null || value === "") {
+      if (ev.phase === "down") {
+        const sampled = eyedrop(world, ev.cellId, layer);
+        ctx.setPaintValue?.(sampled);
+        ctx.toast?.(sampled ? "已吸取这一格的颜料。" : "这一格没有可吸取的颜料。");
+      }
+      return;
+    }
+    if (!this.dirty) {
+      ctx.beginEdit?.();
+      this.dirty = true;
+    }
+    const radius = (12 + ctx.brush * 10) * ((world.meta.cellSize || 10) / 10);
+    const ids = cellsInBrush(world, ev.worldX, ev.worldY, radius);
+    paintCells(world, ids, layer, value);
+  }
+}
+
 /** @returns {Record<string, import("../types.js").EditorTool>} */
 export function createTools() {
   const river = new RiverTool();
@@ -324,6 +402,7 @@ export function createTools() {
     raise: new RaiseTool(),
     lower: new LowerTool(),
     stamp: new StampTool(),
+    paint: new PaintTool(),
     river,
     road: new RoadTool(),
     burg: new BurgTool(),

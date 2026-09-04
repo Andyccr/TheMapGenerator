@@ -76,7 +76,7 @@ class MapGenerator {
 }
 ```
 
-Sculpt tools change `height` only. They **must not** hand-edit `riverId` or `biome`. The generator rebuilds those so water cannot be left inconsistent.
+Sculpt tools change `height` only. They **must not** hand-edit `riverId` or `biome`. The generator rebuilds those so water cannot be left inconsistent. Thematic paint (`src/editors/paint.js`) is the exception for biome / culture / faith / realm / province ids — it must not call `recomputeFromElevation`.
 
 ### Renderer
 

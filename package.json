@@ -1,6 +1,6 @@
 {
   "name": "fantasy-world-map-generator",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "private": true,
   "description": "Static, geographically plausible fantasy map generator for writers, game masters, and cartographers. Runs entirely in the browser and deploys to GitHub Pages.",
   "type": "module",
@@ -9,7 +9,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test src/generators/__tests__/plausibility.test.js src/generators/__tests__/society.test.js src/generators/__tests__/landforms.test.js src/generators/__tests__/diplomacy.test.js src/ui/__tests__/share.test.js src/renderers/__tests__/lod.test.js src/persistence/__tests__/storage.test.js src/renderers/__tests__/atlasExport.test.js src/ui/__tests__/examples.test.js src/data/__tests__/population.test.js src/generators/__tests__/routes.test.js"
+    "test": "node --test src/generators/__tests__/plausibility.test.js src/generators/__tests__/society.test.js src/generators/__tests__/landforms.test.js src/generators/__tests__/diplomacy.test.js src/ui/__tests__/share.test.js src/renderers/__tests__/lod.test.js src/persistence/__tests__/storage.test.js src/renderers/__tests__/atlasExport.test.js src/ui/__tests__/examples.test.js src/data/__tests__/population.test.js src/generators/__tests__/routes.test.js src/editors/__tests__/paint.test.js"
   },
   "license": "AGPL-3.0-or-later",
   "devDependencies": {
