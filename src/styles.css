@@ -530,6 +530,49 @@ button:hover {
   letter-spacing: 0;
 }
 
+.cell-edit,
+.diplo-edit {
+  margin-top: 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.cell-edit[hidden],
+.diplo-edit[hidden] {
+  display: none;
+}
+
+.cell-edit label,
+.diplo-edit label {
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.cell-edit select,
+.diplo-edit select {
+  text-transform: none;
+  letter-spacing: 0;
+  margin-top: 0.15rem;
+}
+
+.diplo-edit {
+  list-style: none;
+  padding: 0;
+}
+
+.save-state {
+  position: absolute;
+  left: 0.7rem;
+  bottom: 2.15rem;
+  z-index: 4;
+  font-size: 0.72rem;
+  color: var(--ink-dim);
+  pointer-events: none;
+}
+
 .fold {
   position: absolute;
   top: 0.55rem;
@@ -744,7 +787,8 @@ kbd {
   .zoom-hud,
   .toast,
   .loading,
-  .map-status {
+  .map-status,
+  .save-state {
     display: none !important;
   }
 

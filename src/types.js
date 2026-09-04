@@ -60,6 +60,7 @@
  * @property {number[][]} points
  * @property {number} width
  * @property {string} [name]
+ * @property {string} [note]
  */
 
 /**
@@ -250,7 +251,11 @@
  * @property {() => void} [beginEdit]
  * @property {(label: string, fallback: string, done: (value: string | null) => void) => void} [askText]
  * @property {(html: string) => void} [promptRename]
+ * @property {string} [markerType]
  * @property {string} [stampOp]
+ * @property {string} [paintLayer]
+ * @property {string} [paintValue]
+ * @property {(value: string) => void} [setPaintValue]
  * @property {(msg: string, danger?: boolean) => void} [toast]
  * @property {(text: string, fallback?: string) => string | null} [promptText]
  */

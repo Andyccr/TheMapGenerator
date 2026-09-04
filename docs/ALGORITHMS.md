@@ -71,9 +71,11 @@ Rivers pick names from the culture at mid-course.
 | --- | --- | --- |
 | Raise / Lower | `height` brush | hydrology, climate, biomes, culture/realm flood, routes |
 | 印戳 | one hill / pit / range blob at the click | same |
+| 涂色 | biome / culture / religion / realm / province ids | none |
+| 应用到当前图 | landform steps on existing heights | hydrology, climate, society flood |
 | River | force a monotonic height channel | same |
 | 连路 | append a `routes[]` path between two towns | none |
-| 建城 / 擦除 | settlements | routes only (markers kept) |
+| 建城 / 擦除 | settlements, markers, or routes through a cell | prune dead roads only (no network reroll) |
 | 地标 | `markers[]` | none |
 | Move | `settlement.cellId` (land only) | none |
 | Rename | name fields | none |
@@ -82,7 +84,7 @@ Rivers pick names from the culture at mid-course.
 | 重掷地名 | names only | none |
 | 重掷商路与地标 | routes + markers | none |
 
-Editors never write `biome` or `rivers` by hand. Society can be re-rolled without remeshing.
+Sculpt tools never write `biome` or `rivers` by hand; hydrology rebuilds those. The paint tool writes thematic ids (biome / culture / faith / realm / province) without touching height or rivers. Society can be re-rolled without remeshing.
 
 ## 7. Cartographic LOD (draw-only)
 

@@ -13,26 +13,29 @@ import { cultureTypeLabel } from "../generators/cultures.js";
 import { markerLabel } from "../generators/markers.js";
 import { religionTypeLabel } from "../generators/religions.js";
 import { featureTypeLabel } from "../generators/features.js";
-import { landformLabel, recipeFor, parseRecipe, stepSummary } from "../generators/landforms.js";
+import { landformLabel, recipeFor, parseRecipe, stepSummary, applyStepsOnly } from "../generators/landforms.js";
 import { estimatePopulation } from "../generators/civilization.js";
-import { stanceLabel, tiesFor, otherId } from "../generators/diplomacy.js";
+import { stanceLabel, tiesFor, otherId, setStance, STANCE_LABELS } from "../generators/diplomacy.js";
 import { APP_VERSION } from "../core/version.js";
 import { runGeneratorJob, STAGE_LABELS } from "./generateClient.js";
 import { parseShare, serializeShare, shareHasSeed } from "./share.js";
 import { EXAMPLE_WORLDS } from "./examples.js";
+import { PAINT_LAYERS, LAND_BIOMES, eyedrop, paintCell } from "../editors/paint.js";
+import { makeRng } from "../generators/rng.js";
 
 const HINTS = {
   pan: "滚轮缩放：全图合并色块与干流，近景晕渲、细河与村落。格子数据不变。双击放大，拖动平移。",
   raise: "涂抹以抬升陆地、堆出山脊。水文会在绘制过程中更新。",
   lower: "涂抹以沉陷谷地或开辟海洋。水文会在绘制过程中更新。",
   stamp: "点击放下丘、洼或岭。松手后按重力重算河流。笔刷控制印戳大小。",
+  paint: "涂抹改群系、文化、信仰、国度或行省。颜料留空时点击吸取。不会重算水文。",
   river: "从高地拖向大海。河道会被强制改为顺流而下。",
   road: "先点一座聚落，再点另一座连商路。第二次按住 Shift 则走海路。",
   burg: "在陆地上点击以建立城镇。按住 Shift 建立城市。",
-  erase: "点击聚落或地标以删除。最后一个都城不能删。",
+  erase: "点击聚落、地标或商路格子以删除。最后一个都城不能删。",
   marker: "在陆地上点击放置兴趣点。种类在左侧选择。",
   move: "把城镇拖到另一块陆地上。不能放进海里。",
-  rename: "点击聚落或地标即可改名。名称保存在 JSON 存档里。",
+  rename: "点击聚落、地标、河流或地貌改名。右侧检视也可以改名称与图层。",
   measure: "点击两点测量里格。比例尺与地图单位一致。",
 };
 
@@ -48,6 +51,7 @@ const TOOL_KEYS = {
   r: "raise",
   f: "lower",
   t: "stamp",
+  p: "paint",
   i: "river",
   l: "road",
   b: "burg",
@@ -94,6 +98,7 @@ export class App {
     this._toastTimer = 0;
     this._noteTarget = null;
     this._burgTarget = null;
+    this._inspectCellId = -1;
     this._dialogDone = null;
     this._confirmDone = null;
     this.landformSteps = null;
@@ -113,6 +118,7 @@ export class App {
     this.#fillSlotSelect();
     this.#syncRecipeList();
     this.#fillExamples();
+    this.#syncPaintPigment();
     window.addEventListener("resize", () => {
       this.renderer.resize();
       if (this.world) this.redraw();
@@ -238,6 +244,7 @@ export class App {
     this.#inspect(-1);
     this.#fillLegend();
     this.#fillRoster();
+    this.#syncPaintPigment();
     this.#syncZoomReadout();
     this.#setStatus(-1);
   }
@@ -254,7 +261,7 @@ export class App {
       routes: this.showRoutes,
       markers: this.showMarkers,
       relief: this.showRelief,
-      highlightCell: this.highlight,
+      highlightCell: this.#highlightCell(),
       draftPath: draft,
       measure: this.measure,
     });
@@ -305,6 +312,11 @@ export class App {
     this.#el("btn-recipe-reset")?.addEventListener("click", () => {
       this.landformSteps = recipeFor(this.#currentLandform());
       this.#syncRecipeList();
+    });
+    this.#el("btn-recipe-apply")?.addEventListener("click", () => this.#applyRecipeToWorld());
+    this.#el("opt-paint-layer")?.addEventListener("change", () => {
+      this.#syncPaintPigment();
+      this.#matchStyleToPaint();
     });
     this.#el("opt-labels")?.addEventListener("change", (e) => {
       this.labels = /** @type {HTMLInputElement} */ (e.target).checked;
@@ -466,6 +478,20 @@ export class App {
       this._noteTarget.note = /** @type {HTMLTextAreaElement} */ (e.target).value;
       this.#scheduleAutosave();
     });
+    this.#el("entity-name")?.addEventListener("change", (e) => {
+      if (!this._noteTarget || this._noteTarget.name == null) return;
+      this.#pushUndo();
+      this._noteTarget.name = /** @type {HTMLInputElement} */ (e.target).value.trim() || this._noteTarget.name;
+      this.#scheduleAutosave();
+      this.#fillRoster();
+      this.redraw();
+      if (this._inspectCellId >= 0) this.#inspect(this._inspectCellId);
+    });
+    this.#el("opt-cell-biome")?.addEventListener("change", (e) => this.#editInspected("biome", /** @type {HTMLSelectElement} */ (e.target).value));
+    this.#el("opt-cell-culture")?.addEventListener("change", (e) => this.#editInspected("culture", /** @type {HTMLSelectElement} */ (e.target).value));
+    this.#el("opt-cell-realm")?.addEventListener("change", (e) => this.#editInspected("realm", /** @type {HTMLSelectElement} */ (e.target).value));
+    this.#el("opt-cell-province")?.addEventListener("change", (e) => this.#editInspected("province", /** @type {HTMLSelectElement} */ (e.target).value));
+    this.#el("opt-cell-religion")?.addEventListener("change", (e) => this.#editInspected("religion", /** @type {HTMLSelectElement} */ (e.target).value));
     this.#el("opt-burg-type")?.addEventListener("change", (e) => {
       if (!this._burgTarget || !this.world) return;
       this.#pushUndo();
@@ -517,6 +543,7 @@ export class App {
     if (hint) hint.textContent = HINTS[this.toolId] || HINTS.pan;
     const canvas = /** @type {HTMLCanvasElement} */ (this.#el("map"));
     canvas.style.cursor = this.toolId === "pan" ? "grab" : "crosshair";
+    if (id === "paint") this.#matchStyleToPaint();
   }
 
   /**
@@ -645,11 +672,10 @@ export class App {
       this.toolId === "stamp" ||
       this.toolId === "road";
     if (clickOnce) {
-      if (this.toolId === "erase" || this.toolId === "stamp") this.#pushUndo();
+      if (this.toolId === "stamp") this.#pushUndo();
       const ctx = this.#editorContext();
       this.tools[this.toolId]?.apply(this.world, { worldX, worldY, cellId, phase: "down", shiftKey: ev.shiftKey }, ctx);
       if (this.toolId === "erase") {
-        this.generator.rebuildRoutes(this.world);
         this.#scheduleAutosave();
         this.#fillRoster();
       }
@@ -663,7 +689,7 @@ export class App {
       return;
     }
 
-    this.#pushUndo();
+    if (this.toolId !== "paint") this.#pushUndo();
     this.painting = true;
     const ctx = this.#editorContext();
     this.tools[this.toolId]?.apply(this.world, { worldX, worldY, cellId, phase: "down", shiftKey: ev.shiftKey }, ctx);
@@ -728,14 +754,13 @@ export class App {
         this.tools[this.toolId]?.apply(this.world, { worldX, worldY, cellId, phase: "up", shiftKey: ev.shiftKey }, ctx);
         if (this.toolId === "raise" || this.toolId === "lower") {
           this.generator.recomputeFromElevation(this.world);
-        } else if (this.toolId === "burg" || this.toolId === "erase") {
-          this.generator.rebuildRoutes(this.world);
         }
       }
       this.painting = false;
       this.#scheduleAutosave();
       this.#fillRoster();
       this.#fillLegend();
+      if (this._inspectCellId >= 0) this.#inspect(this._inspectCellId);
     }
     this.redraw();
   }
@@ -759,16 +784,24 @@ export class App {
     const markerType = markerEl instanceof HTMLSelectElement ? markerEl.value : "ruins";
     const stampEl = this.#el("opt-stamp-op");
     const stampOp = stampEl instanceof HTMLSelectElement ? stampEl.value : "hill";
+    const paintLayerEl = this.#el("opt-paint-layer");
+    const paintValueEl = this.#el("opt-paint-value");
     return {
       brush,
       markerType,
       stampOp,
+      paintLayer: paintLayerEl instanceof HTMLSelectElement ? paintLayerEl.value : "biome",
+      paintValue: paintValueEl instanceof HTMLSelectElement ? paintValueEl.value : "",
+      setPaintValue: (v) => {
+        const sel = this.#el("opt-paint-value");
+        if (sel instanceof HTMLSelectElement) {
+          if (v && ![...sel.options].some((o) => o.value === v)) return;
+          sel.value = v || "";
+        }
+      },
       toast: (msg, danger) => this.#toast(msg, danger),
       requestRecompute: () => this.#scheduleRecompute(),
       commit: () => {
-        if (this.world && (this.toolId === "burg" || this.toolId === "erase")) {
-          this.generator.rebuildRoutes(this.world);
-        }
         this.#scheduleAutosave();
         this.redraw();
         this.#fillRoster();
@@ -832,8 +865,12 @@ export class App {
 
   #scheduleAutosave() {
     if (this.autosaveTimer) window.clearTimeout(this.autosaveTimer);
-    this.autosaveTimer = window.setTimeout(() => {
-      if (this.world) saveAutosave(this.world);
+    this.#setSaveState("保存中…");
+    this.autosaveTimer = window.setTimeout(async () => {
+      if (this.world) {
+        await saveAutosave(this.world);
+        this.#setSaveState("已自动保存");
+      }
     }, 400);
   }
 
@@ -845,10 +882,17 @@ export class App {
       const sum = summarizeWorld(this.world);
       const mapName = this.world.meta.mapName || this.world.meta.seed;
       this._noteTarget = null;
+      this._inspectCellId = -1;
       const noteWrap = this.#el("note-wrap");
       if (noteWrap instanceof HTMLElement) noteWrap.hidden = true;
+      const nameWrap = this.#el("name-wrap");
+      if (nameWrap instanceof HTMLElement) nameWrap.hidden = true;
       const burgWrap = this.#el("burg-wrap");
       if (burgWrap instanceof HTMLElement) burgWrap.hidden = true;
+      const cellEdit = this.#el("cell-edit");
+      if (cellEdit instanceof HTMLElement) cellEdit.hidden = true;
+      const diploEdit = this.#el("diplo-edit");
+      if (diploEdit instanceof HTMLElement) diploEdit.hidden = true;
       box.innerHTML = `
         <dt>图名</dt><dd>${escapeHtml(mapName)}</dd>
         <dt>种子</dt><dd>${escapeHtml(this.world.meta.seed)}</dd>
@@ -879,16 +923,24 @@ export class App {
     const feat = c.featureId >= 0 ? this.world.features?.[c.featureId] : null;
     const biomeName = BIOME_LABELS[c.biome] || c.biome;
     const typeName = town ? SETTLEMENT_TYPE[town.type] || town.type : "";
-    this._noteTarget = town || marker || province || realm || cult || religion || feat || null;
+    this._inspectCellId = cellId;
+    this._noteTarget = town || marker || province || realm || cult || religion || feat || river || null;
     this._burgTarget = town || null;
     const noteWrap = this.#el("note-wrap");
     const noteEl = this.#el("entity-note");
     if (noteWrap instanceof HTMLElement) noteWrap.hidden = !this._noteTarget;
     if (noteEl instanceof HTMLTextAreaElement) noteEl.value = this._noteTarget?.note || "";
+    const nameWrap = this.#el("name-wrap");
+    const nameEl = this.#el("entity-name");
+    const named = this._noteTarget && this._noteTarget.name != null;
+    if (nameWrap instanceof HTMLElement) nameWrap.hidden = !named;
+    if (named && nameEl instanceof HTMLInputElement) nameEl.value = this._noteTarget.name || "";
     const burgWrap = this.#el("burg-wrap");
     const burgType = this.#el("opt-burg-type");
     if (burgWrap instanceof HTMLElement) burgWrap.hidden = !town;
     if (town && burgType instanceof HTMLSelectElement) burgType.value = town.type;
+    this.#fillCellEdit(c);
+    this.#fillDiploEdit(realm);
     const diplo = realm
       ? tiesFor(this.world.diplomacy || [], realm.id)
           .map((t) => {
@@ -1002,6 +1054,14 @@ export class App {
         hint: `${featureTypeLabel(f.type)} · ${f.size}格`,
         cellId: f.originId,
       }));
+    } else if (this.rosterKind === "rivers") {
+      items = (this.world.rivers || [])
+        .filter((r) => r.name)
+        .map((r) => ({
+          label: r.name,
+          hint: `河流 · ${r.cellIds.length}格`,
+          cellId: r.cellIds[Math.floor(r.cellIds.length / 2)] ?? r.cellIds[0] ?? -1,
+        }));
     } else {
       items = (this.world.markers || []).map((m) => ({
         label: m.name,
@@ -1054,6 +1114,12 @@ export class App {
     }
     for (const f of this.world.features || []) {
       if (f.name.toLowerCase().includes(q)) hits.push({ label: f.name, hint: featureTypeLabel(f.type), cellId: f.originId });
+    }
+    for (const rv of this.world.rivers || []) {
+      if ((rv.name || "").toLowerCase().includes(q)) {
+        const mid = rv.cellIds[Math.floor(rv.cellIds.length / 2)] ?? rv.cellIds[0];
+        hits.push({ label: rv.name || "河流", hint: "河流", cellId: mid ?? -1 });
+      }
     }
     for (const m of this.world.markers || []) {
       if (m.name.toLowerCase().includes(q)) hits.push({ label: m.name, hint: markerLabel(m.type), cellId: m.cellId });
@@ -1419,6 +1485,193 @@ export class App {
           li.removeAttribute("aria-current");
         }
       });
+    }
+  }
+
+  #setSaveState(text) {
+    const el = this.#el("save-state");
+    if (el) el.textContent = text;
+  }
+
+  #highlightCell() {
+    if (this.toolId === "road") {
+      const fromId = /** @type {any} */ (this.tools.road)?.fromId;
+      if (fromId != null && this.world) {
+        const s = this.world.settlements.find((x) => x.id === fromId);
+        if (s) return s.cellId;
+      }
+    }
+    return this.highlight;
+  }
+
+  #syncPaintPigment() {
+    const layerEl = this.#el("opt-paint-layer");
+    const valueEl = this.#el("opt-paint-value");
+    if (!(layerEl instanceof HTMLSelectElement) || !(valueEl instanceof HTMLSelectElement)) return;
+    const layer = layerEl.value;
+    const prev = valueEl.value;
+    /** @type {{ value: string, label: string }[]} */
+    const opts = [{ value: "", label: "（点击吸取）" }];
+    if (layer === "biome") {
+      for (const key of LAND_BIOMES) opts.push({ value: key, label: BIOME_LABELS[key] || key });
+    } else if (this.world) {
+      if (layer === "culture") {
+        for (const c of this.world.cultures || []) opts.push({ value: String(c.id), label: c.name });
+      } else if (layer === "religion") {
+        for (const r of this.world.religions || []) opts.push({ value: String(r.id), label: r.name });
+      } else if (layer === "realm") {
+        for (const r of this.world.regions) opts.push({ value: String(r.id), label: r.name });
+      } else if (layer === "province") {
+        for (const p of this.world.provinces || []) opts.push({ value: String(p.id), label: p.name });
+      }
+    }
+    valueEl.innerHTML = opts.map((o) => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join("");
+    if (opts.some((o) => o.value === prev)) valueEl.value = prev;
+  }
+
+  #matchStyleToPaint() {
+    const layerEl = this.#el("opt-paint-layer");
+    const styleEl = this.#el("opt-style");
+    if (!(layerEl instanceof HTMLSelectElement) || !(styleEl instanceof HTMLSelectElement) || !this.world) return;
+    const spec = PAINT_LAYERS.find((l) => l.id === layerEl.value);
+    if (!spec) return;
+    styleEl.value = spec.style;
+    this.world.meta.style = spec.style;
+    this.#fillLegend();
+    this.redraw();
+  }
+
+  /**
+   * @param {string} layer
+   * @param {string} value
+   */
+  #editInspected(layer, value) {
+    if (!this.world || this._inspectCellId < 0) return;
+    this.#pushUndo();
+    paintCell(this.world, this._inspectCellId, layer, value);
+    this.#scheduleAutosave();
+    this.#fillLegend();
+    this.#fillRoster();
+    this.redraw();
+    this.#inspect(this._inspectCellId);
+  }
+
+  /** @param {import("../types.js").Cell} cell */
+  #fillCellEdit(cell) {
+    const wrap = this.#el("cell-edit");
+    if (!(wrap instanceof HTMLElement) || !this.world) return;
+    if (cell.ocean) {
+      wrap.hidden = true;
+      return;
+    }
+    wrap.hidden = false;
+    const fill = (id, options, current) => {
+      const sel = this.#el(id);
+      if (!(sel instanceof HTMLSelectElement)) return;
+      sel.innerHTML = options.map((o) => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join("");
+      sel.value = current;
+    };
+    fill(
+      "opt-cell-biome",
+      LAND_BIOMES.map((k) => ({ value: k, label: BIOME_LABELS[k] || k })),
+      LAND_BIOMES.includes(cell.biome) ? cell.biome : LAND_BIOMES[0],
+    );
+    fill(
+      "opt-cell-culture",
+      [{ value: "", label: "—" }, ...(this.world.cultures || []).map((c) => ({ value: String(c.id), label: c.name }))],
+      cell.cultureId >= 0 ? String(cell.cultureId) : "",
+    );
+    fill(
+      "opt-cell-realm",
+      [{ value: "", label: "—" }, ...this.world.regions.map((r) => ({ value: String(r.id), label: r.name }))],
+      cell.regionId >= 0 ? String(cell.regionId) : "",
+    );
+    const realmId = cell.regionId;
+    fill(
+      "opt-cell-province",
+      [
+        { value: "", label: "—" },
+        ...(this.world.provinces || [])
+          .filter((p) => realmId < 0 || p.regionId === realmId)
+          .map((p) => ({ value: String(p.id), label: p.name })),
+      ],
+      cell.provinceId >= 0 ? String(cell.provinceId) : "",
+    );
+    fill(
+      "opt-cell-religion",
+      [{ value: "", label: "—" }, ...(this.world.religions || []).map((r) => ({ value: String(r.id), label: r.name }))],
+      cell.religionId >= 0 ? String(cell.religionId) : "",
+    );
+  }
+
+  /** @param {import("../types.js").Region | null} realm */
+  #fillDiploEdit(realm) {
+    const list = this.#el("diplo-edit");
+    if (!(list instanceof HTMLElement) || !this.world) return;
+    if (!realm) {
+      list.hidden = true;
+      list.innerHTML = "";
+      return;
+    }
+    const ties = tiesFor(this.world.diplomacy || [], realm.id);
+    if (!ties.length) {
+      list.hidden = true;
+      list.innerHTML = "";
+      return;
+    }
+    list.hidden = false;
+    const stances = Object.entries(STANCE_LABELS);
+    list.innerHTML = ties
+      .map((t) => {
+        const other = this.world.regions[otherId(t, realm.id)];
+        if (!other) return "";
+        const opts = stances
+          .map(([k, lab]) => `<option value="${k}"${k === t.stance ? " selected" : ""}>${lab}</option>`)
+          .join("");
+        return `<li><label>${escapeHtml(other.name)} <select data-diplo-other="${other.id}">${opts}</select></label></li>`;
+      })
+      .join("");
+    list.querySelectorAll("[data-diplo-other]").forEach((sel) => {
+      sel.addEventListener("change", (e) => {
+        if (!this.world || !realm) return;
+        const other = Number(/** @type {HTMLSelectElement} */ (e.target).getAttribute("data-diplo-other"));
+        const stance = /** @type {HTMLSelectElement} */ (e.target).value;
+        this.#pushUndo();
+        if (!this.world.diplomacy) this.world.diplomacy = [];
+        setStance(this.world.diplomacy, realm.id, other, stance);
+        this.#scheduleAutosave();
+        this.#inspect(this._inspectCellId);
+      });
+    });
+  }
+
+  async #applyRecipeToWorld() {
+    if (!this.world) return;
+    const steps = this.landformSteps || [];
+    if (!steps.length) {
+      this.#toast("没有可应用的陆形步骤。", true);
+      return;
+    }
+    this.#pushUndo();
+    this.#setLoading(true, "正在把陆形步骤盖到当前图上…");
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    try {
+      applyStepsOnly(
+        this.world.cells,
+        makeRng(`${this.world.meta.seed}:recipe-apply`),
+        this.world.meta.width,
+        this.world.meta.height,
+        steps,
+      );
+      this.generator.recomputeFromElevation(this.world);
+      this.redraw();
+      this.#fillLegend();
+      this.#fillRoster();
+      this.#inspect(-1);
+      this.#scheduleAutosave();
+      this.#toast(`已应用 ${steps.length} 步陆形并重算河流。`);
+    } finally {
+      this.#setLoading(false);
     }
   }
 
