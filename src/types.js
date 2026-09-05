@@ -228,10 +228,12 @@
  *
  * @typedef {Object} MapGenerator
  * @property {(config: GenerateConfig, onProgress?: (stage: string) => void) => WorldData} generate
- * @property {(world: WorldData) => WorldData} recomputeFromElevation
- * @property {(world: WorldData, suffix?: string) => WorldData} regenerateSociety
+ * @property {(world: WorldData, onProgress?: (stage: string) => void) => WorldData} recomputeFromElevation
+ * @property {(world: WorldData, societySeed?: string) => WorldData} regenerateSociety
  * @property {(world: WorldData) => WorldData} regenerateNames
+ * @property {(world: WorldData) => WorldData} rebuildRoutes
  * @property {(world: WorldData) => WorldData} rebuildRoutesAndMarkers
+ * @property {(world: WorldData, cellIds: number[]) => WorldData} carveRiver
  */
 
 /**
@@ -247,10 +249,10 @@
  * @typedef {Object} EditorContext
  * @property {number} brush
  * @property {() => void} requestRecompute
- * @property {(world: WorldData) => void} commit
+ * @property {(world?: WorldData) => void} commit
  * @property {() => void} [beginEdit]
  * @property {(label: string, fallback: string, done: (value: string | null) => void) => void} [askText]
- * @property {(html: string) => void} [promptRename]
+ * @property {(settlement: Settlement) => void} [promptRename]
  * @property {string} [markerType]
  * @property {string} [stampOp]
  * @property {string} [paintLayer]
@@ -261,16 +263,23 @@
  */
 
 /**
- * Renderer contract: visualize WorldData without modifying it.
+ * Renderer contract: visualize WorldData without modifying cells.
+ * Camera helpers may write `world.view` (session state).
  *
  * @typedef {Object} Renderer
  * @property {(world: WorldData, options?: RenderOptions) => void} draw
  * @property {(screenX: number, screenY: number) => Vec2} screenToWorld
  * @property {(worldX: number, worldY: number) => Vec2} worldToScreen
  * @property {(world: WorldData, worldX: number, worldY: number) => number} hitTest
- * @property {(world: WorldData, scale: number) => HTMLCanvasElement} renderExport
- * @property {(dx: number, dy: number) => void} pan
- * @property {(factor: number, cx: number, cy: number) => void} zoomAt
+ * @property {(world: WorldData, scale: number, options?: object) => HTMLCanvasElement} renderExport
+ * @property {(world: WorldData, dx: number, dy: number) => void} pan
+ * @property {(world: WorldData, factor: number, cx: number, cy: number) => void} zoomAt
+ * @property {(world: WorldData) => void} fit
+ * @property {(world: WorldData, x: number, y: number) => void} [centerOn]
+ * @property {() => void} [resize]
+ * @property {(world?: WorldData) => { key: string, label: string, color: string }[]} [legendItems]
+ * @property {(world: WorldData) => string} [lodLabel]
+ * @property {(world: WorldData) => number} [zoomPercent]
  */
 
 /**

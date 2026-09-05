@@ -27,6 +27,16 @@ self.onmessage = (ev) => {
       postMessage({ type: "done", world: msg.world });
       return;
     }
+    if (msg.op === "recompute") {
+      gen.recomputeFromElevation(msg.world, progress);
+      postMessage({ type: "done", world: msg.world });
+      return;
+    }
+    if (msg.op === "names") {
+      gen.regenerateNames(msg.world);
+      postMessage({ type: "done", world: msg.world });
+      return;
+    }
     postMessage({ type: "error", message: `未知操作：${String(msg.op)}` });
   } catch (err) {
     postMessage({ type: "error", message: err instanceof Error ? err.message : String(err) });

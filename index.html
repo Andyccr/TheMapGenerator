@@ -12,7 +12,7 @@
     <meta property="og:title" content="幻想世界地图生成器" />
     <meta property="og:description" content="用一个种子生成说得通的大陆，再当战役地图来改。" />
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="stylesheet" href="./src/styles.css?v=1.6.0" />
+    <link rel="stylesheet" href="./src/styles.css?v=1.7.0" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect fill='%23140f0c' width='64' height='64'/%3E%3Cpath fill='%23b0894a' d='M8 40c8-18 16-10 24-22 8 14 16 4 24 20v12H8z'/%3E%3Ccircle cx='44' cy='18' r='5' fill='%23ead9c1'/%3E%3C/svg%3E" />
   </head>
   <body>
@@ -243,6 +243,7 @@
             <li data-stage="mesh">格网</li>
             <li data-stage="tectonics">板块</li>
             <li data-stage="hydrology">水文</li>
+            <li data-stage="climate">气候</li>
             <li data-stage="society">文明</li>
             <li data-stage="routes">商路</li>
           </ol>
@@ -321,7 +322,7 @@
         </section>
         <footer class="colophon">
           算法灵感：Martin O’Leary、Amit Patel、Scott Turner；玩法层对照 Azgaar FMG。
-          四层架构：数据 · 生成器 · 编辑器 · 渲染器。无需后端。v<span id="app-version">1.6.0</span>
+          四层架构：数据 · 生成器 · 编辑器 · 渲染器。无需后端。v<span id="app-version">1.7.0</span>
         </footer>
       </aside>
     </div>
@@ -337,7 +338,7 @@
     </dialog>
     <dialog id="help-dialog" class="folio-dialog help-dialog">
       <form method="dialog">
-        <h2>工坊说明 <span class="ver" id="help-version">v1.6.0</span></h2>
+        <h2>工坊说明 <span class="ver" id="help-version">v1.7.0</span></h2>
         <p>用一个种子生成说得通的大陆，再当战役地图来改。刷新页面会恢复自动存档。地址栏里的查询串可以分享同一张图（种子、陆形、画幅）。页头「范例」打开几张现成的陆形。</p>
         <h3>快捷键</h3>
         <ul>
@@ -369,6 +370,6 @@
         <button class="btn-ghost" value="cancel">关闭</button>
       </form>
     </dialog>
-    <script type="module" src="./src/main.js?v=1.6.0"></script>
+    <script type="module" src="./src/main.js?v=1.7.0"></script>
   </body>
 </html>

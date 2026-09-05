@@ -3,17 +3,9 @@
  * These are the "play here" pins a GM actually uses.
  */
 
-/** @type {Record<string, { label: string, glyph: string }>} */
-export const MARKER_TYPES = {
-  volcano: { label: "火山", glyph: "▲" },
-  ruins: { label: "废墟", glyph: "⌂" },
-  lighthouse: { label: "灯塔", glyph: "⚑" },
-  mine: { label: "矿坑", glyph: "◆" },
-  shrine: { label: "神祠", glyph: "✦" },
-  dungeon: { label: "地下城", glyph: "▼" },
-  dragon: { label: "龙巢", glyph: "⚔" },
-  port: { label: "港口", glyph: "⚓" },
-};
+import { MARKER_TYPES, markerLabel, markerGlyph } from "../data/catalogs.js";
+
+export { MARKER_TYPES, markerLabel, markerGlyph };
 
 /**
  * @param {import("../types.js").Cell[]} cells
@@ -117,14 +109,4 @@ export function placeMarkers(cells, settlements, cultures, rng, namesFor, extent
   }
   void cultures;
   return markers;
-}
-
-/** @param {string} type */
-export function markerLabel(type) {
-  return MARKER_TYPES[type]?.label || type;
-}
-
-/** @param {string} type */
-export function markerGlyph(type) {
-  return MARKER_TYPES[type]?.glyph || "•";
 }

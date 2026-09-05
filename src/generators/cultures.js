@@ -6,15 +6,18 @@
 import { MinHeap } from "../util/heap.js";
 import { worldScale } from "../data/worldData.js";
 import { createNameFactory, pickPhonology } from "./names.js";
+import { CULTURE_TYPE_LABELS, cultureTypeLabel } from "../data/catalogs.js";
+
+export { cultureTypeLabel };
 
 /** @type {{ id: string, label: string, color: string }[]} */
 export const CULTURE_TYPES = [
-  { id: "river", label: "河畔", color: "#3a6f8c" },
-  { id: "naval", label: "沿海", color: "#2f6d62" },
-  { id: "highland", label: "山地", color: "#8c5a32" },
-  { id: "nomad", label: "草原", color: "#8c8a32" },
-  { id: "hunting", label: "林猎", color: "#3a6b44" },
-  { id: "desert", label: "沙海", color: "#c49a3a" },
+  { id: "river", label: CULTURE_TYPE_LABELS.river, color: "#3a6f8c" },
+  { id: "naval", label: CULTURE_TYPE_LABELS.naval, color: "#2f6d62" },
+  { id: "highland", label: CULTURE_TYPE_LABELS.highland, color: "#8c5a32" },
+  { id: "nomad", label: CULTURE_TYPE_LABELS.nomad, color: "#8c8a32" },
+  { id: "hunting", label: CULTURE_TYPE_LABELS.hunting, color: "#3a6b44" },
+  { id: "desert", label: CULTURE_TYPE_LABELS.desert, color: "#c49a3a" },
 ];
 
 const PALETTE = ["#8c3a3a", "#3a5f8c", "#6a7a38", "#7a4e8c", "#8c6a32", "#2f6d62", "#8c4e5c", "#4e6a8c", "#6a4e32"];
@@ -144,9 +147,4 @@ export function assignCultures(cells, cultures) {
       }
     }
   }
-}
-
-/** @param {string} type */
-export function cultureTypeLabel(type) {
-  return CULTURE_TYPES.find((t) => t.id === type)?.label || type;
 }

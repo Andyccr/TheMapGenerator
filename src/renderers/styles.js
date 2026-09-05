@@ -1,9 +1,13 @@
 /**
  * Style presets. Renderer reads these; generators and editors never do.
  * Colors are chosen for atlas printing, not a generic UI palette.
+ * Biome *names* live in `data/catalogs.js` so UI and paint stay in sync.
  */
 import { macroBiome } from "./lod.js";
 import { hinterlandPressure } from "../data/population.js";
+import { BIOME_LABELS } from "../data/catalogs.js";
+
+export { BIOME_LABELS };
 
 /** Posterized atlas colors used only at overview zoom. */
 const ATLAS_MACRO = {
@@ -35,28 +39,6 @@ export const ATLAS_BIOME = {
   TROPICAL_RAIN_FOREST: "#245c36",
   TROPICAL_SEASONAL: "#4e9444",
   SUBTROPICAL_DESERT: "#e0c36a",
-};
-
-/** @type {Record<string, string>} */
-export const BIOME_LABELS = {
-  OCEAN: "海洋",
-  LAKE: "湖泊",
-  ICE: "冰面",
-  MARSH: "沼泽",
-  BEACH: "海滩",
-  SNOW: "雪原",
-  TUNDRA: "苔原",
-  BARE: "裸岩",
-  SCORCHED: "焦土",
-  TAIGA: "泰加林",
-  SHRUBLAND: "灌丛",
-  TEMPERATE_DESERT: "温带沙漠",
-  TEMPERATE_RAIN_FOREST: "温带雨林",
-  TEMPERATE_DECIDUOUS: "落叶林",
-  GRASSLAND: "草原",
-  TROPICAL_RAIN_FOREST: "热带雨林",
-  TROPICAL_SEASONAL: "季雨林",
-  SUBTROPICAL_DESERT: "亚热带沙漠",
 };
 
 /**

@@ -114,11 +114,7 @@ export function assignReligions(cells, religions) {
   }
 }
 
-/** @param {string} [type] */
-export function religionTypeLabel(type) {
-  if (type === "organized") return "建制";
-  return "民俗";
-}
+export { religionTypeLabel } from "../data/catalogs.js";
 
 /** @param {string} a @param {string} b @param {number} t */
 function mixToward(a, b, t) {

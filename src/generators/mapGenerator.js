@@ -23,7 +23,7 @@ import {
   markMountains,
 } from "./hydrology.js";
 import { assignClimate, assignBiomes } from "./climate.js";
-import { placeCivilizations, assignRegions, addSettlement, removeSettlement } from "./civilization.js";
+import { placeCivilizations, assignRegions } from "./civilization.js";
 import { placeCultures, assignCultures } from "./cultures.js";
 import { placeRoutes } from "./routes.js";
 import { placeMarkers } from "./markers.js";
@@ -76,7 +76,9 @@ export class MapGenerator {
     );
 
     onProgress?.("hydrology");
-    this.#hydrologyAndClimate(world);
+    this.#hydrology(world);
+    onProgress?.("climate");
+    this.#climate(world);
     onProgress?.("society");
     this.#buildSociety(world, world.meta.societySeed || world.meta.seed, onProgress);
     world.generatedAt = new Date().toISOString();
@@ -87,10 +89,14 @@ export class MapGenerator {
    * After an editor changes heights, rebuild water, climate, biomes, and realms.
    * Mesh, plates, and settlement *identities* are preserved when still on land.
    * @param {WorldData} world
+   * @param {(stage: string) => void} [onProgress]
    * @returns {WorldData}
    */
-  recomputeFromElevation(world) {
-    this.#hydrologyAndClimate(world);
+  recomputeFromElevation(world, onProgress) {
+    onProgress?.("hydrology");
+    this.#hydrology(world);
+    onProgress?.("climate");
+    this.#climate(world);
     const landIds = new Set(world.cells.filter((c) => !c.ocean && !c.lake && !c.mountain).map((c) => c.id));
     world.settlements = world.settlements.filter((s) => landIds.has(s.cellId) || this.#isLand(world, s.cellId));
     for (const s of world.settlements) {
@@ -110,6 +116,7 @@ export class MapGenerator {
       s.cultureId = world.cells[s.cellId].cultureId ?? s.cultureId;
     }
     this.#nameRivers(world, makeRng(`${world.meta.societySeed || world.meta.seed}:rivers`));
+    onProgress?.("routes");
     this.#routesAndMarkers(world, makeRng(`${world.meta.societySeed || world.meta.seed}:poi`));
     this.#placeFeatures(world);
     world.diplomacy = placeDiplomacy(
@@ -223,28 +230,6 @@ export class MapGenerator {
   /**
    * @param {WorldData} world
    * @param {number} cellId
-   * @param {string} name
-   * @param {"city"|"town"|"village"} [type]
-   */
-  addBurg(world, cellId, name, type = "town") {
-    const s = addSettlement(world, cellId, name, type);
-    if (s) this.rebuildRoutes(world);
-    return s;
-  }
-
-  /**
-   * @param {WorldData} world
-   * @param {number} settlementId
-   */
-  removeBurg(world, settlementId) {
-    if (!removeSettlement(world, settlementId)) return false;
-    this.rebuildRoutes(world);
-    return true;
-  }
-
-  /**
-   * @param {WorldData} world
-   * @param {number} cellId
    */
   #isLand(world, cellId) {
     const c = world.cells[cellId];
@@ -252,7 +237,7 @@ export class MapGenerator {
   }
 
   /** @param {WorldData} world */
-  #hydrologyAndClimate(world) {
+  #hydrology(world) {
     const { cells } = world;
     classifyOceanAndCoast(cells);
     gradeCoastsAndShelf(cells, world.meta.cellSize);
@@ -265,8 +250,12 @@ export class MapGenerator {
     accumulateFlux(cells);
     markMountains(cells);
     world.rivers = extractRivers(cells, 16);
-    assignClimate(cells, world.meta.height, world.meta.wind, world.meta.width);
-    assignBiomes(cells);
+  }
+
+  /** @param {WorldData} world */
+  #climate(world) {
+    assignClimate(world.cells, world.meta.height, world.meta.wind, world.meta.width);
+    assignBiomes(world.cells);
   }
 
   /**

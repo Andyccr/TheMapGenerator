@@ -8,11 +8,13 @@ Four layers, no cycles:
 
 | Folder | May import | Must not |
 | --- | --- | --- |
-| `src/data/` | nothing in generators/editors/renderers/ui | DOM |
-| `src/generators/` | data, util | DOM, canvas |
-| `src/editors/` | data, generators (mutation helpers) | canvas drawing |
-| `src/renderers/` | data, util, display constants | write `cell.height` |
+| `src/data/` | util | generators, editors, renderers, ui, DOM |
+| `src/generators/` | data, util | DOM, canvas, editors, renderers |
+| `src/editors/` | data, generators (mutation helpers), util | canvas drawing, renderers |
+| `src/renderers/` | data, util | `generators/`, write `cell.height` |
 | `src/ui/` | everything | algorithms that belong in generators |
+
+Shared names (biomes, marker glyphs, culture/faith/feature labels) live in `src/data/catalogs.js`. Hit-testing hashes live in `src/util/spatialIndex.js` so the canvas renderer never imports a generator module.
 
 ## Checks
 

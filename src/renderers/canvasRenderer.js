@@ -2,15 +2,15 @@
  * Canvas 2D renderer.
  *
  * Chosen over SVG because thousands of polygons plus pan/zoom plus live sculpting
- * would thrash the DOM. The renderer never mutates WorldData (view pan/zoom is
- * written by the App controller onto world.view, which is session camera state).
+ * would thrash the DOM. The renderer never writes cells. Camera pan/zoom may
+ * write `world.view` (session state, not geography).
  */
 import { pointInPolygon, simplifyPolyline } from "../util/geometry.js";
-import { buildSpatialIndex } from "../generators/mesh.js";
-import { fillFor, inkFor, BIOME_LABELS, ATLAS_BIOME } from "./styles.js";
+import { buildSpatialIndex } from "../util/spatialIndex.js";
+import { fillFor, inkFor, ATLAS_BIOME } from "./styles.js";
 import { lodConfig, lodFromZoom, LOD_LABELS } from "./lod.js";
 import { buildContours } from "./contours.js";
-import { markerGlyph } from "../generators/markers.js";
+import { BIOME_LABELS, markerGlyph } from "../data/catalogs.js";
 import { layoutAtlasChrome, paintAtlasChrome } from "./atlasExport.js";
 
 export class CanvasRenderer {
