@@ -8,11 +8,15 @@ import { CanvasRenderer } from "../renderers/canvasRenderer.js";
 import { createTools } from "../editors/tools.js";
 import { cloneWorld, parseWorld, summarizeWorld } from "../data/worldData.js";
 import { saveAutosave, loadAutosave, downloadJson, downloadPng, readJsonFile, peekAutosave, saveSlot, loadSlot, listSlotMeta, SLOT_COUNT } from "../persistence/storage.js";
-import { BIOME_LABELS } from "../renderers/styles.js";
-import { cultureTypeLabel } from "../generators/cultures.js";
-import { markerLabel } from "../generators/markers.js";
-import { religionTypeLabel } from "../generators/religions.js";
-import { featureTypeLabel } from "../generators/features.js";
+import {
+  BIOME_LABELS,
+  LAND_BIOMES,
+  SETTLEMENT_TYPE_LABELS,
+  cultureTypeLabel,
+  markerLabel,
+  religionTypeLabel,
+  featureTypeLabel,
+} from "../data/catalogs.js";
 import { landformLabel, recipeFor, parseRecipe, stepSummary, applyStepsOnly } from "../generators/landforms.js";
 import { estimatePopulation } from "../generators/civilization.js";
 import { stanceLabel, tiesFor, otherId, setStance, STANCE_LABELS } from "../generators/diplomacy.js";
@@ -20,7 +24,7 @@ import { APP_VERSION } from "../core/version.js";
 import { runGeneratorJob, STAGE_LABELS } from "./generateClient.js";
 import { parseShare, serializeShare, shareHasSeed } from "./share.js";
 import { EXAMPLE_WORLDS } from "./examples.js";
-import { PAINT_LAYERS, LAND_BIOMES, eyedrop, paintCell } from "../editors/paint.js";
+import { PAINT_LAYERS, eyedrop, paintCell } from "../editors/paint.js";
 import { makeRng } from "../generators/rng.js";
 
 const HINTS = {
@@ -39,12 +43,7 @@ const HINTS = {
   measure: "点击两点测量里格。比例尺与地图单位一致。",
 };
 
-const SETTLEMENT_TYPE = {
-  capital: "都城",
-  city: "城市",
-  town: "城镇",
-  village: "村落",
-};
+const SETTLEMENT_TYPE = SETTLEMENT_TYPE_LABELS;
 
 const TOOL_KEYS = {
   v: "pan",
@@ -559,8 +558,9 @@ export class App {
         this.world = await runGeneratorJob("society", { world: this.world }, (stage) =>
           this.#setLoading(true, STAGE_LABELS[stage] || "正在重掷文明…"),
         );
-      } else if (kind === "names") this.generator.regenerateNames(this.world);
-      else {
+      } else if (kind === "names") {
+        this.world = await runGeneratorJob("names", { world: this.world });
+      } else {
         this.world = await runGeneratorJob("routes", { world: this.world });
       }
       const name = this.#el("map-name");
@@ -1663,7 +1663,9 @@ export class App {
         this.world.meta.height,
         steps,
       );
-      this.generator.recomputeFromElevation(this.world);
+      this.world = await runGeneratorJob("recompute", { world: this.world }, (stage) =>
+        this.#setLoading(true, STAGE_LABELS[stage] || "正在把陆形步骤盖到当前图上…"),
+      );
       this.redraw();
       this.#fillLegend();
       this.#fillRoster();

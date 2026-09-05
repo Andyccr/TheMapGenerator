@@ -1,6 +1,6 @@
 /**
  * Data layer. Factory and clone helpers only — WorldData remains a plain JSON
- * object with no methods attached, so import/export and LocalStorage stay trivial.
+ * object with no methods attached, so import/export and persistence stay trivial.
  */
 
 /** @typedef {import("../types.js").WorldData} WorldData */

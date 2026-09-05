@@ -22,7 +22,7 @@ This is MVC with an extra generator stage:
 | Controller | `src/ui/app.js` + `src/editors/` | Tools mutate; App owns undo, camera, persistence. |
 | View | `src/renderers/canvasRenderer.js` | Pan/zoom, hit-test, PNG blit. |
 
-Data never imports generators, editors, or renderers. Generators never import the DOM. The renderer never assigns `cell.height`.
+Data never imports generators, editors, or renderers. Generators never import the DOM. The renderer never assigns `cell.height`, and never imports `generators/` — shared labels live in `src/data/catalogs.js`, hit-testing in `src/util/spatialIndex.js`.
 
 ## Core contracts
 
@@ -58,10 +58,11 @@ Plain object, versioned. This is the save file.
 ```js
 class MapGenerator {
   generate(config: GenerateConfig, onProgress?: (stage: string) => void): WorldData
-  recomputeFromElevation(world: WorldData): WorldData
+  recomputeFromElevation(world: WorldData, onProgress?: (stage: string) => void): WorldData
   carveRiver(world: WorldData, cellIds: number[]): WorldData
-  regenerateSociety(world: WorldData, seed?: string): WorldData
+  regenerateSociety(world: WorldData, societySeed?: string): WorldData
   regenerateNames(world: WorldData): WorldData
+  rebuildRoutes(world: WorldData): WorldData
   rebuildRoutesAndMarkers(world: WorldData): WorldData
 }
 ```
@@ -78,6 +79,8 @@ class MapGenerator {
 
 Sculpt tools change `height` only. They **must not** hand-edit `riverId` or `biome`. The generator rebuilds those so water cannot be left inconsistent. Thematic paint (`src/editors/paint.js`) is the exception for biome / culture / faith / realm / province ids — it must not call `recomputeFromElevation`.
 
+Founding or deleting a town is an editor mutation (`civilization.js` + `pruneRoutes`). The generator does not secretly regenerate the road network on those clicks.
+
 ### Renderer
 
 ```js
@@ -85,9 +88,11 @@ class CanvasRenderer {
   draw(world, options): void
   screenToWorld(x, y): {x, y}
   hitTest(world, x, y): cellId
-  pan / zoomAt / fit / renderExport
+  pan / zoomAt / fit / centerOn / renderExport / legendItems
 }
 ```
+
+`world.view` is camera state. The renderer may write it. Cells are read-only.
 
 ## Rendering: Canvas 2D, not SVG
 
@@ -103,11 +108,12 @@ class CanvasRenderer {
 
 Style presets include atlas, physical, political, cultural, provinces, height, temperature, precipitation, parchment, and night. Overlay toggles (rivers, routes, markers, relief) are draw-only; they never rewrite cells.
 
-`MapGenerator.generate` accepts an optional `onProgress(stage)` callback. The UI runs it in `src/workers/generateWorker.js` so the tab stays responsive, and falls back to the main thread if workers cannot start.
+`MapGenerator.generate` reports `mesh → tectonics → hydrology → climate → society → routes`. The UI runs generate / society / routes / recompute / names in `src/workers/generateWorker.js` so the tab stays responsive, and falls back to the main thread if workers cannot start. Live raise/lower preview still recomputes on the main thread (a worker round-trip per brush stroke would hitch).
 
 ## Persistence
 
-- `localStorage` key `fwmg-autosave-v1` (debounced). Refresh restores this save instead of generating a new world.
+- **IndexedDB** database `fwmg-v1` holds the full WorldData autosave and named slots. Maps near the cell cap would overflow `localStorage`.
+- `localStorage` key `fwmg-autosave-v1` is a small peek/fallback copy; `fwmg-slots-index-v1` stores slot labels.
 - Export/import one JSON document
 - PNG at 1× / 2× / 3× via an offscreen canvas
 
