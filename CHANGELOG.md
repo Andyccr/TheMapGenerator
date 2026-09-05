@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.0
+
+- Architecture: one catalog for biome / marker / culture / faith / feature labels; the canvas renderer no longer imports generator modules.
+- Generation reports climate as its own stage. Recipe-apply and name reroll run in the worker. Dead `addBurg` / `removeBurg` shortcuts (which rebuilt the whole road net) are gone — editors own those mutations.
+- Contracts in `types.js` match the real MapGenerator, editor context, and renderer APIs. Persistence docs describe IndexedDB as primary.
+
 ## 1.6.0
 
 - Every generated layer is editable: paint biome / culture / faith / realm / province, and change them in the inspector.

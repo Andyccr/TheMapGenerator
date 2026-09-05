@@ -2,32 +2,16 @@
  * Cartographic paint: mutate biome / culture / religion / realm / province on
  * land cells. Physical ocean stays ocean — hydrology is a different tool.
  */
+import { LAND_BIOMES } from "../data/catalogs.js";
+
+export { LAND_BIOMES };
+
 export const PAINT_LAYERS = [
   { id: "biome", label: "生物群系", style: "atlas" },
   { id: "culture", label: "文化", style: "cultural" },
   { id: "religion", label: "信仰", style: "religions" },
   { id: "realm", label: "国度", style: "political" },
   { id: "province", label: "行省", style: "provinces" },
-];
-
-/** Land biomes the GM may stamp. Ocean/lake stay hydrology. */
-export const LAND_BIOMES = [
-  "ICE",
-  "MARSH",
-  "BEACH",
-  "SNOW",
-  "TUNDRA",
-  "BARE",
-  "SCORCHED",
-  "TAIGA",
-  "SHRUBLAND",
-  "TEMPERATE_DESERT",
-  "TEMPERATE_RAIN_FOREST",
-  "TEMPERATE_DECIDUOUS",
-  "GRASSLAND",
-  "TROPICAL_RAIN_FOREST",
-  "TROPICAL_SEASONAL",
-  "SUBTROPICAL_DESERT",
 ];
 
 /**

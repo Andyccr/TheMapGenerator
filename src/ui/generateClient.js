@@ -16,8 +16,11 @@ export const STAGE_LABELS = {
   routes: "正在连商路、放地标…",
 };
 
+/** Operations the worker and the main-thread fallback both implement. */
+export const GENERATOR_OPS = /** @type {const} */ (["generate", "society", "routes", "recompute", "names"]);
+
 /**
- * @param {"generate"|"society"|"routes"} op
+ * @param {typeof GENERATOR_OPS[number]} op
  * @param {{ config?: GenerateConfig, world?: WorldData, societySeed?: string }} payload
  * @param {(stage: string) => void} [onProgress]
  * @returns {Promise<WorldData>}
@@ -56,14 +59,16 @@ export function runGeneratorJob(op, payload, onProgress) {
 }
 
 /**
- * @param {"generate"|"society"|"routes"} op
+ * @param {typeof GENERATOR_OPS[number]} op
  * @param {{ config?: GenerateConfig, world?: WorldData, societySeed?: string }} payload
  * @param {(stage: string) => void} [onProgress]
  */
-function runOnMain(op, payload, onProgress) {
+export function runOnMain(op, payload, onProgress) {
   const gen = new MapGenerator();
   if (op === "generate") return gen.generate(payload.config || { seed: "terra" }, onProgress);
   if (op === "society" && payload.world) return gen.regenerateSociety(payload.world, payload.societySeed);
   if (op === "routes" && payload.world) return gen.rebuildRoutesAndMarkers(payload.world);
+  if (op === "recompute" && payload.world) return gen.recomputeFromElevation(payload.world, onProgress);
+  if (op === "names" && payload.world) return gen.regenerateNames(payload.world);
   throw new Error("无法在主线程执行该操作。");
 }

@@ -3,17 +3,7 @@
  * Flood-fill connected components after hydrology so names track the land.
  */
 
-const TYPE_LABEL = {
-  continent: "大陆",
-  island: "岛屿",
-  lake: "湖泊",
-  sea: "海域",
-};
-
-/** @param {string} [type] */
-export function featureTypeLabel(type) {
-  return TYPE_LABEL[type] || "地貌";
-}
+export { featureTypeLabel } from "../data/catalogs.js";
 
 /**
  * @param {import("../types.js").Cell[]} cells

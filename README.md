@@ -92,9 +92,10 @@ src/
   main.js
   styles.css
   data/worldData.js     # 纯 JSON 数据，不含逻辑
+  data/catalogs.js      # 群系 / 地标 / 文化等共用名称
     generators/           # 种子 → 世界（含陆形、文化、信仰、商路、地标）
   editors/              # 受控修改
-  renderers/            # Canvas 只读绘制
+  renderers/            # Canvas 只读绘制（不引用 generators）
     ui/app.js             # 控制器
     workers/              # 生成管线（不碰 DOM）
 ```
