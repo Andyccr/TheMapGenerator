@@ -59,6 +59,7 @@ Plain object, versioned. This is the save file.
 class MapGenerator {
   generate(config: GenerateConfig, onProgress?: (stage: string) => void): WorldData
   recomputeFromElevation(world: WorldData, onProgress?: (stage: string) => void): WorldData
+  recomputeClimate(world: WorldData): WorldData
   carveRiver(world: WorldData, cellIds: number[]): WorldData
   regenerateSociety(world: WorldData, societySeed?: string): WorldData
   regenerateNames(world: WorldData): WorldData
@@ -77,7 +78,7 @@ class MapGenerator {
 }
 ```
 
-Sculpt tools change `height` only. They **must not** hand-edit `riverId` or `biome`. The generator rebuilds those so water cannot be left inconsistent. Thematic paint (`src/editors/paint.js`) is the exception for biome / culture / faith / realm / province ids — it must not call `recomputeFromElevation`.
+Sculpt tools change `height` only. They **must not** hand-edit `riverId` or `biome`. The generator rebuilds those so water cannot be left inconsistent. Thematic paint (`src/editors/paint.js`) is the exception for biome / culture / faith / realm / province ids — it must not call `recomputeFromElevation`. `recomputeFromElevation` rebuilds hydrology and climate, prunes drowned towns/routes/ocean markers, and re-floods realms from remaining capitals. It does **not** regenerate routes, markers, or diplomacy, and it does not re-flood culture / faith / province paint. `recomputeClimate` restamps temperature, moisture, and biomes from `meta.wind` only.
 
 Founding or deleting a town is an editor mutation (`civilization.js` + `pruneRoutes`). The generator does not secretly regenerate the road network on those clicks.
 
@@ -108,7 +109,7 @@ class CanvasRenderer {
 
 Style presets include atlas, physical, political, cultural, provinces, height, temperature, precipitation, parchment, and night. Overlay toggles (rivers, routes, markers, relief) are draw-only; they never rewrite cells.
 
-`MapGenerator.generate` reports `mesh → tectonics → hydrology → climate → society → routes`. The UI runs generate / society / routes / recompute / names in `src/workers/generateWorker.js` so the tab stays responsive, and falls back to the main thread if workers cannot start. Live raise/lower preview still recomputes on the main thread (a worker round-trip per brush stroke would hitch).
+`MapGenerator.generate` reports `mesh → tectonics → hydrology → climate → society → routes`. The UI runs generate / society / routes / recompute / names / climate in `src/workers/generateWorker.js` so the tab stays responsive, and falls back to the main thread if workers cannot start. Live raise/lower preview still recomputes on the main thread (a worker round-trip per brush stroke would hitch). Inspect HTML lives in `src/ui/format.js`; GM-created cultures / faiths / realms live in `src/editors/entities.js`.
 
 ## Persistence
 

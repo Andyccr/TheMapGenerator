@@ -37,6 +37,11 @@ self.onmessage = (ev) => {
       postMessage({ type: "done", world: msg.world });
       return;
     }
+    if (msg.op === "climate") {
+      gen.recomputeClimate(msg.world);
+      postMessage({ type: "done", world: msg.world });
+      return;
+    }
     postMessage({ type: "error", message: `未知操作：${String(msg.op)}` });
   } catch (err) {
     postMessage({ type: "error", message: err instanceof Error ? err.message : String(err) });

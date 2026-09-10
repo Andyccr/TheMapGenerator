@@ -17,7 +17,7 @@ export const STAGE_LABELS = {
 };
 
 /** Operations the worker and the main-thread fallback both implement. */
-export const GENERATOR_OPS = /** @type {const} */ (["generate", "society", "routes", "recompute", "names"]);
+export const GENERATOR_OPS = /** @type {const} */ (["generate", "society", "routes", "recompute", "names", "climate"]);
 
 /**
  * @param {typeof GENERATOR_OPS[number]} op
@@ -70,5 +70,6 @@ export function runOnMain(op, payload, onProgress) {
   if (op === "routes" && payload.world) return gen.rebuildRoutesAndMarkers(payload.world);
   if (op === "recompute" && payload.world) return gen.recomputeFromElevation(payload.world, onProgress);
   if (op === "names" && payload.world) return gen.regenerateNames(payload.world);
+  if (op === "climate" && payload.world) return gen.recomputeClimate(payload.world);
   throw new Error("无法在主线程执行该操作。");
 }

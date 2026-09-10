@@ -24,15 +24,16 @@ import {
 } from "./hydrology.js";
 import { assignClimate, assignBiomes } from "./climate.js";
 import { placeCivilizations, assignRegions } from "./civilization.js";
-import { placeCultures, assignCultures } from "./cultures.js";
-import { placeRoutes } from "./routes.js";
+import { placeCultures } from "./cultures.js";
+import { placeRoutes, pruneRoutes } from "./routes.js";
 import { placeMarkers } from "./markers.js";
-import { placeProvinces, assignProvinces } from "./provinces.js";
-import { placeReligions, assignReligions } from "./religions.js";
+import { placeProvinces } from "./provinces.js";
+import { placeReligions } from "./religions.js";
 import { placeFeatures } from "./features.js";
 import { applyLandform, parseRecipe } from "./landforms.js";
-import { placeDiplomacy } from "./diplomacy.js";
+import { placeDiplomacy, pruneDiplomacy } from "./diplomacy.js";
 import { createNameFactory, phonologyById } from "./names.js";
+import { carryNames } from "../data/carry.js";
 
 /** @typedef {import("../types.js").WorldData} WorldData */
 /** @typedef {import("../types.js").GenerateConfig} GenerateConfig */
@@ -86,13 +87,22 @@ export class MapGenerator {
   }
 
   /**
-   * After an editor changes heights, rebuild water, climate, biomes, and realms.
-   * Mesh, plates, and settlement *identities* are preserved when still on land.
+   * After an editor changes heights, rebuild water and climate.
+   * Mesh, plates, towns, hand-drawn routes/markers, culture/faith/province paint,
+   * and diplomacy stances stay. Realms re-flood from remaining capitals.
    * @param {WorldData} world
    * @param {(stage: string) => void} [onProgress]
    * @returns {WorldData}
    */
   recomputeFromElevation(world, onProgress) {
+    const prevRivers = (world.rivers || []).map((r) => ({ cellIds: r.cellIds.slice(), name: r.name }));
+    const prevFeatures = (world.features || []).map((f) => ({
+      name: f.name,
+      type: f.type,
+      cx: f.cx,
+      cy: f.cy,
+      originId: f.originId,
+    }));
     onProgress?.("hydrology");
     this.#hydrology(world);
     onProgress?.("climate");
@@ -107,23 +117,31 @@ export class MapGenerator {
       }
     }
     world.settlements = world.settlements.filter((s) => !world.cells[s.cellId].ocean);
-    if (world.cultures?.length) assignCultures(world.cells, world.cultures);
     assignRegions(world.cells, world.settlements, world.regions);
-    if (world.provinces?.length) assignProvinces(world.cells, world.settlements, world.provinces);
-    if (world.religions?.length) assignReligions(world.cells, world.religions);
     for (const s of world.settlements) {
       s.regionId = world.cells[s.cellId].regionId;
       s.cultureId = world.cells[s.cellId].cultureId ?? s.cultureId;
     }
-    this.#nameRivers(world, makeRng(`${world.meta.societySeed || world.meta.seed}:rivers`));
-    onProgress?.("routes");
-    this.#routesAndMarkers(world, makeRng(`${world.meta.societySeed || world.meta.seed}:poi`));
+    carryNames(prevRivers, world.rivers, "river");
+    this.#nameMissingRivers(world);
+    pruneRoutes(world);
+    world.markers = (world.markers || []).filter((m) => {
+      const c = world.cells[m.cellId];
+      return c && !c.ocean;
+    });
+    onProgress?.("society");
     this.#placeFeatures(world);
-    world.diplomacy = placeDiplomacy(
-      world.regions,
-      world.cells,
-      makeRng(`${world.meta.societySeed || world.meta.seed}:diplo`),
-    );
+    carryNames(prevFeatures, world.features || [], "feature");
+    world.diplomacy = pruneDiplomacy(world.diplomacy || [], world.regions);
+    return world;
+  }
+
+  /**
+   * Wind / biome restamp without touching height, towns, or roads.
+   * @param {WorldData} world
+   */
+  recomputeClimate(world) {
+    this.#climate(world);
     return world;
   }
 
@@ -311,6 +329,18 @@ export class MapGenerator {
     const mills = this.#mills(world, rng);
     const ranked = world.rivers.slice().sort((a, b) => b.width - a.width);
     for (const river of ranked) {
+      const mid = river.cellIds[river.cellIds.length >> 1];
+      const cid = world.cells[mid]?.cultureId ?? -1;
+      river.name = mills(cid).river();
+    }
+  }
+
+  /** @param {WorldData} world */
+  #nameMissingRivers(world) {
+    const rng = makeRng(`${world.meta.societySeed || world.meta.seed}:rivers-gap`);
+    const mills = this.#mills(world, rng);
+    for (const river of world.rivers) {
+      if (river.name) continue;
       const mid = river.cellIds[river.cellIds.length >> 1];
       const cid = world.cells[mid]?.cultureId ?? -1;
       river.name = mills(cid).river();

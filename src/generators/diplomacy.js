@@ -70,6 +70,16 @@ export function otherId(tie, regionId) {
 }
 
 /**
+ * Drop ties whose realms no longer exist. Does not reroll stances.
+ * @param {import("../types.js").DiplomacyTie[]} ties
+ * @param {import("../types.js").Region[]} regions
+ */
+export function pruneDiplomacy(ties, regions) {
+  const ids = new Set((regions || []).map((r) => r.id));
+  return (ties || []).filter((t) => ids.has(t.a) && ids.has(t.b) && t.a !== t.b);
+}
+
+/**
  * @param {import("../types.js").DiplomacyTie[]} ties
  * @param {number} a
  * @param {number} b
