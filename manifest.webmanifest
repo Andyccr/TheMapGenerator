@@ -6,5 +6,13 @@
   "display": "standalone",
   "background_color": "#140f0c",
   "theme_color": "#140f0c",
-  "lang": "zh-CN"
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
 }

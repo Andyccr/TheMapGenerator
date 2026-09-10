@@ -23,7 +23,7 @@ npm test
 python3 -m http.server 8080   # then click through generate / layers / tools
 ```
 
-`npm test` is Node's built-in runner. Test files live in `src/**/__tests__/` and are listed in `package.json`.
+`npm test` is Node's built-in runner. It recursively runs `src/**/__tests__/*.test.js`.
 
 Heavy generation belongs in `MapGenerator` so it can run in `src/workers/generateWorker.js`.
 

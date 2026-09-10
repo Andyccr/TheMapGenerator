@@ -33,7 +33,7 @@ export function settlementAt(world, cellId) {
 
 export class PanTool {
   id = "pan";
-  hint = "Drag to pan. Scroll to zoom. Click a cell to inspect it.";
+  hint = "滚轮缩放：全图合并色块与干流，近景晕渲、细河与村落。格子数据不变。双击放大，拖动平移。";
   /**
    * @param {import("../types.js").WorldData} _world
    * @param {import("../types.js").PointerEventWorld} _ev
@@ -46,7 +46,7 @@ export class PanTool {
 
 export class RaiseTool {
   id = "raise";
-  hint = "Paint to raise land and grow mountain ridges. Hydrology updates on release.";
+  hint = "涂抹以抬升陆地、堆出山脊。绘制中会预览水文，松手后再算完整河流。";
   /**
    * @param {import("../types.js").WorldData} world
    * @param {import("../types.js").PointerEventWorld} ev
@@ -61,7 +61,7 @@ export class RaiseTool {
 
 export class LowerTool {
   id = "lower";
-  hint = "Paint to sink valleys or open seas. Hydrology updates on release.";
+  hint = "涂抹以沉陷谷地或开辟海洋。绘制中会预览水文，松手后再算完整河流。";
   /**
    * @param {import("../types.js").WorldData} world
    * @param {import("../types.js").PointerEventWorld} ev
@@ -76,7 +76,7 @@ export class LowerTool {
 
 export class RiverTool {
   id = "river";
-  hint = "Click-drag from highland toward the sea. The channel is forced downhill, then rivers re-route.";
+  hint = "从高地拖向大海。河道会被强制改为顺流而下。";
   constructor() {
     /** @type {number[]} */
     this.path = [];
@@ -105,7 +105,7 @@ export class RiverTool {
 
 export class MoveSettlementTool {
   id = "move";
-  hint = "Drag a town onto another land cell. Towns cannot sit in the ocean.";
+  hint = "把城镇拖到另一块陆地上。不能放进海里。";
   constructor() {
     /** @type {number | null} */
     this.held = null;
@@ -137,7 +137,7 @@ export class MoveSettlementTool {
 
 export class RenameTool {
   id = "rename";
-  hint = "Click a settlement, marker, river, or named feature to rename it. Names are stored in the JSON save.";
+  hint = "点击聚落、地标、河流或地貌改名。右侧检视也可以改名称与图层。";
   /**
    * @param {import("../types.js").WorldData} world
    * @param {import("../types.js").PointerEventWorld} ev
@@ -194,7 +194,7 @@ export class RenameTool {
 
 export class BurgTool {
   id = "burg";
-  hint = "Click land to found a town. Shift-click founds a city.";
+  hint = "在陆地上点击以建立城镇。按住 Shift 建立城市。";
   /**
    * @param {import("../types.js").WorldData} world
    * @param {import("../types.js").PointerEventWorld} ev
@@ -225,7 +225,7 @@ export class BurgTool {
 
 export class EraseTool {
   id = "erase";
-  hint = "Click a town, marker, or road cell to remove it. The last capital cannot be deleted.";
+  hint = "点击聚落、地标或商路格子以删除。最后一个都城不能删。";
   /**
    * @param {import("../types.js").WorldData} world
    * @param {import("../types.js").PointerEventWorld} ev
@@ -266,7 +266,7 @@ export class EraseTool {
 
 export class MarkerTool {
   id = "marker";
-  hint = "Click land to plant a place of interest (type chosen in the panel).";
+  hint = "在陆地上点击放置兴趣点。种类在左侧选择。";
   /**
    * @param {import("../types.js").WorldData} world
    * @param {import("../types.js").PointerEventWorld} ev
@@ -298,7 +298,7 @@ export class MarkerTool {
 
 export class MeasureTool {
   id = "measure";
-  hint = "Click two points to measure leagues. Shift+drag still pans.";
+  hint = "点击两点测量里格。比例尺与地图单位一致。";
   apply() {
     /* Camera/measure overlay is owned by the App. */
   }
@@ -306,7 +306,7 @@ export class MeasureTool {
 
 export class StampTool {
   id = "stamp";
-  hint = "Click to drop a hill, pit, or range. Hydrology updates after the click.";
+  hint = "点击放下丘、洼或岭。松手后按重力重算河流。笔刷控制印戳大小。";
   /**
    * @param {import("../types.js").WorldData} world
    * @param {import("../types.js").PointerEventWorld} ev
@@ -322,7 +322,7 @@ export class StampTool {
 
 export class RoadTool {
   id = "road";
-  hint = "Click two towns to draw a road. Shift-click the second town for a sea lane.";
+  hint = "先点一座聚落，再点另一座连商路。第二次按住 Shift 则走海路。";
   constructor() {
     /** @type {number | null} */
     this.fromId = null;
@@ -361,7 +361,7 @@ export class RoadTool {
 
 export class PaintTool {
   id = "paint";
-  hint = "Paint biome, culture, faith, realm, or province. Empty pigment click-samples the cell.";
+  hint = "涂抹改群系、文化、信仰、国度或行省。颜料留空时点击吸取。不会重算水文。";
   constructor() {
     this.dirty = false;
   }

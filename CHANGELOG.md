@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.8.0
+
+- Inspector and roster HTML live in `src/ui/format.js`; tool hints are the single Chinese source on each tool class.
+- Create a culture or faith on land, or found a realm on a town, then paint to expand. Recolor any named entity that has a color.
+- Inspector lists roads through a cell and can delete one route; roster has a 商路 tab.
+- **应用风向** restamps climate and biomes only. Height recompute keeps hand-drawn routes, markers, river names, diplomacy, and culture/faith/province paint.
+- Worker op `climate`. Tests glob `src`. Manifest icon is `icon.svg`.
+
 ## 1.7.0
 
 - Architecture: one catalog for biome / marker / culture / faith / feature labels; the canvas renderer no longer imports generator modules.

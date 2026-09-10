@@ -308,6 +308,12 @@ button:hover {
   margin: 0;
 }
 
+.roster .empty {
+  color: var(--ink-dim);
+  padding: 0.35rem;
+  font-size: 0.82rem;
+}
+
 .roster button {
   display: flex;
   flex-direction: column;
@@ -531,7 +537,9 @@ button:hover {
 }
 
 .cell-edit,
-.diplo-edit {
+.diplo-edit,
+.route-edit,
+.create-edit {
   margin-top: 0.65rem;
   display: flex;
   flex-direction: column;
@@ -539,8 +547,36 @@ button:hover {
 }
 
 .cell-edit[hidden],
-.diplo-edit[hidden] {
+.diplo-edit[hidden],
+.route-edit[hidden],
+.create-edit[hidden],
+.note-field[hidden] {
   display: none;
+}
+
+.create-edit {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.route-edit {
+  list-style: none;
+  padding: 0;
+}
+
+.route-edit li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+}
+
+#entity-color {
+  width: 100%;
+  height: 2rem;
+  padding: 0.1rem;
+  cursor: pointer;
 }
 
 .cell-edit label,

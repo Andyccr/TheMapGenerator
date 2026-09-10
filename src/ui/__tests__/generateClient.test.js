@@ -12,7 +12,7 @@ const small = {
 };
 
 test("worker ops and progress stages stay in lockstep", () => {
-  assert.deepEqual([...GENERATOR_OPS], ["generate", "society", "routes", "recompute", "names"]);
+  assert.deepEqual([...GENERATOR_OPS], ["generate", "society", "routes", "recompute", "names", "climate"]);
   for (const stage of ["mesh", "tectonics", "hydrology", "climate", "society", "routes"]) {
     assert.ok(STAGE_LABELS[stage], stage);
   }
