@@ -8,40 +8,18 @@ import { CanvasRenderer } from "../renderers/canvasRenderer.js";
 import { createTools } from "../editors/tools.js";
 import { cloneWorld, parseWorld, summarizeWorld } from "../data/worldData.js";
 import { saveAutosave, loadAutosave, downloadJson, downloadPng, readJsonFile, peekAutosave, saveSlot, loadSlot, listSlotMeta, SLOT_COUNT } from "../persistence/storage.js";
-import {
-  BIOME_LABELS,
-  LAND_BIOMES,
-  SETTLEMENT_TYPE_LABELS,
-  cultureTypeLabel,
-  markerLabel,
-  religionTypeLabel,
-  featureTypeLabel,
-} from "../data/catalogs.js";
+import { BIOME_LABELS, LAND_BIOMES, SETTLEMENT_TYPE_LABELS } from "../data/catalogs.js";
 import { landformLabel, recipeFor, parseRecipe, stepSummary, applyStepsOnly } from "../generators/landforms.js";
 import { estimatePopulation } from "../generators/civilization.js";
-import { stanceLabel, tiesFor, otherId, setStance, STANCE_LABELS } from "../generators/diplomacy.js";
+import { tiesFor, otherId, setStance, STANCE_LABELS } from "../generators/diplomacy.js";
 import { APP_VERSION } from "../core/version.js";
 import { runGeneratorJob, STAGE_LABELS } from "./generateClient.js";
 import { parseShare, serializeShare, shareHasSeed } from "./share.js";
 import { EXAMPLE_WORLDS } from "./examples.js";
-import { PAINT_LAYERS, eyedrop, paintCell } from "../editors/paint.js";
+import { PAINT_LAYERS, paintCell } from "../editors/paint.js";
+import { createCulture, createReligion, createRealm } from "../editors/entities.js";
 import { makeRng } from "../generators/rng.js";
-
-const HINTS = {
-  pan: "滚轮缩放：全图合并色块与干流，近景晕渲、细河与村落。格子数据不变。双击放大，拖动平移。",
-  raise: "涂抹以抬升陆地、堆出山脊。水文会在绘制过程中更新。",
-  lower: "涂抹以沉陷谷地或开辟海洋。水文会在绘制过程中更新。",
-  stamp: "点击放下丘、洼或岭。松手后按重力重算河流。笔刷控制印戳大小。",
-  paint: "涂抹改群系、文化、信仰、国度或行省。颜料留空时点击吸取。不会重算水文。",
-  river: "从高地拖向大海。河道会被强制改为顺流而下。",
-  road: "先点一座聚落，再点另一座连商路。第二次按住 Shift 则走海路。",
-  burg: "在陆地上点击以建立城镇。按住 Shift 建立城市。",
-  erase: "点击聚落、地标或商路格子以删除。最后一个都城不能删。",
-  marker: "在陆地上点击放置兴趣点。种类在左侧选择。",
-  move: "把城镇拖到另一块陆地上。不能放进海里。",
-  rename: "点击聚落、地标、河流或地貌改名。右侧检视也可以改名称与图层。",
-  measure: "点击两点测量里格。比例尺与地图单位一致。",
-};
+import { escapeHtml, overviewInspectHtml, cellInspectHtml, rosterItems, searchHits, rosterListHtml } from "./format.js";
 
 const SETTLEMENT_TYPE = SETTLEMENT_TYPE_LABELS;
 
@@ -118,6 +96,7 @@ export class App {
     this.#syncRecipeList();
     this.#fillExamples();
     this.#syncPaintPigment();
+    this.#setTool(this.toolId);
     window.addEventListener("resize", () => {
       this.renderer.resize();
       if (this.world) this.redraw();
@@ -230,6 +209,11 @@ export class App {
     if (styleEl instanceof HTMLSelectElement && world.meta.style) styleEl.value = world.meta.style;
     const landEl = this.#el("opt-landform");
     if (landEl instanceof HTMLSelectElement && world.meta.landform) landEl.value = world.meta.landform;
+    const windEl = this.#el("opt-wind");
+    if (windEl instanceof HTMLSelectElement && world.meta.wind) {
+      const key = `${world.meta.wind.x},${world.meta.wind.y}`;
+      if ([...windEl.options].some((o) => o.value === key)) windEl.value = key;
+    }
     if (Array.isArray(world.meta.landformSteps)) {
       this.landformSteps = parseRecipe(world.meta.landformSteps) || [];
     } else {
@@ -313,6 +297,7 @@ export class App {
       this.#syncRecipeList();
     });
     this.#el("btn-recipe-apply")?.addEventListener("click", () => this.#applyRecipeToWorld());
+    this.#el("btn-apply-wind")?.addEventListener("click", () => this.#applyWind());
     this.#el("opt-paint-layer")?.addEventListener("change", () => {
       this.#syncPaintPigment();
       this.#matchStyleToPaint();
@@ -352,11 +337,25 @@ export class App {
 
     this.doc.querySelectorAll(".tab").forEach((btn) => {
       btn.addEventListener("click", () => {
-        this.doc.querySelectorAll(".tab").forEach((b) => b.classList.remove("active"));
-        btn.classList.add("active");
+        this.doc.querySelectorAll(".tab").forEach((b) => {
+          const on = b === btn;
+          b.classList.toggle("active", on);
+          b.setAttribute("aria-selected", on ? "true" : "false");
+        });
         this.rosterKind = String(btn.getAttribute("data-roster") || "settlements");
         this.#fillRoster();
       });
+    });
+    this.doc.querySelectorAll("[data-create]").forEach((btn) => {
+      btn.addEventListener("click", () => this.#createEntity(String(btn.getAttribute("data-create") || "")));
+    });
+    this.#el("entity-color")?.addEventListener("change", (e) => {
+      if (!this._noteTarget || !this._noteTarget.color) return;
+      this.#pushUndo();
+      this._noteTarget.color = /** @type {HTMLInputElement} */ (e.target).value;
+      this.#scheduleAutosave();
+      this.#fillLegend();
+      this.redraw();
     });
 
     this.#el("opt-search")?.addEventListener("input", () => this.#fillSearch());
@@ -539,7 +538,7 @@ export class App {
     this.toolId = id;
     this.doc.querySelectorAll(".tool").forEach((b) => b.classList.toggle("active", b.getAttribute("data-tool") === id));
     const hint = this.#el("tool-hint");
-    if (hint) hint.textContent = HINTS[this.toolId] || HINTS.pan;
+    if (hint) hint.textContent = this.tools[this.toolId]?.hint || this.tools.pan?.hint || "";
     const canvas = /** @type {HTMLCanvasElement} */ (this.#el("map"));
     canvas.style.cursor = this.toolId === "pan" ? "grab" : "crosshair";
     if (id === "paint") this.#matchStyleToPaint();
@@ -806,6 +805,7 @@ export class App {
         this.redraw();
         this.#fillRoster();
         this.#fillLegend();
+        if (this._inspectCellId >= 0) this.#inspect(this._inspectCellId);
       },
       promptRename: (s) => {
         this.#askText("重命名", s.name, (next) => {
@@ -815,6 +815,7 @@ export class App {
           this.#scheduleAutosave();
           this.redraw();
           this.#fillRoster();
+          if (this._inspectCellId >= 0) this.#inspect(this._inspectCellId);
         });
       },
       promptText: (label, fallback) => fallback || "",
@@ -849,6 +850,7 @@ export class App {
     this.redraw();
     this.#fillLegend();
     this.#fillRoster();
+    this.#inspect(this._inspectCellId);
     this.#scheduleAutosave();
   }
 
@@ -860,6 +862,7 @@ export class App {
     this.redraw();
     this.#fillLegend();
     this.#fillRoster();
+    this.#inspect(this._inspectCellId);
     this.#scheduleAutosave();
   }
 
@@ -879,40 +882,23 @@ export class App {
     const box = this.#el("inspector");
     if (!box || !this.world) return;
     if (cellId < 0) {
-      const sum = summarizeWorld(this.world);
-      const mapName = this.world.meta.mapName || this.world.meta.seed;
       this._noteTarget = null;
+      this._burgTarget = null;
       this._inspectCellId = -1;
-      const noteWrap = this.#el("note-wrap");
-      if (noteWrap instanceof HTMLElement) noteWrap.hidden = true;
-      const nameWrap = this.#el("name-wrap");
-      if (nameWrap instanceof HTMLElement) nameWrap.hidden = true;
-      const burgWrap = this.#el("burg-wrap");
-      if (burgWrap instanceof HTMLElement) burgWrap.hidden = true;
-      const cellEdit = this.#el("cell-edit");
-      if (cellEdit instanceof HTMLElement) cellEdit.hidden = true;
-      const diploEdit = this.#el("diplo-edit");
-      if (diploEdit instanceof HTMLElement) diploEdit.hidden = true;
-      box.innerHTML = `
-        <dt>图名</dt><dd>${escapeHtml(mapName)}</dd>
-        <dt>种子</dt><dd>${escapeHtml(this.world.meta.seed)}</dd>
-        <dt>陆形</dt><dd>${escapeHtml(landformLabel(this.world.meta.landform))}</dd>
-        <dt>画幅</dt><dd>${this.world.meta.width}×${this.world.meta.height} · 格距 ${this.world.meta.cellSize}</dd>
-        <dt>绘制</dt><dd>${escapeHtml(this.renderer.lodLabel(this.world))}（格子不变）</dd>
-        <dt>格子</dt><dd>${sum.cells} · 陆地 ${sum.land} · 海洋 ${sum.ocean}</dd>
-        <dt>河流</dt><dd>${sum.rivers}</dd>
-        <dt>聚落</dt><dd>${sum.settlements}</dd>
-        <dt>国度</dt><dd>${sum.regions}</dd>
-        <dt>文化</dt><dd>${sum.cultures}</dd>
-        <dt>行省</dt><dd>${sum.provinces}</dd>
-        <dt>信仰</dt><dd>${sum.religions}</dd>
-        <dt>地貌</dt><dd>${sum.features}</dd>
-        <dt>商路</dt><dd>${sum.routes}</dd>
-        <dt>地标</dt><dd>${sum.markers}</dd>`;
+      this.#hideInspect("note-wrap", true);
+      this.#hideInspect("name-wrap", true);
+      this.#hideInspect("burg-wrap", true);
+      this.#hideInspect("cell-edit", true);
+      this.#hideInspect("diplo-edit", true);
+      this.#hideInspect("color-wrap", true);
+      this.#hideInspect("create-edit", true);
+      this.#hideInspect("route-edit", true);
+      box.innerHTML = overviewInspectHtml(this.world, this.renderer.lodLabel(this.world));
       this.#setStatus(-1);
       return;
     }
     const c = this.world.cells[cellId];
+    if (!c) return;
     const town = this.world.settlements.find((s) => s.cellId === cellId);
     const realm = c.regionId >= 0 ? this.world.regions[c.regionId] : null;
     const cult = c.cultureId >= 0 ? this.world.cultures?.[c.cultureId] : null;
@@ -921,60 +907,35 @@ export class App {
     const province = c.provinceId >= 0 ? this.world.provinces?.[c.provinceId] : null;
     const religion = c.religionId >= 0 ? this.world.religions?.[c.religionId] : null;
     const feat = c.featureId >= 0 ? this.world.features?.[c.featureId] : null;
-    const biomeName = BIOME_LABELS[c.biome] || c.biome;
-    const typeName = town ? SETTLEMENT_TYPE[town.type] || town.type : "";
     this._inspectCellId = cellId;
     this._noteTarget = town || marker || province || realm || cult || religion || feat || river || null;
     this._burgTarget = town || null;
-    const noteWrap = this.#el("note-wrap");
     const noteEl = this.#el("entity-note");
-    if (noteWrap instanceof HTMLElement) noteWrap.hidden = !this._noteTarget;
     if (noteEl instanceof HTMLTextAreaElement) noteEl.value = this._noteTarget?.note || "";
-    const nameWrap = this.#el("name-wrap");
+    this.#hideInspect("note-wrap", !this._noteTarget);
     const nameEl = this.#el("entity-name");
-    const named = this._noteTarget && this._noteTarget.name != null;
-    if (nameWrap instanceof HTMLElement) nameWrap.hidden = !named;
+    const named = Boolean(this._noteTarget && this._noteTarget.name != null);
+    this.#hideInspect("name-wrap", !named);
     if (named && nameEl instanceof HTMLInputElement) nameEl.value = this._noteTarget.name || "";
-    const burgWrap = this.#el("burg-wrap");
     const burgType = this.#el("opt-burg-type");
-    if (burgWrap instanceof HTMLElement) burgWrap.hidden = !town;
+    this.#hideInspect("burg-wrap", !town);
     if (town && burgType instanceof HTMLSelectElement) burgType.value = town.type;
+    const hasColor = Boolean(this._noteTarget?.color);
+    const colorEl = this.#el("entity-color");
+    this.#hideInspect("color-wrap", !hasColor);
+    if (hasColor && colorEl instanceof HTMLInputElement) colorEl.value = this._noteTarget.color;
+    this.#hideInspect("create-edit", Boolean(c.ocean || c.border));
     this.#fillCellEdit(c);
     this.#fillDiploEdit(realm);
-    const diplo = realm
-      ? tiesFor(this.world.diplomacy || [], realm.id)
-          .map((t) => {
-            const other = this.world.regions[otherId(t, realm.id)];
-            return other ? `${other.name}（${stanceLabel(t.stance)}）` : "";
-          })
-          .filter(Boolean)
-          .join(" · ")
-      : "";
-    box.innerHTML = `
-      <dt>格子</dt><dd>#${c.id}</dd>
-      <dt>海拔</dt><dd>${c.height.toFixed(2)}</dd>
-      <dt>生物群系</dt><dd>${escapeHtml(biomeName)}</dd>
-      <dt>湿度</dt><dd>${c.moisture.toFixed(2)}</dd>
-      <dt>温度</dt><dd>${c.temperature.toFixed(2)}</dd>
-      <dt>径流量</dt><dd>${c.flux.toFixed(1)}</dd>
-      <dt>河流</dt><dd>${river?.name ? escapeHtml(river.name) : c.riverId >= 0 ? "有" : "—"}</dd>
-      <dt>标记</dt><dd>${[
-        c.ocean && "海洋",
-        c.lake && "湖泊",
-        c.coast && "海岸",
-        c.mountain && "山脉",
-      ]
-        .filter(Boolean)
-        .join(" · ") || "—"}</dd>
-      <dt>文化</dt><dd>${cult ? escapeHtml(`${cult.name}（${cultureTypeLabel(cult.type)}）`) : "—"}</dd>
-      <dt>国度</dt><dd>${realm ? escapeHtml(realm.name) : "—"}</dd>
-      <dt>外交</dt><dd>${diplo ? escapeHtml(diplo) : "—"}</dd>
-      <dt>行省</dt><dd>${province ? escapeHtml(province.name) : "—"}</dd>
-      <dt>信仰</dt><dd>${religion ? escapeHtml(`${religion.name}（${religionTypeLabel(religion.type)}）`) : "—"}</dd>
-      <dt>地貌</dt><dd>${feat ? escapeHtml(`${feat.name}（${featureTypeLabel(feat.type)}）`) : "—"}</dd>
-      <dt>聚落</dt><dd>${town ? escapeHtml(`${town.name}（${typeName} · ${town.population || "?"}人）`) : "—"}</dd>
-      <dt>地标</dt><dd>${marker ? escapeHtml(marker.name) : "—"}</dd>`;
+    this.#fillRouteEdit(cellId);
+    box.innerHTML = cellInspectHtml(this.world, cellId);
     this.#setStatus(cellId);
+  }
+
+  /** @param {string} id @param {boolean} hidden */
+  #hideInspect(id, hidden) {
+    const el = this.#el(id);
+    if (el instanceof HTMLElement) el.hidden = hidden;
   }
 
   /**
@@ -1016,65 +977,8 @@ export class App {
   #fillRoster() {
     const list = this.#el("roster-list");
     if (!list || !this.world) return;
-    /** @type {{ label: string, cellId: number, hint?: string }[]} */
-    let items = [];
-    if (this.rosterKind === "settlements") {
-      items = this.world.settlements.map((s) => ({
-        label: s.name,
-        hint: `${SETTLEMENT_TYPE[s.type] || s.type} · ${(s.population || 0).toLocaleString("zh-CN")}人`,
-        cellId: s.cellId,
-      }));
-    } else if (this.rosterKind === "regions") {
-      items = this.world.regions.map((r) => {
-        const cap = this.world.settlements.find((s) => s.id === r.capitalId);
-        const wars = tiesFor(this.world.diplomacy || [], r.id).filter((t) => t.stance === "war").length;
-        const hint = [cap ? `都城 ${cap.name}` : "", wars ? `交战 ${wars}` : ""].filter(Boolean).join(" · ");
-        return { label: r.name, hint, cellId: cap?.cellId ?? -1 };
-      });
-    } else if (this.rosterKind === "provinces") {
-      items = (this.world.provinces || []).map((p) => {
-        const seat = this.world.settlements.find((s) => s.id === p.seatId);
-        return { label: p.name, hint: seat ? `治所 ${seat.name}` : "行省", cellId: seat?.cellId ?? -1 };
-      });
-    } else if (this.rosterKind === "cultures") {
-      items = (this.world.cultures || []).map((c) => ({
-        label: c.name,
-        hint: cultureTypeLabel(c.type),
-        cellId: c.originId,
-      }));
-    } else if (this.rosterKind === "religions") {
-      items = (this.world.religions || []).map((r) => ({
-        label: r.name,
-        hint: religionTypeLabel(r.type),
-        cellId: r.originId,
-      }));
-    } else if (this.rosterKind === "features") {
-      items = (this.world.features || []).map((f) => ({
-        label: f.name,
-        hint: `${featureTypeLabel(f.type)} · ${f.size}格`,
-        cellId: f.originId,
-      }));
-    } else if (this.rosterKind === "rivers") {
-      items = (this.world.rivers || [])
-        .filter((r) => r.name)
-        .map((r) => ({
-          label: r.name,
-          hint: `河流 · ${r.cellIds.length}格`,
-          cellId: r.cellIds[Math.floor(r.cellIds.length / 2)] ?? r.cellIds[0] ?? -1,
-        }));
-    } else {
-      items = (this.world.markers || []).map((m) => ({
-        label: m.name,
-        hint: markerLabel(m.type),
-        cellId: m.cellId,
-      }));
-    }
-    list.innerHTML = items
-      .map(
-        (it) =>
-          `<li><button type="button" data-cell="${it.cellId}">${escapeHtml(it.label)}${it.hint ? `<span>${escapeHtml(it.hint)}</span>` : ""}</button></li>`,
-      )
-      .join("");
+    const items = rosterItems(this.world, this.rosterKind);
+    list.innerHTML = rosterListHtml(items);
     list.querySelectorAll("button").forEach((btn) => {
       btn.addEventListener("click", () => this.#flyTo(Number(btn.getAttribute("data-cell"))));
     });
@@ -1084,50 +988,12 @@ export class App {
     const box = this.#el("search-results");
     const input = this.#el("opt-search");
     if (!box || !this.world || !(input instanceof HTMLInputElement)) return;
-    const q = input.value.trim().toLowerCase();
+    const q = input.value.trim();
     if (!q) {
       box.innerHTML = "";
       return;
     }
-    /** @type {{ label: string, hint: string, cellId: number }[]} */
-    const hits = [];
-    for (const s of this.world.settlements) {
-      if (s.name.toLowerCase().includes(q)) hits.push({ label: s.name, hint: SETTLEMENT_TYPE[s.type] || s.type, cellId: s.cellId });
-    }
-    for (const r of this.world.regions) {
-      if (r.name.toLowerCase().includes(q)) {
-        const cap = this.world.settlements.find((s) => s.id === r.capitalId);
-        hits.push({ label: r.name, hint: "国度", cellId: cap?.cellId ?? -1 });
-      }
-    }
-    for (const p of this.world.provinces || []) {
-      if (p.name.toLowerCase().includes(q)) {
-        const seat = this.world.settlements.find((s) => s.id === p.seatId);
-        hits.push({ label: p.name, hint: "行省", cellId: seat?.cellId ?? -1 });
-      }
-    }
-    for (const c of this.world.cultures || []) {
-      if (c.name.toLowerCase().includes(q)) hits.push({ label: c.name, hint: "文化", cellId: c.originId });
-    }
-    for (const r of this.world.religions || []) {
-      if (r.name.toLowerCase().includes(q)) hits.push({ label: r.name, hint: religionTypeLabel(r.type), cellId: r.originId });
-    }
-    for (const f of this.world.features || []) {
-      if (f.name.toLowerCase().includes(q)) hits.push({ label: f.name, hint: featureTypeLabel(f.type), cellId: f.originId });
-    }
-    for (const rv of this.world.rivers || []) {
-      if ((rv.name || "").toLowerCase().includes(q)) {
-        const mid = rv.cellIds[Math.floor(rv.cellIds.length / 2)] ?? rv.cellIds[0];
-        hits.push({ label: rv.name || "河流", hint: "河流", cellId: mid ?? -1 });
-      }
-    }
-    for (const m of this.world.markers || []) {
-      if (m.name.toLowerCase().includes(q)) hits.push({ label: m.name, hint: markerLabel(m.type), cellId: m.cellId });
-    }
-    box.innerHTML = hits
-      .slice(0, 12)
-      .map((it) => `<li><button type="button" data-cell="${it.cellId}">${escapeHtml(it.label)}<span>${escapeHtml(it.hint)}</span></button></li>`)
-      .join("");
+    box.innerHTML = rosterListHtml(searchHits(this.world, q), "没有匹配。");
     box.querySelectorAll("button").forEach((btn) => {
       btn.addEventListener("click", () => this.#flyTo(Number(btn.getAttribute("data-cell"))));
     });
@@ -1645,6 +1511,108 @@ export class App {
     });
   }
 
+  /**
+   * @param {number} cellId
+   */
+  #fillRouteEdit(cellId) {
+    const wrap = this.#el("route-edit");
+    if (!(wrap instanceof HTMLElement) || !this.world) return;
+    const roads = (this.world.routes || []).filter((r) => r.cellIds.includes(cellId));
+    if (!roads.length) {
+      wrap.hidden = true;
+      wrap.innerHTML = "";
+      return;
+    }
+    wrap.hidden = false;
+    wrap.innerHTML = roads
+      .map((r) => {
+        const a = this.world.settlements.find((s) => s.id === r.fromId);
+        const b = this.world.settlements.find((s) => s.id === r.toId);
+        const kind = r.kind === "sea" ? "海路" : r.kind === "trail" ? "小径" : "商路";
+        return `<li><span>${escapeHtml(kind)} ${escapeHtml(a?.name || "?")}–${escapeHtml(b?.name || "?")}</span><button type="button" data-drop-route="${r.id}">删</button></li>`;
+      })
+      .join("");
+    wrap.querySelectorAll("[data-drop-route]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (!this.world) return;
+        const id = Number(btn.getAttribute("data-drop-route"));
+        this.#pushUndo();
+        this.world.routes = (this.world.routes || []).filter((r) => r.id !== id);
+        this.#scheduleAutosave();
+        this.#fillRoster();
+        this.#inspect(this._inspectCellId);
+        this.redraw();
+        this.#toast("已删去这条路。");
+      });
+    });
+  }
+
+  /** @param {string} kind */
+  #createEntity(kind) {
+    if (!this.world || this._inspectCellId < 0) {
+      this.#toast("请先点选一块陆地。", true);
+      return;
+    }
+    const cellId = this._inspectCellId;
+    const cell = this.world.cells[cellId];
+    if (!cell || cell.ocean) {
+      this.#toast("请点在陆地上创建。", true);
+      return;
+    }
+    if (kind === "realm" && !this.world.settlements.some((s) => s.cellId === cellId)) {
+      this.#toast("请点在聚落上立国。", true);
+      return;
+    }
+    const titles = { culture: "新文化名称", religion: "新信仰名称", realm: "新国度名称" };
+    const fallbacks = { culture: "新族", religion: "新宗", realm: "新国" };
+    this.#askText(titles[kind] || "名称", fallbacks[kind] || "未命名", (name) => {
+      if (!name || !this.world) return;
+      this.#pushUndo();
+      const made =
+        kind === "culture"
+          ? createCulture(this.world, cellId, name)
+          : kind === "religion"
+            ? createReligion(this.world, cellId, name)
+            : createRealm(this.world, cellId, name);
+      if (!made) {
+        this.undo.pop();
+        this.#toast("无法创建。", true);
+        return;
+      }
+      this.#syncPaintPigment();
+      this.#scheduleAutosave();
+      this.#fillRoster();
+      this.#fillLegend();
+      this.#inspect(cellId);
+      this.redraw();
+      this.#toast(`已创建「${made.name}」。用涂色工具扩张。`);
+    });
+  }
+
+  async #applyWind() {
+    if (!this.world) return;
+    const windEl = this.#el("opt-wind");
+    const raw = windEl instanceof HTMLSelectElement ? windEl.value : "1,0";
+    const [wx, wy] = raw.split(",").map(Number);
+    this.#pushUndo();
+    this.world.meta.wind = { x: Number.isFinite(wx) ? wx : 1, y: Number.isFinite(wy) ? wy : 0 };
+    this.#setLoading(true, STAGE_LABELS.climate);
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    try {
+      this.world = await runGeneratorJob("climate", { world: this.world });
+      this.redraw();
+      this.#fillLegend();
+      this.#fillRoster();
+      if (this._inspectCellId >= 0) this.#inspect(this._inspectCellId);
+      this.#scheduleAutosave();
+      this.#toast("气候已按新风向重算。群系会变，高度与聚落不动。");
+    } catch (err) {
+      this.#toast(err instanceof Error ? err.message : "气候重算失败。", true);
+    } finally {
+      this.#setLoading(false);
+    }
+  }
+
   async #applyRecipeToWorld() {
     if (!this.world) return;
     const steps = this.landformSteps || [];
@@ -1669,9 +1637,9 @@ export class App {
       this.redraw();
       this.#fillLegend();
       this.#fillRoster();
-      this.#inspect(-1);
+      this.#inspect(this._inspectCellId >= 0 ? this._inspectCellId : -1);
       this.#scheduleAutosave();
-      this.#toast(`已应用 ${steps.length} 步陆形并重算河流。`);
+      this.#toast(`已应用 ${steps.length} 步陆形并重算河流。手绘商路与地标会留下。`);
     } finally {
       this.#setLoading(false);
     }
@@ -1718,11 +1686,6 @@ function randomSeed() {
   let s = "";
   for (let i = 0; i < 8; i++) s += alphabet[(Math.random() * alphabet.length) | 0];
   return s;
-}
-
-/** @param {string} s */
-function escapeHtml(s) {
-  return s.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch] || ch);
 }
 
 /** @param {string} op */

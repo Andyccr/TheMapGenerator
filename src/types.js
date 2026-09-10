@@ -229,6 +229,7 @@
  * @typedef {Object} MapGenerator
  * @property {(config: GenerateConfig, onProgress?: (stage: string) => void) => WorldData} generate
  * @property {(world: WorldData, onProgress?: (stage: string) => void) => WorldData} recomputeFromElevation
+ * @property {(world: WorldData) => WorldData} recomputeClimate
  * @property {(world: WorldData, societySeed?: string) => WorldData} regenerateSociety
  * @property {(world: WorldData) => WorldData} regenerateNames
  * @property {(world: WorldData) => WorldData} rebuildRoutes
