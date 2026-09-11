@@ -109,11 +109,11 @@ class CanvasRenderer {
 
 Style presets include atlas, physical, political, cultural, provinces, height, temperature, precipitation, parchment, and night. Overlay toggles (rivers, routes, markers, relief) are draw-only; they never rewrite cells.
 
-`MapGenerator.generate` reports `mesh → tectonics → hydrology → climate → society → routes`. The UI runs generate / society / routes / recompute / names / climate in `src/workers/generateWorker.js` so the tab stays responsive, and falls back to the main thread if workers cannot start. Live raise/lower preview still recomputes on the main thread (a worker round-trip per brush stroke would hitch). Inspect HTML lives in `src/ui/format.js`; GM-created cultures / faiths / realms live in `src/editors/entities.js`.
+`MapGenerator.generate` reports `mesh → tectonics → hydrology → climate → society → routes`. The UI runs generate / society / routes / recompute / names / climate in `src/workers/generateWorker.js` so the tab stays responsive, and falls back to the main thread if workers cannot start. Live raise/lower preview still recomputes on the main thread (a worker round-trip per brush stroke would hitch). Inspect HTML lives in `src/ui/format.js`; GM-created cultures / faiths / realms live in `src/editors/entities.js`. `runGeneratorJob` returns a promise with `.cancel()` that terminates the worker and does **not** fall back to the main thread.
 
 ## Persistence
 
-- **IndexedDB** database `fwmg-v1` holds the full WorldData autosave and named slots. Maps near the cell cap would overflow `localStorage`.
+- **IndexedDB** database `fwmg-v1` holds the full WorldData autosave and named slots. Maps near the cell cap would overflow `localStorage`. Failed writes surface in the save-state HUD instead of claiming success.
 - `localStorage` key `fwmg-autosave-v1` is a small peek/fallback copy; `fwmg-slots-index-v1` stores slot labels.
 - Export/import one JSON document
 - PNG at 1× / 2× / 3× via an offscreen canvas
