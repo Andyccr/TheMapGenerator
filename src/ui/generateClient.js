@@ -1,5 +1,6 @@
 /**
  * Run heavy generator jobs off the UI thread when module workers exist.
+ * The returned promise has `.cancel()` which terminates the worker (no main-thread fallback).
  */
 import { MapGenerator } from "../generators/mapGenerator.js";
 
@@ -19,43 +20,90 @@ export const STAGE_LABELS = {
 /** Operations the worker and the main-thread fallback both implement. */
 export const GENERATOR_OPS = /** @type {const} */ (["generate", "society", "routes", "recompute", "names", "climate"]);
 
+export function cancelledError() {
+  const err = new Error("已取消生成。");
+  err.cancelled = true;
+  return err;
+}
+
+/** @param {unknown} err */
+export function isJobCancelled(err) {
+  return Boolean(err && typeof err === "object" && /** @type {{ cancelled?: boolean, message?: string }} */ (err).cancelled);
+}
+
+/**
+ * @typedef {Promise<WorldData> & { cancel: () => void }} GeneratorJob
+ */
+
 /**
  * @param {typeof GENERATOR_OPS[number]} op
  * @param {{ config?: GenerateConfig, world?: WorldData, societySeed?: string }} payload
  * @param {(stage: string) => void} [onProgress]
- * @returns {Promise<WorldData>}
+ * @returns {GeneratorJob}
  */
 export function runGeneratorJob(op, payload, onProgress) {
-  return new Promise((resolve, reject) => {
-    /** @type {Worker | null} */
-    let worker = null;
+  /** @type {Worker | null} */
+  let worker = null;
+  let settled = false;
+  let cancelled = false;
+  /** @type {(reason?: Error) => void} */
+  let rejectFn = () => {};
+
+  const promise = new Promise((resolve, reject) => {
+    rejectFn = reject;
+    const done = (world) => {
+      if (settled) return;
+      settled = true;
+      worker?.terminate();
+      resolve(world);
+    };
+    const failHard = (err) => {
+      if (settled) return;
+      settled = true;
+      worker?.terminate();
+      reject(err instanceof Error ? err : new Error(String(err)));
+    };
     try {
       worker = new Worker(new URL("../workers/generateWorker.js", import.meta.url), { type: "module" });
     } catch {
-      resolve(runOnMain(op, payload, onProgress));
+      try {
+        done(runOnMain(op, payload, onProgress));
+      } catch (e) {
+        failHard(e);
+      }
       return;
     }
-    const fail = (err) => {
-      worker?.terminate();
-      try {
-        resolve(runOnMain(op, payload, onProgress));
-      } catch (fallbackErr) {
-        reject(err || fallbackErr);
-      }
-    };
     worker.onmessage = (ev) => {
+      if (cancelled) return;
       const data = ev.data || {};
       if (data.type === "progress") {
         onProgress?.(data.stage);
         return;
       }
-      worker?.terminate();
-      if (data.type === "done") resolve(data.world);
-      else reject(new Error(data.message || "生成失败"));
+      if (data.type === "done") done(data.world);
+      else failHard(new Error(data.message || "生成失败"));
     };
-    worker.onerror = (ev) => fail(ev.error || new Error(ev.message || "Worker 无法启动"));
+    worker.onerror = (ev) => {
+      if (cancelled || settled) return;
+      worker?.terminate();
+      try {
+        done(runOnMain(op, payload, onProgress));
+      } catch (fallbackErr) {
+        failHard(ev.error || fallbackErr || new Error(ev.message || "Worker 无法启动"));
+      }
+    };
     worker.postMessage({ op, ...payload });
   });
+
+  const job = /** @type {GeneratorJob} */ (promise);
+  job.cancel = () => {
+    if (settled) return;
+    cancelled = true;
+    settled = true;
+    worker?.terminate();
+    rejectFn(cancelledError());
+  };
+  return job;
 }
 
 /**

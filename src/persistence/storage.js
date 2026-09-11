@@ -43,13 +43,15 @@ export function peekAutosave() {
 
 /** @param {import("../types.js").WorldData} world */
 export async function saveAutosave(world) {
-  const ok = saveLocal(world);
+  const ls = saveLocal(world);
+  let idb = false;
   try {
     await idbPut("autosave", world);
+    idb = true;
   } catch {
     /* private mode or quota */
   }
-  return ok;
+  return idb || ls;
 }
 
 /** @returns {Promise<import("../types.js").WorldData | null>} */
@@ -125,9 +127,16 @@ export function downloadJson(world, filename) {
 
 /** @param {HTMLCanvasElement} canvas @param {string} filename */
 export function downloadPng(canvas, filename) {
-  canvas.toBlob((blob) => {
-    if (blob) triggerDownload(blob, filename);
-  }, "image/png");
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error("无法导出 PNG。"));
+        return;
+      }
+      triggerDownload(blob, filename);
+      resolve();
+    }, "image/png");
+  });
 }
 
 /**

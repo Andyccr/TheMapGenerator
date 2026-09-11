@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { saveLocal, loadLocal, peekAutosave, saveSlot, loadSlot, listSlotMeta, SLOT_COUNT } from "../storage.js";
+import { saveLocal, loadLocal, peekAutosave, saveSlot, loadSlot, listSlotMeta, SLOT_COUNT, saveAutosave } from "../storage.js";
 
 const mem = new Map();
 globalThis.localStorage = {
@@ -30,6 +30,10 @@ test("autosave round-trips through localStorage", () => {
   const peek = peekAutosave();
   assert.equal(peek.mapName, "试存");
   assert.equal(peek.seed, "slot-a");
+});
+
+test("saveAutosave reports success when localStorage is writable", async () => {
+  assert.equal(await saveAutosave(world), true);
 });
 
 test("named slots write an index and load back", async () => {

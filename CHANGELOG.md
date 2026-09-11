@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.9.0
+
+- First visit opens a welcome instead of generating a huge map: quick start (medium-coarse), examples, or generate with the current settings. Empty canvas has the same shortcuts.
+- Generation, rerolls, wind, and recipe-apply can be cancelled (Esc or the overlay button). Jobs no longer stack.
+- Replacing a world (generate / example) always confirms. Overwriting a slot confirms. Confirm buttons use the action’s own label.
+- Autosave reports failure instead of claiming success. Ctrl+S flushes autosave; Shift+Ctrl+S exports JSON. Drop a `.json` file onto the window to import.
+- GitHub Actions Pages publish now includes `icon.svg` and the web app manifest. `file://` shows a banner; noscript and a skip link are present.
+
 ## 1.8.0
 
 - Inspector and roster HTML live in `src/ui/format.js`; tool hints are the single Chinese source on each tool class.
