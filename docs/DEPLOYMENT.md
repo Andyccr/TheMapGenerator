@@ -15,7 +15,7 @@
 
 ## 备选：GitHub Actions
 
-**Settings → Pages → Source = GitHub Actions**。推送 `main` 后，`.github/workflows/pages.yml` 会先跑 `npm test`，再把 `index.html` + `src/` 发布出去（同样不打包）。
+**Settings → Pages → Source = GitHub Actions**。推送 `main` 后，`.github/workflows/pages.yml` 会先跑 `npm test`，再把 `index.html`、`src/`、`icon.svg` 与 `manifest.webmanifest` 发布出去（同样不打包）。
 
 ## 本地
 

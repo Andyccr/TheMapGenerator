@@ -13,7 +13,7 @@ import { landformLabel, recipeFor, parseRecipe, stepSummary, applyStepsOnly } fr
 import { estimatePopulation } from "../generators/civilization.js";
 import { tiesFor, otherId, setStance, STANCE_LABELS } from "../generators/diplomacy.js";
 import { APP_VERSION } from "../core/version.js";
-import { runGeneratorJob, STAGE_LABELS } from "./generateClient.js";
+import { runGeneratorJob, STAGE_LABELS, isJobCancelled } from "./generateClient.js";
 import { parseShare, serializeShare, shareHasSeed } from "./share.js";
 import { EXAMPLE_WORLDS } from "./examples.js";
 import { PAINT_LAYERS, paintCell } from "../editors/paint.js";
@@ -79,6 +79,10 @@ export class App {
     this._dialogDone = null;
     this._confirmDone = null;
     this.landformSteps = null;
+    this._busy = false;
+    /** @type {(Promise<import("../types.js").WorldData> & { cancel?: () => void }) | null} */
+    this._job = null;
+    this._dirty = false;
     this.#bind();
   }
 
@@ -124,21 +128,27 @@ export class App {
         this.#toast(`已恢复「${label}」。点「生成世界」可另开一张。`);
         return;
       } catch {
-        /* corrupt autosave — generate fresh */
+        /* corrupt autosave — offer a fresh start */
       }
     }
-    this.generate();
+    this.#syncEmptyStage();
+    this.#openWelcome();
   }
 
   /**
    * @param {{ force?: boolean }} [opts]
    */
   async generate(opts = {}) {
-    if (this.world && !opts.force && this.undo.length) {
-      const ok = await this.#askConfirm("生成会替换当前世界。撤销栈里的修改会丢掉。继续？");
+    if (this._busy) {
+      this.#toast("正在处理上一件工作。", true);
+      return;
+    }
+    if (this.world && !opts.force) {
+      const ok = await this.#askConfirm("生成会替换当前世界。未导出的修改会丢掉。继续？", "继续生成");
       if (!ok) return;
     }
-    this.#setLoading(true, "正在生成世界…范围越大、格网越密，可能需要数秒。");
+    this.#closeWelcome();
+    this.#setBusy(true, "正在生成世界…范围越大、格网越密，可能需要数秒。");
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     try {
       const seedEl = this.#el("seed-input");
@@ -161,31 +171,34 @@ export class App {
       const [wx, wy] = windRaw.split(",").map(Number);
       const landform = landEl instanceof HTMLSelectElement ? landEl.value : "continents";
       const steps = this.landformSteps;
-      const world = await runGeneratorJob(
-        "generate",
-        {
-          config: {
-            seed,
-            width,
-            height,
-            cellSize,
-            plateCount,
-            seaLevel,
-            wind: { x: wx, y: wy },
-            landform,
-            landformSteps: steps || undefined,
+      const world = await this.#awaitJob(
+        runGeneratorJob(
+          "generate",
+          {
+            config: {
+              seed,
+              width,
+              height,
+              cellSize,
+              plateCount,
+              seaLevel,
+              wind: { x: wx, y: wy },
+              landform,
+              landformSteps: steps || undefined,
+            },
           },
-        },
-        (stage) => this.#setLoading(true, STAGE_LABELS[stage] || "正在生成世界…"),
+          (stage) => this.#setLoading(true, STAGE_LABELS[stage] || "正在生成世界…"),
+        ),
       );
+      if (!world) return;
       const styleEl = this.#el("opt-style");
       world.meta.style = styleEl instanceof HTMLSelectElement ? styleEl.value : "atlas";
       this.#applyWorld(world, { fit: true });
       this.#toast(`已生成「${world.meta.mapName || seed}」`);
     } catch (err) {
-      this.#toast(err instanceof Error ? err.message : "生成失败。", true);
+      if (!isJobCancelled(err)) this.#toast(err instanceof Error ? err.message : "生成失败。", true);
     } finally {
-      this.#setLoading(false);
+      this.#setBusy(false);
     }
   }
 
@@ -230,6 +243,8 @@ export class App {
     this.#syncPaintPigment();
     this.#syncZoomReadout();
     this.#setStatus(-1);
+    this._dirty = false;
+    this.#syncEmptyStage();
   }
 
   redraw() {
@@ -298,6 +313,18 @@ export class App {
     });
     this.#el("btn-recipe-apply")?.addEventListener("click", () => this.#applyRecipeToWorld());
     this.#el("btn-apply-wind")?.addEventListener("click", () => this.#applyWind());
+    this.#el("btn-cancel-job")?.addEventListener("click", () => this.#cancelJob());
+    this.#el("btn-welcome-quick")?.addEventListener("click", () => this.#quickStart());
+    this.#el("btn-welcome-examples")?.addEventListener("click", () => {
+      this.#closeWelcome();
+      this.#openExamples();
+    });
+    this.#el("btn-welcome-settings")?.addEventListener("click", () => {
+      this.#closeWelcome();
+      this.generate({ force: true });
+    });
+    this.#el("btn-empty-generate")?.addEventListener("click", () => this.#quickStart());
+    this.#el("btn-empty-examples")?.addEventListener("click", () => this.#openExamples());
     this.#el("opt-paint-layer")?.addEventListener("change", () => {
       this.#syncPaintPigment();
       this.#matchStyleToPaint();
@@ -416,26 +443,24 @@ export class App {
       const input = /** @type {HTMLInputElement} */ (e.target);
       const file = input.files?.[0];
       if (!file) return;
-      try {
-        const raw = await readJsonFile(file);
-        this.#applyWorld(parseWorld(raw), { fit: true });
-        this.#toast("存档已导入。");
-      } catch (err) {
-        this.#toast(err instanceof Error ? err.message : "导入失败。", true);
-      }
+      await this.#importWorldFile(file);
       input.value = "";
     });
-    this.#el("btn-export-png")?.addEventListener("click", () => {
+    this.#el("btn-export-png")?.addEventListener("click", async () => {
       if (!this.world) return;
       const scaleEl = this.#el("opt-png-scale");
       const scale = Number(scaleEl instanceof HTMLSelectElement ? scaleEl.value : 2);
       const land = landformLabel(this.world.meta.landform);
-      const off = this.renderer.renderExport(this.world, scale, {
-        folio: true,
-        title: this.world.meta.mapName || this.world.meta.seed,
-        subtitle: `种子 ${this.world.meta.seed} · ${land} · ${this.world.meta.width}×${this.world.meta.height}`,
-      });
-      downloadPng(off, `world-${this.world.meta.seed}.png`);
+      try {
+        const off = this.renderer.renderExport(this.world, scale, {
+          folio: true,
+          title: this.world.meta.mapName || this.world.meta.seed,
+          subtitle: `种子 ${this.world.meta.seed} · ${land} · ${this.world.meta.width}×${this.world.meta.height}`,
+        });
+        await downloadPng(off, `world-${this.world.meta.seed}.png`);
+      } catch (err) {
+        this.#toast(err instanceof Error ? err.message : "导出 PNG 失败。", true);
+      }
     });
     this.#el("btn-undo")?.addEventListener("click", () => this.#undo());
     this.#el("btn-redo")?.addEventListener("click", () => this.#redo());
@@ -531,6 +556,24 @@ export class App {
     });
 
     window.addEventListener("keydown", (ev) => this.#onKey(ev));
+    window.addEventListener("beforeunload", (ev) => {
+      if (this._busy || this._dirty || this.undo.length) {
+        ev.preventDefault();
+        ev.returnValue = "";
+      }
+    });
+    const onDragOver = (ev) => {
+      if (ev.dataTransfer?.types?.includes("Files")) ev.preventDefault();
+    };
+    window.addEventListener("dragover", onDragOver);
+    window.addEventListener("drop", (ev) => {
+      const file = ev.dataTransfer?.files?.[0];
+      if (!file) return;
+      const json = /json$/i.test(file.type) || /\.json$/i.test(file.name);
+      if (!json) return;
+      ev.preventDefault();
+      this.#importWorldFile(file);
+    });
   }
 
   /** @param {string} id */
@@ -549,19 +592,28 @@ export class App {
    */
   async #reroll(kind) {
     if (!this.world) return;
+    if (this._busy) {
+      this.#toast("正在处理上一件工作。", true);
+      return;
+    }
     this.#pushUndo();
-    this.#setLoading(true, kind === "society" ? "正在重掷文明…" : "正在重掷名称与路线…");
+    this.#setBusy(true, kind === "society" ? "正在重掷文明…" : "正在重掷名称与路线…");
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     try {
+      let world = null;
       if (kind === "society") {
-        this.world = await runGeneratorJob("society", { world: this.world }, (stage) =>
-          this.#setLoading(true, STAGE_LABELS[stage] || "正在重掷文明…"),
+        world = await this.#awaitJob(
+          runGeneratorJob("society", { world: this.world }, (stage) =>
+            this.#setLoading(true, STAGE_LABELS[stage] || "正在重掷文明…"),
+          ),
         );
       } else if (kind === "names") {
-        this.world = await runGeneratorJob("names", { world: this.world });
+        world = await this.#awaitJob(runGeneratorJob("names", { world: this.world }));
       } else {
-        this.world = await runGeneratorJob("routes", { world: this.world });
+        world = await this.#awaitJob(runGeneratorJob("routes", { world: this.world }));
       }
+      if (!world) return;
+      this.world = world;
       const name = this.#el("map-name");
       if (name instanceof HTMLInputElement) name.value = this.world.meta.mapName || "";
       this.#syncTitle();
@@ -572,9 +624,9 @@ export class App {
       this.#scheduleAutosave();
       this.#toast(kind === "names" ? "地名已重掷。" : kind === "society" ? "文明已重掷，地形未动。" : "商路与地标已重掷。");
     } catch (err) {
-      this.#toast(err instanceof Error ? err.message : "重掷失败。", true);
+      if (!isJobCancelled(err)) this.#toast(err instanceof Error ? err.message : "重掷失败。", true);
     } finally {
-      this.#setLoading(false);
+      this.#setBusy(false);
     }
   }
 
@@ -582,6 +634,17 @@ export class App {
   #onKey(ev) {
     const t = /** @type {HTMLElement} */ (ev.target);
     const typing = t && (t.tagName === "INPUT" || t.tagName === "SELECT" || t.tagName === "TEXTAREA");
+    if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "s") {
+      ev.preventDefault();
+      if (!this.world) return;
+      if (ev.shiftKey) {
+        downloadJson(this.world, `world-${this.world.meta.seed}.json`);
+        this.#toast("已导出 JSON。");
+        return;
+      }
+      this.#flushAutosave();
+      return;
+    }
     if (ev.key === "/" && !typing) {
       ev.preventDefault();
       const search = this.#el("opt-search");
@@ -590,8 +653,14 @@ export class App {
     }
     if (typing) return;
     if (ev.key === "Escape") {
+      if (this._job) {
+        ev.preventDefault();
+        this.#cancelJob();
+        return;
+      }
       this.#closeHelp();
       this.#closeExamples();
+      this.#closeWelcome();
       this.#el("text-dialog")?.close?.();
       this.#el("confirm-dialog")?.close?.();
       return;
@@ -840,6 +909,7 @@ export class App {
     this.undo.push(cloneWorld(this.world));
     if (this.undo.length > 8) this.undo.shift();
     this.redo = [];
+    this._dirty = true;
   }
 
   #undo() {
@@ -869,12 +939,17 @@ export class App {
   #scheduleAutosave() {
     if (this.autosaveTimer) window.clearTimeout(this.autosaveTimer);
     this.#setSaveState("保存中…");
-    this.autosaveTimer = window.setTimeout(async () => {
-      if (this.world) {
-        await saveAutosave(this.world);
-        this.#setSaveState("已自动保存");
-      }
-    }, 400);
+    this.autosaveTimer = window.setTimeout(() => this.#flushAutosave(), 400);
+  }
+
+  async #flushAutosave() {
+    if (this.autosaveTimer) window.clearTimeout(this.autosaveTimer);
+    this.autosaveTimer = 0;
+    if (!this.world) return;
+    const ok = await saveAutosave(this.world);
+    this._dirty = !ok;
+    this.#setSaveState(ok ? "已自动保存" : "未能保存（本机存储已满）");
+    if (!ok) this.#toast("自动存档失败：本机存储已满。请导出 JSON。", true);
   }
 
   /** @param {number} cellId */
@@ -1136,12 +1211,15 @@ export class App {
 
   /**
    * @param {string} message
+   * @param {string} [okLabel]
    * @returns {Promise<boolean>}
    */
-  #askConfirm(message) {
+  #askConfirm(message, okLabel = "确定") {
     const dialog = this.#el("confirm-dialog");
     const msg = this.#el("confirm-msg");
+    const okBtn = this.#el("confirm-ok");
     if (msg) msg.textContent = message;
+    if (okBtn) okBtn.textContent = okLabel;
     if (!(dialog instanceof HTMLDialogElement)) {
       return Promise.resolve(this.doc.defaultView?.confirm(message) !== false);
     }
@@ -1233,6 +1311,10 @@ export class App {
   async #loadExample(id) {
     const ex = EXAMPLE_WORLDS.find((e) => e.id === id);
     if (!ex) return;
+    if (this.world) {
+      const ok = await this.#askConfirm("打开范例会替换当前世界。继续？", "打开范例");
+      if (!ok) return;
+    }
     this.#closeExamples();
     this.#applyShare(parseShare(ex.query));
     await this.generate({ force: true });
@@ -1291,6 +1373,11 @@ export class App {
     if (!this.world) return;
     const sel = this.#el("opt-slot");
     const index = Number(sel instanceof HTMLSelectElement ? sel.value : 0);
+    const meta = listSlotMeta()[index];
+    if (meta && !meta.empty) {
+      const ok = await this.#askConfirm(`槽位 ${index + 1} 已有「${meta.mapName || meta.seed}」。覆盖吗？`, "覆盖");
+      if (!ok) return;
+    }
     const ok = await saveSlot(index, this.world);
     this.#fillSlotSelect();
     this.#toast(ok ? `已写入槽位 ${index + 1}。` : "槽位写入失败：本机存储已满。", !ok);
@@ -1351,6 +1438,107 @@ export class App {
           li.removeAttribute("aria-current");
         }
       });
+    }
+  }
+
+  /**
+   * @param {boolean} on
+   * @param {string} [msg]
+   */
+  #setBusy(on, msg) {
+    this._busy = on;
+    this.#setLoading(on, msg);
+    for (const id of ["btn-generate", "btn-random", "btn-reroll-society", "btn-reroll-names", "btn-reroll-routes", "btn-apply-wind", "btn-recipe-apply"]) {
+      const btn = this.#el(id);
+      if (btn instanceof HTMLButtonElement) btn.disabled = on;
+    }
+    const app = this.#el("app");
+    if (app instanceof HTMLElement) app.setAttribute("aria-busy", on ? "true" : "false");
+    this.#syncEmptyStage();
+  }
+
+  /**
+   * @param {Promise<import("../types.js").WorldData> & { cancel?: () => void }} job
+   */
+  async #awaitJob(job) {
+    this._job = job;
+    try {
+      return await job;
+    } catch (err) {
+      if (isJobCancelled(err)) {
+        this.#toast("已取消。");
+        return null;
+      }
+      throw err;
+    } finally {
+      this._job = null;
+    }
+  }
+
+  #cancelJob() {
+    this._job?.cancel?.();
+  }
+
+  #syncEmptyStage() {
+    const empty = this.#el("stage-empty");
+    if (empty instanceof HTMLElement) empty.hidden = Boolean(this.world) || this._busy;
+  }
+
+  #openWelcome() {
+    const d = this.#el("welcome-dialog");
+    if (d instanceof HTMLDialogElement) {
+      try {
+        if (!d.open) d.showModal();
+        return;
+      } catch {
+        /* ignore */
+      }
+    }
+    if (d instanceof HTMLElement) {
+      d.setAttribute("open", "");
+      d.classList.add("open");
+    }
+  }
+
+  #closeWelcome() {
+    const d = this.#el("welcome-dialog");
+    if (d instanceof HTMLDialogElement) {
+      try {
+        d.close();
+      } catch {
+        /* ignore */
+      }
+    }
+    if (d instanceof HTMLElement) {
+      d.removeAttribute("open");
+      d.classList.remove("open");
+    }
+  }
+
+  async #quickStart() {
+    this.#closeWelcome();
+    const extent = this.#el("opt-extent");
+    const detail = this.#el("opt-detail");
+    if (extent instanceof HTMLSelectElement) extent.value = "1920,1200";
+    if (detail instanceof HTMLSelectElement) detail.value = "10";
+    const seed = this.#el("seed-input");
+    if (seed instanceof HTMLInputElement && !seed.value) seed.value = randomSeed();
+    await this.generate({ force: true });
+  }
+
+  /** @param {File} file */
+  async #importWorldFile(file) {
+    if (this._busy) {
+      this.#toast("正在处理上一件工作。", true);
+      return;
+    }
+    try {
+      const raw = await readJsonFile(file);
+      this.#closeWelcome();
+      this.#applyWorld(parseWorld(raw), { fit: true });
+      this.#toast("存档已导入。");
+    } catch (err) {
+      this.#toast(err instanceof Error ? err.message : "导入失败。", true);
     }
   }
 
@@ -1591,15 +1779,21 @@ export class App {
 
   async #applyWind() {
     if (!this.world) return;
+    if (this._busy) {
+      this.#toast("正在处理上一件工作。", true);
+      return;
+    }
     const windEl = this.#el("opt-wind");
     const raw = windEl instanceof HTMLSelectElement ? windEl.value : "1,0";
     const [wx, wy] = raw.split(",").map(Number);
     this.#pushUndo();
     this.world.meta.wind = { x: Number.isFinite(wx) ? wx : 1, y: Number.isFinite(wy) ? wy : 0 };
-    this.#setLoading(true, STAGE_LABELS.climate);
+    this.#setBusy(true, STAGE_LABELS.climate);
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     try {
-      this.world = await runGeneratorJob("climate", { world: this.world });
+      const world = await this.#awaitJob(runGeneratorJob("climate", { world: this.world }));
+      if (!world) return;
+      this.world = world;
       this.redraw();
       this.#fillLegend();
       this.#fillRoster();
@@ -1607,21 +1801,25 @@ export class App {
       this.#scheduleAutosave();
       this.#toast("气候已按新风向重算。群系会变，高度与聚落不动。");
     } catch (err) {
-      this.#toast(err instanceof Error ? err.message : "气候重算失败。", true);
+      if (!isJobCancelled(err)) this.#toast(err instanceof Error ? err.message : "气候重算失败。", true);
     } finally {
-      this.#setLoading(false);
+      this.#setBusy(false);
     }
   }
 
   async #applyRecipeToWorld() {
     if (!this.world) return;
+    if (this._busy) {
+      this.#toast("正在处理上一件工作。", true);
+      return;
+    }
     const steps = this.landformSteps || [];
     if (!steps.length) {
       this.#toast("没有可应用的陆形步骤。", true);
       return;
     }
     this.#pushUndo();
-    this.#setLoading(true, "正在把陆形步骤盖到当前图上…");
+    this.#setBusy(true, "正在把陆形步骤盖到当前图上…");
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     try {
       applyStepsOnly(
@@ -1631,17 +1829,23 @@ export class App {
         this.world.meta.height,
         steps,
       );
-      this.world = await runGeneratorJob("recompute", { world: this.world }, (stage) =>
-        this.#setLoading(true, STAGE_LABELS[stage] || "正在把陆形步骤盖到当前图上…"),
+      const world = await this.#awaitJob(
+        runGeneratorJob("recompute", { world: this.world }, (stage) =>
+          this.#setLoading(true, STAGE_LABELS[stage] || "正在把陆形步骤盖到当前图上…"),
+        ),
       );
+      if (!world) return;
+      this.world = world;
       this.redraw();
       this.#fillLegend();
       this.#fillRoster();
       this.#inspect(this._inspectCellId >= 0 ? this._inspectCellId : -1);
       this.#scheduleAutosave();
       this.#toast(`已应用 ${steps.length} 步陆形并重算河流。手绘商路与地标会留下。`);
+    } catch (err) {
+      if (!isJobCancelled(err)) this.#toast(err instanceof Error ? err.message : "应用陆形失败。", true);
     } finally {
-      this.#setLoading(false);
+      this.#setBusy(false);
     }
   }
 

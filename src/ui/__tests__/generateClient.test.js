@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { GENERATOR_OPS, STAGE_LABELS, runOnMain } from "../generateClient.js";
+import { GENERATOR_OPS, STAGE_LABELS, runOnMain, isJobCancelled, cancelledError, runGeneratorJob } from "../generateClient.js";
 import { MapGenerator } from "../../generators/mapGenerator.js";
 
 const small = {
@@ -31,4 +31,12 @@ test("runOnMain recompute and names return the same world object", () => {
   const named = runOnMain("names", { world });
   assert.equal(named, world);
   assert.ok(world.settlements[0]?.name);
+});
+
+test("cancelled jobs are distinguishable from real failures", () => {
+  assert.equal(isJobCancelled(cancelledError()), true);
+  assert.equal(isJobCancelled(new Error("生成失败")), false);
+  assert.equal(isJobCancelled(null), false);
+  const job = runGeneratorJob("climate", { world: new MapGenerator().generate(small) });
+  assert.equal(typeof job.cancel, "function");
 });

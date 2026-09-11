@@ -17,6 +17,39 @@
   box-sizing: border-box;
 }
 
+.skip-link {
+  position: absolute;
+  left: 0.75rem;
+  top: -3rem;
+  z-index: 20;
+  padding: 0.35rem 0.7rem;
+  background: var(--panel);
+  border: 1px solid var(--brass);
+  color: var(--ink);
+}
+
+.skip-link:focus {
+  top: 0.75rem;
+}
+
+.sys-banner {
+  display: block;
+  margin: 0;
+  padding: 0.55rem 1rem;
+  background: #3a1c14;
+  color: var(--ink);
+  border-bottom: 1px solid var(--ember);
+  font-size: 0.88rem;
+}
+
+.sys-banner[hidden] {
+  display: none !important;
+}
+
+.sys-banner code {
+  color: var(--brass);
+}
+
 html,
 body {
   margin: 0;
@@ -410,6 +443,42 @@ button:hover {
 
 .loading[hidden] {
   display: none !important;
+}
+
+#btn-cancel-job {
+  letter-spacing: 0.12em;
+  margin-top: 0.35rem;
+}
+
+.stage-empty {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  padding: 1.5rem;
+  text-align: center;
+  background: rgba(12, 9, 8, 0.35);
+  color: var(--ink-dim);
+  pointer-events: auto;
+}
+
+.stage-empty[hidden] {
+  display: none !important;
+}
+
+.stage-empty p {
+  margin: 0;
+  max-width: 22rem;
+  line-height: 1.45;
+}
+
+.welcome-dialog .btn-row {
+  margin: 0.85rem 0 0.4rem;
+  flex-wrap: wrap;
 }
 
 .zoom-hud {
@@ -824,7 +893,11 @@ kbd {
   .toast,
   .loading,
   .map-status,
-  .save-state {
+  .save-state,
+  .stage-empty,
+  .skip-link,
+  .sys-banner,
+  dialog {
     display: none !important;
   }
 
