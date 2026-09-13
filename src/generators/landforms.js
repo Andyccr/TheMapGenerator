@@ -1,33 +1,35 @@
 /**
  * Landform templates as recipes of heightmap operations (Azgaar-style).
  * Tectonics still provide texture; these steps decide the coastline.
+ * Display labels live in data/catalogs.js so UI never needs this module.
  */
 import { setLandFraction } from "./tectonics.js";
+import {
+  LANDFORM_LABELS,
+  STEP_OP_LABELS,
+  STEP_OP_ORDER,
+  landformLabel,
+  stepOpLabel as opLabel,
+  stepSummary,
+} from "../data/catalogs.js";
+
+export { landformLabel, opLabel, stepSummary };
 
 /** @typedef {{ op: string, n?: number|number[], x?: number, y?: number, rx?: number, ry?: number, amp?: number|number[], jitter?: boolean|number, edge?: number }} LandformStep */
 
 /** @type {{ id: string, label: string, land: number }[]} */
 export const LANDFORMS = [
-  { id: "continents", label: "诸大陆", land: 0.48 },
-  { id: "pangea", label: "盘古大陆", land: 0.58 },
-  { id: "archipelago", label: "群岛", land: 0.22 },
-  { id: "island", label: "大岛", land: 0.22 },
-  { id: "peninsula", label: "半岛", land: 0.36 },
-  { id: "isthmus", label: "地峡", land: 0.4 },
-  { id: "inland-sea", label: "内海", land: 0.64 },
-  { id: "lakes", label: "湖区", land: 0.52 },
+  { id: "continents", label: LANDFORM_LABELS.continents, land: 0.48 },
+  { id: "pangea", label: LANDFORM_LABELS.pangea, land: 0.58 },
+  { id: "archipelago", label: LANDFORM_LABELS.archipelago, land: 0.22 },
+  { id: "island", label: LANDFORM_LABELS.island, land: 0.22 },
+  { id: "peninsula", label: LANDFORM_LABELS.peninsula, land: 0.36 },
+  { id: "isthmus", label: LANDFORM_LABELS.isthmus, land: 0.4 },
+  { id: "inland-sea", label: LANDFORM_LABELS["inland-sea"], land: 0.64 },
+  { id: "lakes", label: LANDFORM_LABELS.lakes, land: 0.52 },
 ];
 
-export const STEP_OPS = [
-  { op: "hill", label: "丘" },
-  { op: "pit", label: "洼" },
-  { op: "range", label: "岭" },
-  { op: "trough", label: "槽" },
-  { op: "strait", label: "海峡" },
-  { op: "sink", label: "沉降" },
-  { op: "raise", label: "抬升" },
-  { op: "mask", label: "切边" },
-];
+export const STEP_OPS = STEP_OP_ORDER.map((op) => ({ op, label: STEP_OP_LABELS[op] }));
 
 /** @type {Record<string, LandformStep[]>} */
 export const RECIPES = {
@@ -71,29 +73,9 @@ export function landformById(id) {
 }
 
 /** @param {string} [id] */
-export function landformLabel(id) {
-  return landformById(id).label;
-}
-
-/** @param {string} [id] */
 export function recipeFor(id) {
   const steps = RECIPES[id] || RECIPES.continents;
   return steps.map((s) => ({ ...s }));
-}
-
-/** @param {string} op */
-export function opLabel(op) {
-  return STEP_OPS.find((s) => s.op === op)?.label || op;
-}
-
-/** @param {LandformStep} step */
-export function stepSummary(step) {
-  const name = opLabel(step.op);
-  const n = Array.isArray(step.n) ? `${step.n[0]}–${step.n[1]}` : step.n;
-  if (n) return `${name} ×${n}`;
-  if (step.op === "sink" || step.op === "raise") return `${name} ${step.amp ?? ""}`;
-  if (step.op === "mask") return `${name}`;
-  return name;
 }
 
 /** @param {unknown} raw @returns {LandformStep[] | null} */

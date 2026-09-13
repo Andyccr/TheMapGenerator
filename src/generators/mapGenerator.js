@@ -31,7 +31,8 @@ import { placeProvinces } from "./provinces.js";
 import { placeReligions } from "./religions.js";
 import { placeFeatures } from "./features.js";
 import { applyLandform, parseRecipe } from "./landforms.js";
-import { placeDiplomacy, pruneDiplomacy } from "./diplomacy.js";
+import { pruneDiplomacy } from "../data/diplomacy.js";
+import { placeDiplomacy } from "./diplomacy.js";
 import { createNameFactory, phonologyById } from "./names.js";
 import { carryNames } from "../data/carry.js";
 

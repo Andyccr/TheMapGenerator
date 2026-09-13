@@ -19,10 +19,10 @@ This is MVC with an extra generator stage:
 | --- | --- | --- |
 | Model | `src/data/worldData.js` | Serializable snapshot. Import/export *is* the model. |
 | Factory | `src/generators/mapGenerator.js` | The only place algorithms run in sequence. |
-| Controller | `src/ui/app.js` + `src/editors/` | Tools mutate; App owns undo, camera, persistence. |
-| View | `src/renderers/canvasRenderer.js` | Pan/zoom, hit-test, PNG blit. |
+| Controller | `src/ui/app.js` + `src/editors/` | Tools mutate; App owns undo, camera, persistence. Dialogs / inspect / recipe list are sibling UI modules. |
+| View | `src/renderers/canvasRenderer.js` | Pan/zoom, hit-test, PNG blit. Screen HUD in `hud.js`. |
 
-Data never imports generators, editors, or renderers. Generators never import the DOM. The renderer never assigns `cell.height`, and never imports `generators/` — shared labels live in `src/data/catalogs.js`, hit-testing in `src/util/spatialIndex.js`.
+Data never imports generators, editors, or renderers. Generators never import the DOM. The renderer never assigns `cell.height`, and never imports `generators/` — shared labels live in `src/data/catalogs.js` (biomes, markers, cultures, faiths, features, landforms, stances, route kinds, recipe-step names), hit-testing in `src/util/spatialIndex.js`. Pairwise diplomacy JSON helpers live in `src/data/diplomacy.js`; `generators/diplomacy.js` only *places* ties.
 
 ## Core contracts
 
@@ -109,7 +109,7 @@ class CanvasRenderer {
 
 Style presets include atlas, physical, political, cultural, provinces, height, temperature, precipitation, parchment, and night. Overlay toggles (rivers, routes, markers, relief) are draw-only; they never rewrite cells.
 
-`MapGenerator.generate` reports `mesh → tectonics → hydrology → climate → society → routes`. The UI runs generate / society / routes / recompute / names / climate in `src/workers/generateWorker.js` so the tab stays responsive, and falls back to the main thread if workers cannot start. Live raise/lower preview still recomputes on the main thread (a worker round-trip per brush stroke would hitch). Inspect HTML lives in `src/ui/format.js`; GM-created cultures / faiths / realms live in `src/editors/entities.js`. `runGeneratorJob` returns a promise with `.cancel()` that terminates the worker and does **not** fall back to the main thread.
+`MapGenerator.generate` reports `mesh → tectonics → hydrology → climate → society → routes`. The UI runs generate / society / routes / recompute / names / climate in `src/workers/generateWorker.js` so the tab stays responsive, and falls back to the main thread if workers cannot start. Live raise/lower preview still recomputes on the main thread (a worker round-trip per brush stroke would hitch). Inspect HTML lives in `src/ui/format.js` and **must not import generators** — labels and diplomacy lookups come from `data/`. Modal chrome is `src/ui/dialogs.js`; inspector selects are `src/ui/inspectPanel.js`; the landform step list is `src/ui/recipePanel.js`. GM-created cultures / faiths / realms live in `src/editors/entities.js`. `runGeneratorJob` returns a promise with `.cancel()` that terminates the worker and does **not** fall back to the main thread. Only `app.js` and `generateClient.js` in `ui/` may import `generators/`.
 
 ## Persistence
 

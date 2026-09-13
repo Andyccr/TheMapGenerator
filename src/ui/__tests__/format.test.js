@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { escapeHtml, rosterItems, rosterListHtml, searchHits, cellInspectHtml } from "../format.js";
+import { escapeHtml, rosterItems, rosterListHtml, searchHits, cellInspectHtml, overviewInspectHtml } from "../format.js";
 import { MapGenerator } from "../../generators/mapGenerator.js";
 
 test("escapeHtml encodes markup", () => {
@@ -30,4 +30,5 @@ test("roster and search include routes; inspect lists 过路", () => {
     const hits = searchHits(w, from.name.slice(0, Math.min(2, from.name.length)));
     assert.ok(Array.isArray(hits));
   }
+  assert.match(overviewInspectHtml(w, "全图"), /陆形/);
 });

@@ -1,6 +1,6 @@
 {
   "name": "fantasy-world-map-generator",
-  "version": "1.9.0",
+  "version": "2.0.0",
   "private": true,
   "description": "Static, geographically plausible fantasy map generator for writers, game masters, and cartographers. Runs entirely in the browser and deploys to GitHub Pages.",
   "type": "module",

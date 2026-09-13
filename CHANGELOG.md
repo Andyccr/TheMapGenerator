@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.0
+
+- Architecture: landform / stance / route / recipe-step labels live in `src/data/catalogs.js`. Diplomacy JSON helpers (`tiesFor`, `setStance`, `pruneDiplomacy`) live in `src/data/diplomacy.js`. Generators keep only placement algorithms and re-export for existing tests.
+- `src/ui/format.js` imports `data/` only — no generators. Dialogs, inspect chrome, and the landform recipe list are `src/ui/dialogs.js`, `inspectPanel.js`, and `recipePanel.js`. Canvas HUD (compass, scale, grid, measure, draft, highlight) is `src/renderers/hud.js`.
+- Architecture tests now fail if any UI helper besides `app.js` / `generateClient.js` imports `generators/`.
+
 ## 1.9.0
 
 - First visit opens a welcome instead of generating a huge map: quick start (medium-coarse), examples, or generate with the current settings. Empty canvas has the same shortcuts.
