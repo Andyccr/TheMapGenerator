@@ -118,3 +118,77 @@ export const SETTLEMENT_TYPE_LABELS = {
   town: "城镇",
   village: "村落",
 };
+
+/** @type {Record<string, string>} */
+export const LANDFORM_LABELS = {
+  continents: "诸大陆",
+  pangea: "盘古大陆",
+  archipelago: "群岛",
+  island: "大岛",
+  peninsula: "半岛",
+  isthmus: "地峡",
+  "inland-sea": "内海",
+  lakes: "湖区",
+};
+
+/** @param {string} [id] */
+export function landformLabel(id) {
+  return LANDFORM_LABELS[id] || LANDFORM_LABELS.continents;
+}
+
+/** Ordered heightmap ops. Generators keep the algorithms; labels live here. */
+export const STEP_OP_ORDER = ["hill", "pit", "range", "trough", "strait", "sink", "raise", "mask"];
+
+/** @type {Record<string, string>} */
+export const STEP_OP_LABELS = {
+  hill: "丘",
+  pit: "洼",
+  range: "岭",
+  trough: "槽",
+  strait: "海峡",
+  sink: "沉降",
+  raise: "抬升",
+  mask: "切边",
+};
+
+/** @param {string} op */
+export function stepOpLabel(op) {
+  return STEP_OP_LABELS[op] || op;
+}
+
+/**
+ * @param {{ op: string, n?: number|number[], amp?: number|number[] }} step
+ */
+export function stepSummary(step) {
+  const name = stepOpLabel(step.op);
+  const n = Array.isArray(step.n) ? `${step.n[0]}–${step.n[1]}` : step.n;
+  if (n) return `${name} ×${n}`;
+  if (step.op === "sink" || step.op === "raise") return `${name} ${step.amp ?? ""}`;
+  if (step.op === "mask") return `${name}`;
+  return name;
+}
+
+/** @type {Record<string, string>} */
+export const STANCE_LABELS = {
+  ally: "同盟",
+  peace: "和平",
+  rival: "敌对",
+  war: "交战",
+};
+
+/** @param {string} [stance] */
+export function stanceLabel(stance) {
+  return STANCE_LABELS[stance] || "往来";
+}
+
+/** @type {Record<string, string>} */
+export const ROUTE_KIND_LABELS = {
+  sea: "海路",
+  trail: "小径",
+  road: "商路",
+};
+
+/** @param {string} [kind] */
+export function routeKindLabel(kind) {
+  return ROUTE_KIND_LABELS[kind] || ROUTE_KIND_LABELS.road;
+}

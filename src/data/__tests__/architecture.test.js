@@ -55,3 +55,20 @@ test("four-layer folders do not import across the wrong boundary", () => {
   }
   assert.equal(leaks.length, 0, leaks.join("\n"));
 });
+
+test("UI helpers do not import generators (App and generateClient may)", () => {
+  const uiDir = join(srcRoot, "ui");
+  const allowed = new Set(["app.js", "generateClient.js"]);
+  /** @type {string[]} */
+  const leaks = [];
+  for (const file of listJs(uiDir)) {
+    const name = file.split(/[/\\]/).pop();
+    if (allowed.has(name || "")) continue;
+    for (const spec of importsOf(file)) {
+      if (!spec.startsWith(".")) continue;
+      const resolved = relative(srcRoot, join(dirname(file), spec)).replaceAll("\\", "/");
+      if (resolved.startsWith("generators/")) leaks.push(`${relative(srcRoot, file)} → ${resolved}`);
+    }
+  }
+  assert.equal(leaks.length, 0, leaks.join("\n"));
+});
