@@ -10,9 +10,11 @@ import {
   markerLabel,
   religionTypeLabel,
   featureTypeLabel,
+  landformLabel,
+  stanceLabel,
+  routeKindLabel,
 } from "../data/catalogs.js";
-import { landformLabel } from "../generators/landforms.js";
-import { stanceLabel, tiesFor, otherId } from "../generators/diplomacy.js";
+import { tiesFor, otherId } from "../data/diplomacy.js";
 
 /** @param {string} s */
 export function escapeHtml(s) {
@@ -72,7 +74,7 @@ export function cellInspectHtml(world, cellId) {
     : "";
   const roads = (world.routes || []).filter((r) => r.cellIds.includes(cellId));
   const roadHint = roads.length
-    ? roads.map((r) => `${r.kind === "sea" ? "海路" : r.kind === "trail" ? "小径" : "商路"} #${r.id}`).join(" · ")
+    ? roads.map((r) => `${routeKindLabel(r.kind)} #${r.id}`).join(" · ")
     : "—";
   return `
       <dt>格子</dt><dd>#${c.id}</dd>
@@ -162,7 +164,7 @@ export function rosterItems(world, kind) {
     return (world.routes || []).map((r) => {
       const a = world.settlements.find((s) => s.id === r.fromId);
       const b = world.settlements.find((s) => s.id === r.toId);
-      const kindLabel = r.kind === "sea" ? "海路" : r.kind === "trail" ? "小径" : "商路";
+      const kindLabel = routeKindLabel(r.kind);
       return {
         label: `${a?.name || "?"}–${b?.name || "?"}`,
         hint: kindLabel,
@@ -226,7 +228,7 @@ export function searchHits(world, query) {
     if (label.toLowerCase().includes(q) || (a?.name || "").toLowerCase().includes(q) || (b?.name || "").toLowerCase().includes(q)) {
       hits.push({
         label,
-        hint: r.kind === "sea" ? "海路" : r.kind === "trail" ? "小径" : "商路",
+        hint: routeKindLabel(r.kind),
         cellId: r.cellIds[Math.floor(r.cellIds.length / 2)] ?? a?.cellId ?? -1,
       });
     }

@@ -1,17 +1,17 @@
 /**
  * App controller. Wires the four layers together and owns the camera, undo
- * stack, and UI chrome. This is the only module allowed to touch both data
- * and the DOM.
+ * stack, and UI chrome. Dialogs, inspect HTML, and recipe list live in sibling
+ * modules; this file is the only UI entry that may import generators.
  */
 import { MapGenerator } from "../generators/mapGenerator.js";
 import { CanvasRenderer } from "../renderers/canvasRenderer.js";
 import { createTools } from "../editors/tools.js";
 import { cloneWorld, parseWorld, summarizeWorld } from "../data/worldData.js";
 import { saveAutosave, loadAutosave, downloadJson, downloadPng, readJsonFile, peekAutosave, saveSlot, loadSlot, listSlotMeta, SLOT_COUNT } from "../persistence/storage.js";
-import { BIOME_LABELS, LAND_BIOMES, SETTLEMENT_TYPE_LABELS } from "../data/catalogs.js";
-import { landformLabel, recipeFor, parseRecipe, stepSummary, applyStepsOnly } from "../generators/landforms.js";
+import { BIOME_LABELS, SETTLEMENT_TYPE_LABELS, landformLabel } from "../data/catalogs.js";
+import { recipeFor, parseRecipe, applyStepsOnly } from "../generators/landforms.js";
 import { estimatePopulation } from "../generators/civilization.js";
-import { tiesFor, otherId, setStance, STANCE_LABELS } from "../generators/diplomacy.js";
+import { setStance } from "../data/diplomacy.js";
 import { APP_VERSION } from "../core/version.js";
 import { runGeneratorJob, STAGE_LABELS, isJobCancelled } from "./generateClient.js";
 import { parseShare, serializeShare, shareHasSeed } from "./share.js";
@@ -20,6 +20,9 @@ import { PAINT_LAYERS, paintCell } from "../editors/paint.js";
 import { createCulture, createReligion, createRealm } from "../editors/entities.js";
 import { makeRng } from "../generators/rng.js";
 import { escapeHtml, overviewInspectHtml, cellInspectHtml, rosterItems, searchHits, rosterListHtml } from "./format.js";
+import { FolioDialogs } from "./dialogs.js";
+import { fillCellEdit, fillDiploEdit, fillRouteEdit, syncPaintPigment } from "./inspectPanel.js";
+import { defaultStep, renderRecipeList } from "./recipePanel.js";
 
 const SETTLEMENT_TYPE = SETTLEMENT_TYPE_LABELS;
 
@@ -76,8 +79,7 @@ export class App {
     this._noteTarget = null;
     this._burgTarget = null;
     this._inspectCellId = -1;
-    this._dialogDone = null;
-    this._confirmDone = null;
+    this.dialogs = new FolioDialogs(doc);
     this.landformSteps = null;
     this._busy = false;
     /** @type {(Promise<import("../types.js").WorldData> & { cancel?: () => void }) | null} */
@@ -98,7 +100,6 @@ export class App {
     if (helpVer) helpVer.textContent = `v${APP_VERSION}`;
     this.#fillSlotSelect();
     this.#syncRecipeList();
-    this.#fillExamples();
     this.#syncPaintPigment();
     this.#setTool(this.toolId);
     window.addEventListener("resize", () => {
@@ -132,7 +133,7 @@ export class App {
       }
     }
     this.#syncEmptyStage();
-    this.#openWelcome();
+    this.dialogs.openWelcome();
   }
 
   /**
@@ -144,10 +145,10 @@ export class App {
       return;
     }
     if (this.world && !opts.force) {
-      const ok = await this.#askConfirm("生成会替换当前世界。未导出的修改会丢掉。继续？", "继续生成");
+      const ok = await this.dialogs.askConfirm("生成会替换当前世界。未导出的修改会丢掉。继续？", "继续生成");
       if (!ok) return;
     }
-    this.#closeWelcome();
+    this.dialogs.closeWelcome();
     this.#setBusy(true, "正在生成世界…范围越大、格网越密，可能需要数秒。");
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     try {
@@ -266,6 +267,7 @@ export class App {
   }
 
   #bind() {
+    this.dialogs.bind();
     const canvas = /** @type {HTMLCanvasElement} */ (this.#el("map"));
     this.#el("btn-generate")?.addEventListener("click", () => this.generate());
     this.#el("btn-random")?.addEventListener("click", () => {
@@ -316,15 +318,15 @@ export class App {
     this.#el("btn-cancel-job")?.addEventListener("click", () => this.#cancelJob());
     this.#el("btn-welcome-quick")?.addEventListener("click", () => this.#quickStart());
     this.#el("btn-welcome-examples")?.addEventListener("click", () => {
-      this.#closeWelcome();
-      this.#openExamples();
+      this.dialogs.closeWelcome();
+      this.dialogs.openExamples();
     });
     this.#el("btn-welcome-settings")?.addEventListener("click", () => {
-      this.#closeWelcome();
+      this.dialogs.closeWelcome();
       this.generate({ force: true });
     });
     this.#el("btn-empty-generate")?.addEventListener("click", () => this.#quickStart());
-    this.#el("btn-empty-examples")?.addEventListener("click", () => this.#openExamples());
+    this.#el("btn-empty-examples")?.addEventListener("click", () => this.dialogs.openExamples());
     this.#el("opt-paint-layer")?.addEventListener("change", () => {
       this.#syncPaintPigment();
       this.#matchStyleToPaint();
@@ -480,8 +482,8 @@ export class App {
     this.#el("btn-reroll-society")?.addEventListener("click", () => this.#reroll("society"));
     this.#el("btn-reroll-names")?.addEventListener("click", () => this.#reroll("names"));
     this.#el("btn-reroll-routes")?.addEventListener("click", () => this.#reroll("routes"));
-    this.#el("btn-help")?.addEventListener("click", () => this.#openHelp());
-    this.#el("btn-examples")?.addEventListener("click", () => this.#openExamples());
+    this.#el("btn-help")?.addEventListener("click", () => this.dialogs.openHelp());
+    this.#el("btn-examples")?.addEventListener("click", () => this.dialogs.openExamples());
     this.#el("btn-copy-seed")?.addEventListener("click", () => this.#copySeed());
     this.#el("btn-copy-link")?.addEventListener("click", () => this.#copyLink());
     this.#el("btn-fold-left")?.addEventListener("click", () => this.#togglePanel("left"));
@@ -526,33 +528,6 @@ export class App {
       this.#fillRoster();
       this.redraw();
       this.#inspect(this._burgTarget.cellId);
-    });
-    this.#el("confirm-form")?.addEventListener("submit", (e) => {
-      const btn = /** @type {HTMLButtonElement | null} */ (e.submitter);
-      this._confirmDone?.(btn?.value === "ok");
-      this._confirmDone = null;
-    });
-    this.#el("confirm-dialog")?.addEventListener("close", () => {
-      if (this._confirmDone) {
-        this._confirmDone(false);
-        this._confirmDone = null;
-      }
-    });
-    this.#el("text-form")?.addEventListener("submit", (e) => {
-      const btn = /** @type {HTMLButtonElement | null} */ (e.submitter);
-      const input = this.#el("dialog-input");
-      if (btn?.value === "ok" && input instanceof HTMLInputElement) {
-        this._dialogDone?.(input.value.trim() || input.defaultValue || null);
-      } else {
-        this._dialogDone?.(null);
-      }
-      this._dialogDone = null;
-    });
-    this.#el("text-dialog")?.addEventListener("close", () => {
-      if (this._dialogDone) {
-        this._dialogDone(null);
-        this._dialogDone = null;
-      }
     });
 
     window.addEventListener("keydown", (ev) => this.#onKey(ev));
@@ -658,16 +633,16 @@ export class App {
         this.#cancelJob();
         return;
       }
-      this.#closeHelp();
-      this.#closeExamples();
-      this.#closeWelcome();
+      this.dialogs.closeHelp();
+      this.dialogs.closeExamples();
+      this.dialogs.closeWelcome();
       this.#el("text-dialog")?.close?.();
       this.#el("confirm-dialog")?.close?.();
       return;
     }
     if (ev.key === "F1" || ev.key === "?") {
       ev.preventDefault();
-      this.#openHelp();
+      this.dialogs.openHelp();
       return;
     }
     if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "z") {
@@ -877,7 +852,7 @@ export class App {
         if (this._inspectCellId >= 0) this.#inspect(this._inspectCellId);
       },
       promptRename: (s) => {
-        this.#askText("重命名", s.name, (next) => {
+        this.dialogs.askText("重命名", s.name, (next) => {
           if (!next) return;
           this.#pushUndo();
           s.name = next;
@@ -889,7 +864,7 @@ export class App {
       },
       promptText: (label, fallback) => fallback || "",
       beginEdit: () => this.#pushUndo(),
-      askText: (label, fallback, done) => this.#askText(label, fallback, done),
+      askText: (label, fallback, done) => this.dialogs.askText(label, fallback, done),
     };
   }
 
@@ -1000,9 +975,25 @@ export class App {
     this.#hideInspect("color-wrap", !hasColor);
     if (hasColor && colorEl instanceof HTMLInputElement) colorEl.value = this._noteTarget.color;
     this.#hideInspect("create-edit", Boolean(c.ocean || c.border));
-    this.#fillCellEdit(c);
-    this.#fillDiploEdit(realm);
-    this.#fillRouteEdit(cellId);
+    fillCellEdit(this.doc, this.world, c);
+    fillDiploEdit(this.doc, this.world, realm, (other, stance) => {
+      if (!this.world || !realm) return;
+      this.#pushUndo();
+      if (!this.world.diplomacy) this.world.diplomacy = [];
+      setStance(this.world.diplomacy, realm.id, other, stance);
+      this.#scheduleAutosave();
+      this.#inspect(this._inspectCellId);
+    });
+    fillRouteEdit(this.doc, this.world, cellId, (id) => {
+      if (!this.world) return;
+      this.#pushUndo();
+      this.world.routes = (this.world.routes || []).filter((r) => r.id !== id);
+      this.#scheduleAutosave();
+      this.#fillRoster();
+      this.#inspect(this._inspectCellId);
+      this.redraw();
+      this.#toast("已删去这条路。");
+    });
     box.innerHTML = cellInspectHtml(this.world, cellId);
     this.#setStatus(cellId);
   }
@@ -1100,27 +1091,6 @@ export class App {
     el.textContent = `${this.renderer.zoomPercent(this.world)}% · ${this.renderer.lodLabel(this.world)}`;
   }
 
-  /**
-   * @param {string} label
-   * @param {string} fallback
-   * @param {(value: string | null) => void} done
-   */
-  #askText(label, fallback, done) {
-    const dialog = this.#el("text-dialog");
-    const lab = this.#el("dialog-label");
-    const input = this.#el("dialog-input");
-    if (!(dialog instanceof HTMLDialogElement) || !(input instanceof HTMLInputElement)) {
-      done(window.prompt(label, fallback));
-      return;
-    }
-    if (lab) lab.textContent = label;
-    input.value = fallback || "";
-    this._dialogDone = done;
-    dialog.showModal();
-    input.focus();
-    input.select();
-  }
-
   /** @param {"left"|"right"} side */
   #togglePanel(side) {
     const app = this.#el("app");
@@ -1209,61 +1179,6 @@ export class App {
     this.doc.defaultView.history.replaceState(null, "", next);
   }
 
-  /**
-   * @param {string} message
-   * @param {string} [okLabel]
-   * @returns {Promise<boolean>}
-   */
-  #askConfirm(message, okLabel = "确定") {
-    const dialog = this.#el("confirm-dialog");
-    const msg = this.#el("confirm-msg");
-    const okBtn = this.#el("confirm-ok");
-    if (msg) msg.textContent = message;
-    if (okBtn) okBtn.textContent = okLabel;
-    if (!(dialog instanceof HTMLDialogElement)) {
-      return Promise.resolve(this.doc.defaultView?.confirm(message) !== false);
-    }
-    return new Promise((resolve) => {
-      this._confirmDone = resolve;
-      try {
-        dialog.showModal();
-      } catch {
-        resolve(this.doc.defaultView?.confirm(message) !== false);
-      }
-    });
-  }
-
-  #openHelp() {
-    const d = this.#el("help-dialog");
-    if (d instanceof HTMLDialogElement) {
-      try {
-        if (!d.open) d.showModal();
-        return;
-      } catch {
-        /* some embedded browsers reject showModal */
-      }
-    }
-    if (d instanceof HTMLElement) {
-      d.setAttribute("open", "");
-      d.classList.add("open");
-    }
-  }
-
-  #closeHelp() {
-    const d = this.#el("help-dialog");
-    if (d instanceof HTMLDialogElement) {
-      try {
-        d.close();
-      } catch {
-        /* ignore */
-      }
-    }
-    if (d instanceof HTMLElement) {
-      d.removeAttribute("open");
-      d.classList.remove("open");
-    }
-  }
-
   #fillExamples() {
     const list = this.#el("example-list");
     if (!list) return;
@@ -1276,46 +1191,15 @@ export class App {
     });
   }
 
-  #openExamples() {
-    const d = this.#el("examples-dialog");
-    if (d instanceof HTMLDialogElement) {
-      try {
-        if (!d.open) d.showModal();
-        return;
-      } catch {
-        /* ignore */
-      }
-    }
-    if (d instanceof HTMLElement) {
-      d.setAttribute("open", "");
-      d.classList.add("open");
-    }
-  }
-
-  #closeExamples() {
-    const d = this.#el("examples-dialog");
-    if (d instanceof HTMLDialogElement) {
-      try {
-        d.close();
-      } catch {
-        /* ignore */
-      }
-    }
-    if (d instanceof HTMLElement) {
-      d.removeAttribute("open");
-      d.classList.remove("open");
-    }
-  }
-
   /** @param {string} id */
   async #loadExample(id) {
     const ex = EXAMPLE_WORLDS.find((e) => e.id === id);
     if (!ex) return;
     if (this.world) {
-      const ok = await this.#askConfirm("打开范例会替换当前世界。继续？", "打开范例");
+      const ok = await this.dialogs.askConfirm("打开范例会替换当前世界。继续？", "打开范例");
       if (!ok) return;
     }
-    this.#closeExamples();
+    this.dialogs.closeExamples();
     this.#applyShare(parseShare(ex.query));
     await this.generate({ force: true });
     this.#toast(`已打开范例「${ex.title}」。`);
@@ -1375,7 +1259,7 @@ export class App {
     const index = Number(sel instanceof HTMLSelectElement ? sel.value : 0);
     const meta = listSlotMeta()[index];
     if (meta && !meta.empty) {
-      const ok = await this.#askConfirm(`槽位 ${index + 1} 已有「${meta.mapName || meta.seed}」。覆盖吗？`, "覆盖");
+      const ok = await this.dialogs.askConfirm(`槽位 ${index + 1} 已有「${meta.mapName || meta.seed}」。覆盖吗？`, "覆盖");
       if (!ok) return;
     }
     const ok = await saveSlot(index, this.world);
@@ -1484,39 +1368,8 @@ export class App {
     if (empty instanceof HTMLElement) empty.hidden = Boolean(this.world) || this._busy;
   }
 
-  #openWelcome() {
-    const d = this.#el("welcome-dialog");
-    if (d instanceof HTMLDialogElement) {
-      try {
-        if (!d.open) d.showModal();
-        return;
-      } catch {
-        /* ignore */
-      }
-    }
-    if (d instanceof HTMLElement) {
-      d.setAttribute("open", "");
-      d.classList.add("open");
-    }
-  }
-
-  #closeWelcome() {
-    const d = this.#el("welcome-dialog");
-    if (d instanceof HTMLDialogElement) {
-      try {
-        d.close();
-      } catch {
-        /* ignore */
-      }
-    }
-    if (d instanceof HTMLElement) {
-      d.removeAttribute("open");
-      d.classList.remove("open");
-    }
-  }
-
   async #quickStart() {
-    this.#closeWelcome();
+    this.dialogs.closeWelcome();
     const extent = this.#el("opt-extent");
     const detail = this.#el("opt-detail");
     if (extent instanceof HTMLSelectElement) extent.value = "1920,1200";
@@ -1534,7 +1387,7 @@ export class App {
     }
     try {
       const raw = await readJsonFile(file);
-      this.#closeWelcome();
+      this.dialogs.closeWelcome();
       this.#applyWorld(parseWorld(raw), { fit: true });
       this.#toast("存档已导入。");
     } catch (err) {
@@ -1559,28 +1412,7 @@ export class App {
   }
 
   #syncPaintPigment() {
-    const layerEl = this.#el("opt-paint-layer");
-    const valueEl = this.#el("opt-paint-value");
-    if (!(layerEl instanceof HTMLSelectElement) || !(valueEl instanceof HTMLSelectElement)) return;
-    const layer = layerEl.value;
-    const prev = valueEl.value;
-    /** @type {{ value: string, label: string }[]} */
-    const opts = [{ value: "", label: "（点击吸取）" }];
-    if (layer === "biome") {
-      for (const key of LAND_BIOMES) opts.push({ value: key, label: BIOME_LABELS[key] || key });
-    } else if (this.world) {
-      if (layer === "culture") {
-        for (const c of this.world.cultures || []) opts.push({ value: String(c.id), label: c.name });
-      } else if (layer === "religion") {
-        for (const r of this.world.religions || []) opts.push({ value: String(r.id), label: r.name });
-      } else if (layer === "realm") {
-        for (const r of this.world.regions) opts.push({ value: String(r.id), label: r.name });
-      } else if (layer === "province") {
-        for (const p of this.world.provinces || []) opts.push({ value: String(p.id), label: p.name });
-      }
-    }
-    valueEl.innerHTML = opts.map((o) => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join("");
-    if (opts.some((o) => o.value === prev)) valueEl.value = prev;
+    syncPaintPigment(this.doc, this.world);
   }
 
   #matchStyleToPaint() {
@@ -1610,131 +1442,6 @@ export class App {
     this.#inspect(this._inspectCellId);
   }
 
-  /** @param {import("../types.js").Cell} cell */
-  #fillCellEdit(cell) {
-    const wrap = this.#el("cell-edit");
-    if (!(wrap instanceof HTMLElement) || !this.world) return;
-    if (cell.ocean) {
-      wrap.hidden = true;
-      return;
-    }
-    wrap.hidden = false;
-    const fill = (id, options, current) => {
-      const sel = this.#el(id);
-      if (!(sel instanceof HTMLSelectElement)) return;
-      sel.innerHTML = options.map((o) => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join("");
-      sel.value = current;
-    };
-    fill(
-      "opt-cell-biome",
-      LAND_BIOMES.map((k) => ({ value: k, label: BIOME_LABELS[k] || k })),
-      LAND_BIOMES.includes(cell.biome) ? cell.biome : LAND_BIOMES[0],
-    );
-    fill(
-      "opt-cell-culture",
-      [{ value: "", label: "—" }, ...(this.world.cultures || []).map((c) => ({ value: String(c.id), label: c.name }))],
-      cell.cultureId >= 0 ? String(cell.cultureId) : "",
-    );
-    fill(
-      "opt-cell-realm",
-      [{ value: "", label: "—" }, ...this.world.regions.map((r) => ({ value: String(r.id), label: r.name }))],
-      cell.regionId >= 0 ? String(cell.regionId) : "",
-    );
-    const realmId = cell.regionId;
-    fill(
-      "opt-cell-province",
-      [
-        { value: "", label: "—" },
-        ...(this.world.provinces || [])
-          .filter((p) => realmId < 0 || p.regionId === realmId)
-          .map((p) => ({ value: String(p.id), label: p.name })),
-      ],
-      cell.provinceId >= 0 ? String(cell.provinceId) : "",
-    );
-    fill(
-      "opt-cell-religion",
-      [{ value: "", label: "—" }, ...(this.world.religions || []).map((r) => ({ value: String(r.id), label: r.name }))],
-      cell.religionId >= 0 ? String(cell.religionId) : "",
-    );
-  }
-
-  /** @param {import("../types.js").Region | null} realm */
-  #fillDiploEdit(realm) {
-    const list = this.#el("diplo-edit");
-    if (!(list instanceof HTMLElement) || !this.world) return;
-    if (!realm) {
-      list.hidden = true;
-      list.innerHTML = "";
-      return;
-    }
-    const ties = tiesFor(this.world.diplomacy || [], realm.id);
-    if (!ties.length) {
-      list.hidden = true;
-      list.innerHTML = "";
-      return;
-    }
-    list.hidden = false;
-    const stances = Object.entries(STANCE_LABELS);
-    list.innerHTML = ties
-      .map((t) => {
-        const other = this.world.regions[otherId(t, realm.id)];
-        if (!other) return "";
-        const opts = stances
-          .map(([k, lab]) => `<option value="${k}"${k === t.stance ? " selected" : ""}>${lab}</option>`)
-          .join("");
-        return `<li><label>${escapeHtml(other.name)} <select data-diplo-other="${other.id}">${opts}</select></label></li>`;
-      })
-      .join("");
-    list.querySelectorAll("[data-diplo-other]").forEach((sel) => {
-      sel.addEventListener("change", (e) => {
-        if (!this.world || !realm) return;
-        const other = Number(/** @type {HTMLSelectElement} */ (e.target).getAttribute("data-diplo-other"));
-        const stance = /** @type {HTMLSelectElement} */ (e.target).value;
-        this.#pushUndo();
-        if (!this.world.diplomacy) this.world.diplomacy = [];
-        setStance(this.world.diplomacy, realm.id, other, stance);
-        this.#scheduleAutosave();
-        this.#inspect(this._inspectCellId);
-      });
-    });
-  }
-
-  /**
-   * @param {number} cellId
-   */
-  #fillRouteEdit(cellId) {
-    const wrap = this.#el("route-edit");
-    if (!(wrap instanceof HTMLElement) || !this.world) return;
-    const roads = (this.world.routes || []).filter((r) => r.cellIds.includes(cellId));
-    if (!roads.length) {
-      wrap.hidden = true;
-      wrap.innerHTML = "";
-      return;
-    }
-    wrap.hidden = false;
-    wrap.innerHTML = roads
-      .map((r) => {
-        const a = this.world.settlements.find((s) => s.id === r.fromId);
-        const b = this.world.settlements.find((s) => s.id === r.toId);
-        const kind = r.kind === "sea" ? "海路" : r.kind === "trail" ? "小径" : "商路";
-        return `<li><span>${escapeHtml(kind)} ${escapeHtml(a?.name || "?")}–${escapeHtml(b?.name || "?")}</span><button type="button" data-drop-route="${r.id}">删</button></li>`;
-      })
-      .join("");
-    wrap.querySelectorAll("[data-drop-route]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        if (!this.world) return;
-        const id = Number(btn.getAttribute("data-drop-route"));
-        this.#pushUndo();
-        this.world.routes = (this.world.routes || []).filter((r) => r.id !== id);
-        this.#scheduleAutosave();
-        this.#fillRoster();
-        this.#inspect(this._inspectCellId);
-        this.redraw();
-        this.#toast("已删去这条路。");
-      });
-    });
-  }
-
   /** @param {string} kind */
   #createEntity(kind) {
     if (!this.world || this._inspectCellId < 0) {
@@ -1753,7 +1460,7 @@ export class App {
     }
     const titles = { culture: "新文化名称", religion: "新信仰名称", realm: "新国度名称" };
     const fallbacks = { culture: "新族", religion: "新宗", realm: "新国" };
-    this.#askText(titles[kind] || "名称", fallbacks[kind] || "未命名", (name) => {
+    this.dialogs.askText(titles[kind] || "名称", fallbacks[kind] || "未命名", (name) => {
       if (!name || !this.world) return;
       this.#pushUndo();
       const made =
@@ -1855,27 +1562,12 @@ export class App {
   }
 
   #syncRecipeList() {
-    const list = this.#el("landform-recipe");
-    if (!list) return;
     const steps = this.landformSteps || recipeFor(this.#currentLandform());
     this.landformSteps = steps;
-    if (!steps.length) {
-      list.innerHTML = `<li class="empty">无额外步骤（纯板块轮廓）</li>`;
-      return;
-    }
-    list.innerHTML = steps
-      .map(
-        (step, i) =>
-          `<li><span>${escapeHtml(stepSummary(step))}</span><button type="button" data-drop-step="${i}">删</button></li>`,
-      )
-      .join("");
-    list.querySelectorAll("[data-drop-step]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const i = Number(btn.getAttribute("data-drop-step"));
-        if (!this.landformSteps) return;
-        this.landformSteps.splice(i, 1);
-        this.#syncRecipeList();
-      });
+    renderRecipeList(this.#el("landform-recipe"), steps, (i) => {
+      if (!this.landformSteps) return;
+      this.landformSteps.splice(i, 1);
+      this.#syncRecipeList();
     });
   }
 
@@ -1890,15 +1582,4 @@ function randomSeed() {
   let s = "";
   for (let i = 0; i < 8; i++) s += alphabet[(Math.random() * alphabet.length) | 0];
   return s;
-}
-
-/** @param {string} op */
-function defaultStep(op) {
-  if (op === "pit") return { op: "pit", n: 1, rx: 0.08, ry: 0.07, amp: 0.28, jitter: true };
-  if (op === "range") return { op: "range", n: 1, rx: 0.22, ry: 0.08, amp: 0.4, jitter: true };
-  if (op === "strait") return { op: "strait", amp: 0.55 };
-  if (op === "sink") return { op: "sink", amp: 0.12 };
-  if (op === "raise") return { op: "raise", amp: 0.08 };
-  if (op === "mask") return { op: "mask", edge: 0.12, amp: 2 };
-  return { op: "hill", n: 1, rx: 0.12, ry: 0.1, amp: 0.35, jitter: true };
 }

@@ -12,6 +12,7 @@ import { lodConfig, lodFromZoom, LOD_LABELS } from "./lod.js";
 import { buildContours } from "./contours.js";
 import { BIOME_LABELS, markerGlyph } from "../data/catalogs.js";
 import { layoutAtlasChrome, paintAtlasChrome } from "./atlasExport.js";
+import { drawGrid, drawMeasure, drawDraft, drawHighlight, drawCompass, drawScaleBar } from "./hud.js";
 
 export class CanvasRenderer {
   /** @param {HTMLCanvasElement} canvas */
@@ -110,7 +111,8 @@ export class CanvasRenderer {
 
     this.#ensureContours(world);
     this.#drawTerrain(world, style, bounds, lod);
-    if (options.grid) this.#drawGrid(world, ink);
+    const px = (n) => this.#px(n);
+    if (options.grid) drawGrid(ctx, world, ink, px);
     this.#drawCoast(world, ink, style, bounds, lod);
     if (options.rivers !== false) this.#drawRivers(world, ink, style, bounds, lod);
     if (options.routes !== false) this.#drawRoutes(world, ink, style, bounds, lod);
@@ -121,18 +123,18 @@ export class CanvasRenderer {
       else this.#drawBorders(world, ink, bounds, lod);
     }
     if (options.relief !== false) this.#drawMountains(world, style, bounds, scale, lod);
-    if (options.draftPath?.length) this.#drawDraft(world, options.draftPath);
-    if (options.measure) this.#drawMeasure(world, options.measure, ink);
+    if (options.draftPath?.length) drawDraft(ctx, world, options.draftPath, px);
+    if (options.measure) drawMeasure(ctx, options.measure, ink, px);
     if (options.labels !== false) {
       this.#drawAtlasLabels(world, ink, style, bounds, scale, lod);
       this.#drawSettlements(world, ink, style, bounds, scale, lod);
     }
     if (options.markers !== false) this.#drawMarkers(world, ink, style, bounds, scale, lod);
-    if (options.highlightCell >= 0) this.#drawHighlight(world, options.highlightCell);
+    if (options.highlightCell >= 0) drawHighlight(ctx, world, options.highlightCell, px);
 
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    this.#drawCompass(ink, style);
-    this.#drawScaleBar(world, ink);
+    drawCompass(ctx, this.canvas, ink, style);
+    drawScaleBar(ctx, this.canvas, world, ink);
   }
 
   /**
@@ -912,153 +914,5 @@ export class CanvasRenderer {
       }
     }
     ctx.textAlign = "left";
-  }
-
-  /**
-   * @param {import("../types.js").WorldData} world
-   * @param {{ x0: number, y0: number, x1: number, y1: number }} measure
-   * @param {{ text: string }} ink
-   */
-  #drawMeasure(world, measure, ink) {
-    const ctx = this.ctx;
-    if (!ctx) return;
-    const dist = Math.hypot(measure.x1 - measure.x0, measure.y1 - measure.y0);
-    ctx.strokeStyle = "#c45c2a";
-    ctx.fillStyle = ink.text;
-    ctx.lineWidth = this.#px(1.8);
-    ctx.setLineDash([this.#px(4), this.#px(3)]);
-    ctx.beginPath();
-    ctx.moveTo(measure.x0, measure.y0);
-    ctx.lineTo(measure.x1, measure.y1);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.beginPath();
-    ctx.arc(measure.x0, measure.y0, this.#px(3), 0, Math.PI * 2);
-    ctx.arc(measure.x1, measure.y1, this.#px(3), 0, Math.PI * 2);
-    ctx.fill();
-    ctx.font = `${this.#px(11)}px Palatino, Georgia, serif`;
-    ctx.textAlign = "center";
-    ctx.fillText(`${Math.round(dist)} 里格`, (measure.x0 + measure.x1) / 2, (measure.y0 + measure.y1) / 2 - this.#px(8));
-    ctx.textAlign = "left";
-  }
-
-  /** @param {import("../types.js").WorldData} world @param {number[]} path */
-  #drawDraft(world, path) {
-    const ctx = this.ctx;
-    if (!ctx || path.length < 1) return;
-    ctx.strokeStyle = "#c45c2a";
-    ctx.lineWidth = this.#px(2.2);
-    ctx.setLineDash([this.#px(5), this.#px(4)]);
-    ctx.beginPath();
-    const p0 = world.cells[path[0]];
-    ctx.moveTo(p0.x, p0.y);
-    for (let i = 1; i < path.length; i++) {
-      const c = world.cells[path[i]];
-      ctx.lineTo(c.x, c.y);
-    }
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
-
-  /** @param {import("../types.js").WorldData} world @param {number} id */
-  #drawHighlight(world, id) {
-    const ctx = this.ctx;
-    if (!ctx) return;
-    const cell = world.cells[id];
-    if (!cell || cell.polygon.length < 3) return;
-    ctx.strokeStyle = "#f2e6c4";
-    ctx.lineWidth = this.#px(1.8);
-    ctx.beginPath();
-    ctx.moveTo(cell.polygon[0][0], cell.polygon[0][1]);
-    for (let i = 1; i < cell.polygon.length; i++) ctx.lineTo(cell.polygon[i][0], cell.polygon[i][1]);
-    ctx.closePath();
-    ctx.stroke();
-  }
-
-  /** @param {import("../types.js").WorldData} world @param {{ text: string }} ink */
-  #drawGrid(world, ink) {
-    const ctx = this.ctx;
-    if (!ctx) return;
-    ctx.strokeStyle = ink.text;
-    ctx.globalAlpha = 0.12;
-    ctx.lineWidth = this.#px(0.6);
-    const step = 100;
-    ctx.beginPath();
-    for (let x = 0; x <= world.meta.width; x += step) {
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, world.meta.height);
-    }
-    for (let y = 0; y <= world.meta.height; y += step) {
-      ctx.moveTo(0, y);
-      ctx.lineTo(world.meta.width, y);
-    }
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-  }
-
-  /** @param {{ text: string }} ink @param {string} style */
-  #drawCompass(ink, style) {
-    const ctx = this.ctx;
-    if (!ctx) return;
-    const x = 36;
-    const y = this.canvas.clientHeight - 36;
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.strokeStyle = style === "night" ? "#d4c4a0" : "#3a2a18";
-    ctx.fillStyle = ink.text;
-    ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    ctx.moveTo(0, -16);
-    ctx.lineTo(5, 0);
-    ctx.lineTo(0, 16);
-    ctx.lineTo(-5, 0);
-    ctx.closePath();
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(0, -16);
-    ctx.lineTo(5, 0);
-    ctx.lineTo(-5, 0);
-    ctx.closePath();
-    ctx.fill();
-    ctx.font = "10px Palatino, Georgia, serif";
-    ctx.textAlign = "center";
-    ctx.fillText("N", 0, -20);
-    ctx.restore();
-  }
-
-  /**
-   * @param {import("../types.js").WorldData} world
-   * @param {{ text: string }} ink
-   */
-  #drawScaleBar(world, ink) {
-    const ctx = this.ctx;
-    if (!ctx) return;
-    const scale = world.view.scale || 1;
-    const candidates = [50, 100, 200, 400, 800];
-    let worldLen = 100;
-    for (const c of candidates) {
-      if (c * scale >= 48 && c * scale <= 140) {
-        worldLen = c;
-        break;
-      }
-      worldLen = c;
-    }
-    const px = worldLen * scale;
-    const x = 58;
-    const y = this.canvas.clientHeight - 18;
-    ctx.strokeStyle = ink.text;
-    ctx.fillStyle = ink.text;
-    ctx.lineWidth = 1.4;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + px, y);
-    ctx.moveTo(x, y - 4);
-    ctx.lineTo(x, y + 4);
-    ctx.moveTo(x + px, y - 4);
-    ctx.lineTo(x + px, y + 4);
-    ctx.stroke();
-    ctx.font = "10px Palatino, Georgia, serif";
-    ctx.textAlign = "center";
-    ctx.fillText(`${worldLen} 里格`, x + px / 2, y - 8);
   }
 }
