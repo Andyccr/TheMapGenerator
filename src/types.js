@@ -234,6 +234,7 @@
  * @property {(world: WorldData) => WorldData} regenerateNames
  * @property {(world: WorldData) => WorldData} rebuildRoutes
  * @property {(world: WorldData) => WorldData} rebuildRoutesAndMarkers
+ * @property {(world: WorldData, steps: object[]) => WorldData} applyLandformSteps
  * @property {(world: WorldData, cellIds: number[]) => WorldData} carveRiver
  */
 

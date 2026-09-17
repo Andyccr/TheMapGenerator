@@ -96,3 +96,14 @@ test("stampAt raises the clicked cell without a land-fraction reset", () => {
   stampAt(w.cells, w.meta.width, w.meta.height, "hill", mid.x, mid.y, 0.12, 0.5);
   assert.ok(mid.height > before + 0.05, `expected stamp to raise ${before} -> ${mid.height}`);
 });
+
+test("applyLandformSteps overlays recipe then leaves hydrology to recompute", () => {
+  const gen = new MapGenerator();
+  const w = gen.generate(cfg("continents"));
+  const land = w.cells.find((c) => !c.ocean && !c.border);
+  assert.ok(land);
+  const before = land.height;
+  gen.applyLandformSteps(w, [{ op: "raise", amp: 0.2 }]);
+  assert.ok(land.height > before);
+  assert.equal(w.meta.landformSteps[0].op, "raise");
+});

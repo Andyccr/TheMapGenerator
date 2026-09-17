@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { BIOMES, BIOME_LABELS, LAND_BIOMES, MARKER_TYPES, markerGlyph, cultureTypeLabel, religionTypeLabel, featureTypeLabel, landformLabel, LANDFORM_LABELS, stanceLabel, STANCE_LABELS, stepSummary, stepOpLabel, routeKindLabel } from "../catalogs.js";
+import { BIOMES, BIOME_LABELS, LAND_BIOMES, MARKER_TYPES, markerGlyph, cultureTypeLabel, religionTypeLabel, featureTypeLabel, landformLabel, LANDFORM_LABELS, stanceLabel, STANCE_LABELS, stepSummary, stepOpLabel, routeKindLabel, GENERATION_STAGE_LABELS, STYLE_IDS } from "../catalogs.js";
 import { BIOMES as ClimateBiomes } from "../../generators/climate.js";
 
 test("biome catalogs share one id set", () => {
@@ -30,4 +30,7 @@ test("landform, stance, route, and recipe labels live in catalogs", () => {
   assert.equal(routeKindLabel("sea"), "海路");
   assert.equal(routeKindLabel("trail"), "小径");
   assert.equal(routeKindLabel("road"), "商路");
+  assert.ok(GENERATION_STAGE_LABELS.mesh);
+  assert.ok(STYLE_IDS.includes("population"));
+  assert.ok(Object.keys(LANDFORM_LABELS).includes("archipelago"));
 });

@@ -94,10 +94,12 @@ src/
   data/worldData.js     # 纯 JSON 数据，不含方法
   data/catalogs.js      # 群系 / 地标 / 陆形 / 外交姿态等共用名称
   data/diplomacy.js     # 外交 JSON 读写（不是生成算法）
+  data/landforms.js     # 陆形配方（步骤列表，不含算法）
+  data/routes.js        # 删路 / 修剪无效商路
   generators/           # 种子 → 世界（含陆形、文化、信仰、商路、地标）
-  editors/              # 受控修改
+  editors/              # 受控修改（建城、连路、涂色、立国）
   renderers/            # Canvas 只读绘制（不引用 generators）；HUD 在 hud.js
-  ui/app.js             # 控制器（唯一可引用 generators 的 UI 入口，另 generateClient）
+  ui/app.js             # 控制器（UI 里唯一可引用 MapGenerator）
   ui/format.js          # 检视 / 名册 HTML，只引用 data/
   ui/dialogs.js         # 确认、输入、欢迎、说明
   workers/              # 生成管线（不碰 DOM）

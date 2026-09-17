@@ -72,3 +72,9 @@ test("UI helpers do not import generators (App and generateClient may)", () => {
   }
   assert.equal(leaks.length, 0, leaks.join("\n"));
 });
+
+test("App imports only MapGenerator from generators", () => {
+  const file = join(srcRoot, "ui/app.js");
+  const gens = importsOf(file).filter((s) => s.includes("/generators/"));
+  assert.deepEqual(gens, ["../generators/mapGenerator.js"]);
+});

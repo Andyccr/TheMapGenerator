@@ -3,9 +3,7 @@
  * These are the "play here" pins a GM actually uses.
  */
 
-import { MARKER_TYPES, markerLabel, markerGlyph } from "../data/catalogs.js";
-
-export { MARKER_TYPES, markerLabel, markerGlyph };
+import { MARKER_TYPES } from "../data/catalogs.js";
 
 /**
  * @param {import("../types.js").Cell[]} cells
