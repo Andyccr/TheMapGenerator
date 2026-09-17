@@ -151,5 +151,3 @@ export function createMesh(opts) {
 
   return { cells, width, height, spacing: size };
 }
-
-export { buildSpatialIndex } from "../util/spatialIndex.js";

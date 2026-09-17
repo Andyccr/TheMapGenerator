@@ -6,23 +6,24 @@
 import { MapGenerator } from "../generators/mapGenerator.js";
 import { CanvasRenderer } from "../renderers/canvasRenderer.js";
 import { createTools } from "../editors/tools.js";
-import { cloneWorld, parseWorld, summarizeWorld } from "../data/worldData.js";
+import { parseWorld, summarizeWorld } from "../data/worldData.js";
 import { saveAutosave, loadAutosave, downloadJson, downloadPng, readJsonFile, peekAutosave, saveSlot, loadSlot, listSlotMeta, SLOT_COUNT } from "../persistence/storage.js";
-import { BIOME_LABELS, SETTLEMENT_TYPE_LABELS, landformLabel } from "../data/catalogs.js";
-import { recipeFor, parseRecipe, applyStepsOnly } from "../generators/landforms.js";
-import { estimatePopulation } from "../generators/civilization.js";
+import { BIOME_LABELS, SETTLEMENT_TYPE_LABELS, landformLabel, GENERATION_STAGE_LABELS } from "../data/catalogs.js";
+import { recipeFor, parseRecipe } from "../data/landforms.js";
+import { estimatePopulation } from "../data/population.js";
 import { setStance } from "../data/diplomacy.js";
 import { APP_VERSION } from "../core/version.js";
-import { runGeneratorJob, STAGE_LABELS, isJobCancelled } from "./generateClient.js";
+import { runGeneratorJob, isJobCancelled } from "./generateClient.js";
 import { parseShare, serializeShare, shareHasSeed } from "./share.js";
 import { EXAMPLE_WORLDS } from "./examples.js";
 import { PAINT_LAYERS, paintCell } from "../editors/paint.js";
 import { createCulture, createReligion, createRealm } from "../editors/entities.js";
-import { makeRng } from "../generators/rng.js";
 import { escapeHtml, overviewInspectHtml, cellInspectHtml, rosterItems, searchHits, rosterListHtml } from "./format.js";
 import { FolioDialogs } from "./dialogs.js";
 import { fillCellEdit, fillDiploEdit, fillRouteEdit, syncPaintPigment } from "./inspectPanel.js";
 import { defaultStep, renderRecipeList } from "./recipePanel.js";
+import { EditHistory } from "./history.js";
+import { setLoadingOverlay, setBusyChrome } from "./jobChrome.js";
 
 const SETTLEMENT_TYPE = SETTLEMENT_TYPE_LABELS;
 
@@ -53,10 +54,7 @@ export class App {
     this.toolId = "pan";
     /** @type {import("../types.js").WorldData | null} */
     this.world = null;
-    /** @type {import("../types.js").WorldData[]} */
-    this.undo = [];
-    /** @type {import("../types.js").WorldData[]} */
-    this.redo = [];
+    this.history = new EditHistory(8);
     this.painting = false;
     this.panning = false;
     this.lastX = 0;
@@ -188,7 +186,7 @@ export class App {
               landformSteps: steps || undefined,
             },
           },
-          (stage) => this.#setLoading(true, STAGE_LABELS[stage] || "正在生成世界…"),
+          (stage) => this.#setLoading(true, GENERATION_STAGE_LABELS[stage] || "正在生成世界…"),
         ),
       );
       if (!world) return;
@@ -209,8 +207,7 @@ export class App {
    */
   #applyWorld(world, opts = {}) {
     this.world = world;
-    this.undo = [];
-    this.redo = [];
+    this.history.clear();
     this.measure = null;
     this.highlight = -1;
     this.renderer.resize();
@@ -532,7 +529,7 @@ export class App {
 
     window.addEventListener("keydown", (ev) => this.#onKey(ev));
     window.addEventListener("beforeunload", (ev) => {
-      if (this._busy || this._dirty || this.undo.length) {
+      if (this._busy || this._dirty || this.history.length) {
         ev.preventDefault();
         ev.returnValue = "";
       }
@@ -579,7 +576,7 @@ export class App {
       if (kind === "society") {
         world = await this.#awaitJob(
           runGeneratorJob("society", { world: this.world }, (stage) =>
-            this.#setLoading(true, STAGE_LABELS[stage] || "正在重掷文明…"),
+            this.#setLoading(true, GENERATION_STAGE_LABELS[stage] || "正在重掷文明…"),
           ),
         );
       } else if (kind === "names") {
@@ -881,16 +878,14 @@ export class App {
 
   #pushUndo() {
     if (!this.world) return;
-    this.undo.push(cloneWorld(this.world));
-    if (this.undo.length > 8) this.undo.shift();
-    this.redo = [];
+    this.history.push(this.world);
     this._dirty = true;
   }
 
   #undo() {
-    const prev = this.undo.pop();
-    if (!prev || !this.world) return;
-    this.redo.push(cloneWorld(this.world));
+    if (!this.world) return;
+    const prev = this.history.popUndo(this.world);
+    if (!prev) return;
     this.world = prev;
     this.redraw();
     this.#fillLegend();
@@ -900,9 +895,9 @@ export class App {
   }
 
   #redo() {
-    const next = this.redo.pop();
-    if (!next || !this.world) return;
-    this.undo.push(cloneWorld(this.world));
+    if (!this.world) return;
+    const next = this.history.popRedo(this.world);
+    if (!next) return;
     this.world = next;
     this.redraw();
     this.#fillLegend();
@@ -1304,25 +1299,7 @@ export class App {
    * @param {string} [msg]
    */
   #setLoading(on, msg) {
-    const el = this.#el("loading");
-    const text = this.#el("loading-msg");
-    if (el instanceof HTMLElement) el.hidden = !on;
-    if (on && msg) {
-      if (text) text.textContent = msg;
-      else if (el) el.textContent = msg;
-    }
-    const stages = this.#el("loading-stages");
-    if (stages instanceof HTMLElement) {
-      const active = Object.entries(STAGE_LABELS).find(([, label]) => label === msg)?.[0];
-      stages.querySelectorAll("li").forEach((li) => {
-        const stage = li.getAttribute("data-stage");
-        if (on && stage && (stage === active || (msg && STAGE_LABELS[stage] === msg))) {
-          li.setAttribute("aria-current", "step");
-        } else {
-          li.removeAttribute("aria-current");
-        }
-      });
-    }
+    setLoadingOverlay(this.doc, on, msg);
   }
 
   /**
@@ -1331,13 +1308,8 @@ export class App {
    */
   #setBusy(on, msg) {
     this._busy = on;
-    this.#setLoading(on, msg);
-    for (const id of ["btn-generate", "btn-random", "btn-reroll-society", "btn-reroll-names", "btn-reroll-routes", "btn-apply-wind", "btn-recipe-apply"]) {
-      const btn = this.#el(id);
-      if (btn instanceof HTMLButtonElement) btn.disabled = on;
-    }
-    const app = this.#el("app");
-    if (app instanceof HTMLElement) app.setAttribute("aria-busy", on ? "true" : "false");
+    setLoadingOverlay(this.doc, on, msg);
+    setBusyChrome(this.doc, on);
     this.#syncEmptyStage();
   }
 
@@ -1470,7 +1442,7 @@ export class App {
             ? createReligion(this.world, cellId, name)
             : createRealm(this.world, cellId, name);
       if (!made) {
-        this.undo.pop();
+        this.history.discardLast();
         this.#toast("无法创建。", true);
         return;
       }
@@ -1495,7 +1467,7 @@ export class App {
     const [wx, wy] = raw.split(",").map(Number);
     this.#pushUndo();
     this.world.meta.wind = { x: Number.isFinite(wx) ? wx : 1, y: Number.isFinite(wy) ? wy : 0 };
-    this.#setBusy(true, STAGE_LABELS.climate);
+    this.#setBusy(true, GENERATION_STAGE_LABELS.climate);
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     try {
       const world = await this.#awaitJob(runGeneratorJob("climate", { world: this.world }));
@@ -1529,16 +1501,10 @@ export class App {
     this.#setBusy(true, "正在把陆形步骤盖到当前图上…");
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     try {
-      applyStepsOnly(
-        this.world.cells,
-        makeRng(`${this.world.meta.seed}:recipe-apply`),
-        this.world.meta.width,
-        this.world.meta.height,
-        steps,
-      );
+      this.generator.applyLandformSteps(this.world, steps);
       const world = await this.#awaitJob(
         runGeneratorJob("recompute", { world: this.world }, (stage) =>
-          this.#setLoading(true, STAGE_LABELS[stage] || "正在把陆形步骤盖到当前图上…"),
+          this.#setLoading(true, GENERATION_STAGE_LABELS[stage] || "正在把陆形步骤盖到当前图上…"),
         ),
       );
       if (!world) return;

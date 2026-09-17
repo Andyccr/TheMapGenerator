@@ -3,19 +3,12 @@
  * The returned promise has `.cancel()` which terminates the worker (no main-thread fallback).
  */
 import { MapGenerator } from "../generators/mapGenerator.js";
+import { GENERATION_STAGE_LABELS } from "../data/catalogs.js";
 
 /** @typedef {import("../types.js").WorldData} WorldData */
 /** @typedef {import("../types.js").GenerateConfig} GenerateConfig */
 
-/** @param {string} [stage] */
-export const STAGE_LABELS = {
-  mesh: "正在铺格网…",
-  tectonics: "正在推板块、堆山链…",
-  hydrology: "正在填洼、布河网…",
-  climate: "正在算气候与生物群系…",
-  society: "正在安置文化与聚落…",
-  routes: "正在连商路、放地标…",
-};
+export const STAGE_LABELS = GENERATION_STAGE_LABELS;
 
 /** Operations the worker and the main-thread fallback both implement. */
 export const GENERATOR_OPS = /** @type {const} */ (["generate", "society", "routes", "recompute", "names", "climate"]);

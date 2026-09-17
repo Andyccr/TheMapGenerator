@@ -18,5 +18,5 @@ test("shell HTML has a first-run welcome and a cancel control", () => {
   assert.match(html, /id="welcome-dialog"/);
   assert.match(html, /id="btn-cancel-job"/);
   assert.match(html, /id="stage-empty"/);
-  assert.match(html, /\?v=2\.0\.0/);
+  assert.match(html, /\?v=2\.1\.0/);
 });

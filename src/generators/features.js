@@ -3,8 +3,6 @@
  * Flood-fill connected components after hydrology so names track the land.
  */
 
-export { featureTypeLabel } from "../data/catalogs.js";
-
 /**
  * @param {import("../types.js").Cell[]} cells
  * @param {(cultureId: number) => { realm: () => string, river: () => string, feature: () => string }} mills

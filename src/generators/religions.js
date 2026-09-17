@@ -114,8 +114,6 @@ export function assignReligions(cells, religions) {
   }
 }
 
-export { religionTypeLabel } from "../data/catalogs.js";
-
 /** @param {string} a @param {string} b @param {number} t */
 function mixToward(a, b, t) {
   const ha = hex(a);

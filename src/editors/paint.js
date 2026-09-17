@@ -4,8 +4,6 @@
  */
 import { LAND_BIOMES } from "../data/catalogs.js";
 
-export { LAND_BIOMES };
-
 export const PAINT_LAYERS = [
   { id: "biome", label: "生物群系", style: "atlas" },
   { id: "culture", label: "文化", style: "cultural" },

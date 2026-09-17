@@ -1,7 +1,8 @@
-import { addSettlement, removeSettlement } from "../generators/civilization.js";
+import { addSettlement, removeSettlement } from "./settlements.js";
 import { MARKER_TYPES } from "../data/catalogs.js";
 import { stampAt } from "../generators/landforms.js";
-import { addRouteBetween, removeRoutesThrough, pruneRoutes } from "../generators/routes.js";
+import { addRouteBetween } from "./routes.js";
+import { removeRoutesThrough, pruneRoutes } from "../data/routes.js";
 import { cellsInBrush, eyedrop, paintCells } from "./paint.js";
 
 /**
