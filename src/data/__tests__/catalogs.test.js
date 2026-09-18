@@ -1,11 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { BIOMES, BIOME_LABELS, LAND_BIOMES, MARKER_TYPES, markerGlyph, cultureTypeLabel, religionTypeLabel, featureTypeLabel, landformLabel, LANDFORM_LABELS, stanceLabel, STANCE_LABELS, stepSummary, stepOpLabel, routeKindLabel, GENERATION_STAGE_LABELS, STYLE_IDS } from "../catalogs.js";
-import { BIOMES as ClimateBiomes } from "../../generators/climate.js";
 
 test("biome catalogs share one id set", () => {
   assert.deepEqual(Object.keys(BIOMES), Object.keys(BIOME_LABELS));
-  assert.equal(ClimateBiomes, BIOMES);
   assert.ok(!LAND_BIOMES.includes("OCEAN"));
   assert.ok(!LAND_BIOMES.includes("LAKE"));
   assert.ok(LAND_BIOMES.includes("GRASSLAND"));

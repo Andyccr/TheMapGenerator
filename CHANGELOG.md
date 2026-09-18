@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2.0
+
+- Generators no longer re-export data catalogs or JSON helpers. Diplomacy labels/ties, biome ids, and landform recipes are imported from `data/` (tests included).
+- Unused `MapGenerator.rebuildRoutes` is gone; the worker still uses `rebuildRoutesAndMarkers`.
+- App event wiring is `src/ui/bindings.js`. River carve and stamp recompute go through `EditorContext` (`carveRiver`, `recomputeNow`) instead of App special-casing those tools. Marker place/erase and moving a town live in `editors/markers.js` and `editors/settlements.js`.
+
 ## 2.1.0
 
 - Editor mutations left the generator layer: founding/deleting towns is `src/editors/settlements.js`; drawing an extra road is `src/editors/routes.js`; `pruneRoutes` / `removeRoutesThrough` are `src/data/routes.js`.

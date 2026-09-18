@@ -6,8 +6,6 @@
 
 import { BIOMES } from "../data/catalogs.js";
 
-export { BIOMES };
-
 /**
  * @param {import("../types.js").Cell[]} cells
  * @param {number} height
