@@ -31,6 +31,29 @@ export function addSettlement(world, cellId, name, type = "town") {
 
 /**
  * @param {import("../types.js").WorldData} world
+ * @param {number} cellId
+ */
+export function settlementAt(world, cellId) {
+  return world.settlements.find((s) => s.cellId === cellId) || null;
+}
+
+/**
+ * @param {import("../types.js").WorldData} world
+ * @param {number} settlementId
+ * @param {number} cellId
+ */
+export function moveSettlement(world, settlementId, cellId) {
+  const cell = world.cells[cellId];
+  if (!cell || cell.ocean) return false;
+  const s = world.settlements.find((x) => x.id === settlementId);
+  if (!s) return false;
+  s.cellId = cell.id;
+  s.regionId = cell.regionId;
+  return true;
+}
+
+/**
+ * @param {import("../types.js").WorldData} world
  * @param {number} settlementId
  */
 export function removeSettlement(world, settlementId) {

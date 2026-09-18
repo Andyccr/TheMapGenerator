@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { MapGenerator } from "../mapGenerator.js";
-import { placeDiplomacy, tiesFor, stanceLabel } from "../diplomacy.js";
+import { placeDiplomacy } from "../diplomacy.js";
+import { tiesFor } from "../../data/diplomacy.js";
+import { stanceLabel } from "../../data/catalogs.js";
 
 test("diplomacy only links neighboring realms", () => {
   const gen = new MapGenerator();

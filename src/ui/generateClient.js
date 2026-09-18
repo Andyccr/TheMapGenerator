@@ -3,14 +3,10 @@
  * The returned promise has `.cancel()` which terminates the worker (no main-thread fallback).
  */
 import { MapGenerator } from "../generators/mapGenerator.js";
-import { GENERATION_STAGE_LABELS } from "../data/catalogs.js";
 
 /** @typedef {import("../types.js").WorldData} WorldData */
 /** @typedef {import("../types.js").GenerateConfig} GenerateConfig */
 
-export const STAGE_LABELS = GENERATION_STAGE_LABELS;
-
-/** Operations the worker and the main-thread fallback both implement. */
 export const GENERATOR_OPS = /** @type {const} */ (["generate", "society", "routes", "recompute", "names", "climate"]);
 
 export function cancelledError() {

@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { MapGenerator } from "../mapGenerator.js";
-import { LANDFORMS, landformById, recipeFor, parseRecipe, stepSummary, stampAt } from "../landforms.js";
+import { LANDFORMS, landformById, recipeFor, parseRecipe } from "../../data/landforms.js";
+import { stepSummary } from "../../data/catalogs.js";
+import { stampAt } from "../landforms.js";
 
 function cfg(landform) {
   return {

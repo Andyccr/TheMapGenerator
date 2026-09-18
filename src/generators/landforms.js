@@ -4,14 +4,9 @@
  * Recipe JSON lives in data/landforms.js; this file applies the steps.
  */
 import { setLandFraction } from "./tectonics.js";
-import { STEP_OP_LABELS, STEP_OP_ORDER, landformLabel, stepOpLabel as opLabel, stepSummary } from "../data/catalogs.js";
-import { LANDFORMS, RECIPES, landformById, recipeFor, parseRecipe } from "../data/landforms.js";
-
-export { landformLabel, opLabel, stepSummary, LANDFORMS, RECIPES, landformById, recipeFor, parseRecipe };
+import { landformById, recipeFor } from "../data/landforms.js";
 
 /** @typedef {{ op: string, n?: number|number[], x?: number, y?: number, rx?: number, ry?: number, amp?: number|number[], jitter?: boolean|number, edge?: number }} LandformStep */
-
-export const STEP_OPS = STEP_OP_ORDER.map((op) => ({ op, label: STEP_OP_LABELS[op] }));
 
 /**
  * @param {import("../types.js").Cell[]} cells

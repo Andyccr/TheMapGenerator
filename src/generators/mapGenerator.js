@@ -31,7 +31,8 @@ import { placeMarkers } from "./markers.js";
 import { placeProvinces } from "./provinces.js";
 import { placeReligions } from "./religions.js";
 import { placeFeatures } from "./features.js";
-import { applyLandform, parseRecipe, applyStepsOnly } from "./landforms.js";
+import { applyLandform, applyStepsOnly } from "./landforms.js";
+import { parseRecipe } from "../data/landforms.js";
 import { pruneDiplomacy } from "../data/diplomacy.js";
 import { placeDiplomacy } from "./diplomacy.js";
 import { createNameFactory, phonologyById } from "./names.js";
@@ -199,15 +200,6 @@ export class MapGenerator {
       m.name = label ? `${mills(world.cells[m.cellId]?.cultureId ?? -1).marker()} · ${label}` : mills(-1).marker();
     }
     this.#setMapName(world);
-    return world;
-  }
-
-  /**
-   * @param {WorldData} world
-   */
-  rebuildRoutes(world) {
-    const rng = makeRng(`${world.meta.societySeed || world.meta.seed}:routes:${world.settlements.length}`);
-    world.routes = placeRoutes(world.cells, world.settlements, rng);
     return world;
   }
 

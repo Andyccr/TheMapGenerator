@@ -1,4 +1,5 @@
-import { addSettlement, removeSettlement } from "./settlements.js";
+import { addSettlement, removeSettlement, settlementAt, moveSettlement } from "./settlements.js";
+import { addMarker, removeMarkersAt } from "./markers.js";
 import { MARKER_TYPES } from "../data/catalogs.js";
 import { stampAt } from "../generators/landforms.js";
 import { addRouteBetween } from "./routes.js";
@@ -28,9 +29,6 @@ export function sculptElevation(world, cx, cy, radius, delta) {
  * @param {import("../types.js").WorldData} world
  * @param {number} cellId
  */
-export function settlementAt(world, cellId) {
-  return world.settlements.find((s) => s.cellId === cellId) || null;
-}
 
 export class PanTool {
   id = "pan";
@@ -54,9 +52,14 @@ export class RaiseTool {
    * @param {import("../types.js").EditorContext} ctx
    */
   apply(world, ev, ctx) {
+    if (ev.phase === "up") {
+      ctx.recomputeNow?.();
+      return;
+    }
     if (ev.phase !== "down" && ev.phase !== "move") return;
     const radius = (12 + ctx.brush * 10) * ((world.meta.cellSize || 10) / 10);
     sculptElevation(world, ev.worldX, ev.worldY, radius, 0.045);
+    ctx.requestRecompute();
   }
 }
 
@@ -69,9 +72,14 @@ export class LowerTool {
    * @param {import("../types.js").EditorContext} ctx
    */
   apply(world, ev, ctx) {
+    if (ev.phase === "up") {
+      ctx.recomputeNow?.();
+      return;
+    }
     if (ev.phase !== "down" && ev.phase !== "move") return;
     const radius = (12 + ctx.brush * 10) * ((world.meta.cellSize || 10) / 10);
     sculptElevation(world, ev.worldX, ev.worldY, radius, -0.045);
+    ctx.requestRecompute();
   }
 }
 
@@ -98,7 +106,10 @@ export class RiverTool {
       return;
     }
     if (ev.phase === "up") {
-      if (this.path.length >= 2) ctx.commit(world);
+      if (this.path.length >= 2) {
+        ctx.carveRiver?.(this.path);
+        ctx.commit(world);
+      }
       this.path = [];
     }
   }
@@ -123,14 +134,7 @@ export class MoveSettlementTool {
       return;
     }
     if ((ev.phase === "move" || ev.phase === "up") && this.held != null && ev.cellId >= 0) {
-      const cell = world.cells[ev.cellId];
-      if (cell && !cell.ocean) {
-        const s = world.settlements.find((x) => x.id === this.held);
-        if (s) {
-          s.cellId = cell.id;
-          s.regionId = cell.regionId;
-        }
-      }
+      moveSettlement(world, this.held, ev.cellId);
     }
     if (ev.phase === "up") this.held = null;
   }
@@ -247,11 +251,9 @@ export class EraseTool {
       ctx.commit(world);
       return;
     }
-    const before = world.markers?.length || 0;
-    const kept = (world.markers || []).filter((m) => m.cellId !== ev.cellId);
-    if (kept.length !== before) {
+    if ((world.markers || []).some((m) => m.cellId === ev.cellId)) {
       ctx.beginEdit?.();
-      world.markers = kept;
+      removeMarkersAt(world, ev.cellId);
       ctx.commit(world);
       return;
     }
@@ -284,9 +286,7 @@ export class MarkerTool {
     const place = (name) => {
       if (!name) return;
       ctx.beginEdit?.();
-      if (!world.markers) world.markers = [];
-      const id = world.markers.reduce((m, x) => Math.max(m, x.id), -1) + 1;
-      world.markers.push({ id, cellId: ev.cellId, type, name, note: "" });
+      if (!addMarker(world, ev.cellId, type, name)) return;
       ctx.commit(world);
     };
     if (ctx.askText) {
@@ -317,7 +317,10 @@ export class StampTool {
     if (ev.phase !== "down") return;
     const op = ctx.stampOp || "hill";
     const size = 0.045 + (ctx.brush || 3) * 0.018;
+    ctx.beginEdit?.();
     stampAt(world.cells, world.meta.width, world.meta.height, op, ev.worldX, ev.worldY, size, 0.42);
+    ctx.recomputeNow?.();
+    ctx.commit(world);
   }
 }
 
