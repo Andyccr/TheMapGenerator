@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { hinterlandPressure } from "../population.js";
+import { hinterlandPressure, estimatePopulation } from "../population.js";
 
 test("hinterlandPressure is zero on ocean and peaks near a town", () => {
   const townCell = {
@@ -21,4 +21,11 @@ test("hinterlandPressure is zero on ocean and peaks near a town", () => {
   assert.equal(hinterlandPressure(sea, world), 0);
   assert.ok(hinterlandPressure(near, world) > hinterlandPressure(far, world));
   assert.ok(hinterlandPressure(townCell, world) > hinterlandPressure(near, world));
+});
+
+test("estimatePopulation scales with water and rank", () => {
+  const river = { moisture: 0.5, riverId: 1, coast: false, biome: "GRASSLAND" };
+  const desert = { moisture: 0.1, riverId: -1, coast: false, biome: "SUBTROPICAL_DESERT" };
+  assert.ok(estimatePopulation(river, "city") > estimatePopulation(desert, "city"));
+  assert.ok(estimatePopulation(river, "capital") > estimatePopulation(river, "village"));
 });

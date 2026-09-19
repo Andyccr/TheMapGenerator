@@ -6,9 +6,7 @@
 import { MinHeap } from "../util/heap.js";
 import { worldScale } from "../data/worldData.js";
 import { createNameFactory, pickPhonology } from "./names.js";
-import { CULTURE_TYPE_LABELS, cultureTypeLabel } from "../data/catalogs.js";
-
-export { cultureTypeLabel };
+import { CULTURE_TYPE_LABELS } from "../data/catalogs.js";
 
 /** @type {{ id: string, label: string, color: string }[]} */
 export const CULTURE_TYPES = [

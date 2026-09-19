@@ -7,8 +7,6 @@ import { macroBiome } from "./lod.js";
 import { hinterlandPressure } from "../data/population.js";
 import { BIOME_LABELS } from "../data/catalogs.js";
 
-export { BIOME_LABELS };
-
 /** Posterized atlas colors used only at overview zoom. */
 const ATLAS_MACRO = {
   OCEAN: "#1a4860",

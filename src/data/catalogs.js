@@ -192,3 +192,32 @@ export const ROUTE_KIND_LABELS = {
 export function routeKindLabel(kind) {
   return ROUTE_KIND_LABELS[kind] || ROUTE_KIND_LABELS.road;
 }
+
+/** Pipeline stages reported by MapGenerator.generate. */
+export const GENERATION_STAGE_LABELS = {
+  mesh: "正在铺格网…",
+  tectonics: "正在推板块、堆山链…",
+  hydrology: "正在填洼、布河网…",
+  climate: "正在算气候与生物群系…",
+  society: "正在安置文化与聚落…",
+  routes: "正在连商路、放地标…",
+};
+
+/** Paint / share style ids. Renderer palettes live in styles.js. */
+export const STYLE_IDS = [
+  "atlas",
+  "physical",
+  "height",
+  "political",
+  "cultural",
+  "provinces",
+  "religions",
+  "temperature",
+  "precipitation",
+  "population",
+  "parchment",
+  "night",
+];
+
+export const MAP_EXTENTS = ["1920,1200", "2560,1600", "3840,2400", "5120,3200"];
+export const MAP_DETAILS = ["10", "7", "5", "4"];

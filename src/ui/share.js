@@ -3,34 +3,12 @@
  *
  * Example: ?seed=terra&landform=archipelago&extent=2560,1600&detail=7&style=political
  */
+import { LANDFORM_LABELS, STYLE_IDS, MAP_EXTENTS, MAP_DETAILS } from "../data/catalogs.js";
 
-const LANDFORMS = new Set([
-  "continents",
-  "pangea",
-  "archipelago",
-  "island",
-  "peninsula",
-  "isthmus",
-  "inland-sea",
-  "lakes",
-]);
-
-const EXTENTS = new Set(["1920,1200", "2560,1600", "3840,2400", "5120,3200"]);
-const DETAILS = new Set(["10", "7", "5", "4"]);
-const STYLES = new Set([
-  "atlas",
-  "physical",
-  "height",
-  "political",
-  "cultural",
-  "provinces",
-  "religions",
-  "temperature",
-  "precipitation",
-  "population",
-  "parchment",
-  "night",
-]);
+const LANDFORMS = new Set(Object.keys(LANDFORM_LABELS));
+const EXTENTS = new Set(MAP_EXTENTS);
+const DETAILS = new Set(MAP_DETAILS);
+const STYLES = new Set(STYLE_IDS);
 
 /**
  * @typedef {Object} ShareState

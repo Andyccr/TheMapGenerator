@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.2.0
+
+- Generators no longer re-export data catalogs or JSON helpers. Diplomacy labels/ties, biome ids, and landform recipes are imported from `data/` (tests included).
+- Unused `MapGenerator.rebuildRoutes` is gone; the worker still uses `rebuildRoutesAndMarkers`.
+- App event wiring is `src/ui/bindings.js`. River carve and stamp recompute go through `EditorContext` (`carveRiver`, `recomputeNow`) instead of App special-casing those tools. Marker place/erase and moving a town live in `editors/markers.js` and `editors/settlements.js`.
+
+## 2.1.0
+
+- Editor mutations left the generator layer: founding/deleting towns is `src/editors/settlements.js`; drawing an extra road is `src/editors/routes.js`; `pruneRoutes` / `removeRoutesThrough` are `src/data/routes.js`.
+- Landform recipe JSON lives in `src/data/landforms.js`. App overlays steps only through `MapGenerator.applyLandformSteps` and no longer imports `landforms.js`, `rng.js`, or `civilization.js`.
+- Stage labels, style ids, and map extents live in catalogs. Undo is `src/ui/history.js`; loading chrome is `src/ui/jobChrome.js`. Architecture tests require App to import only `MapGenerator` from generators.
+
 ## 2.0.0
 
 - Architecture: landform / stance / route / recipe-step labels live in `src/data/catalogs.js`. Diplomacy JSON helpers (`tiesFor`, `setStance`, `pruneDiplomacy`) live in `src/data/diplomacy.js`. Generators keep only placement algorithms and re-export for existing tests.

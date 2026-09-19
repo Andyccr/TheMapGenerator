@@ -1,6 +1,6 @@
 /**
- * Read-only hinterland pressure for the population paint layer.
- * Lives in data so the renderer does not import generators.
+ * Read-only hinterland pressure and burg population estimates.
+ * Lives in data so the renderer and App do not import generators.
  */
 
 /**
@@ -20,4 +20,17 @@ export function hinterlandPressure(cell, world) {
     if (inf > best) best = inf;
   }
   return best;
+}
+
+/**
+ * @param {import("../types.js").Cell} c
+ * @param {string} type
+ */
+export function estimatePopulation(c, type) {
+  const base = type === "capital" ? 14000 : type === "city" ? 6200 : type === "town" ? 1900 : 420;
+  let m = 1 + c.moisture * 0.7;
+  if (c.riverId >= 0) m *= 1.25;
+  if (c.coast) m *= 1.18;
+  if (c.biome.includes("DESERT")) m *= 0.7;
+  return Math.max(80, Math.round(base * m));
 }

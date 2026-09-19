@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { GENERATOR_OPS, STAGE_LABELS, runOnMain, isJobCancelled, cancelledError, runGeneratorJob } from "../generateClient.js";
+import { GENERATOR_OPS, runOnMain, isJobCancelled, cancelledError, runGeneratorJob } from "../generateClient.js";
 import { MapGenerator } from "../../generators/mapGenerator.js";
+import { GENERATION_STAGE_LABELS } from "../../data/catalogs.js";
 
 const small = {
   seed: "arch-job",
@@ -14,7 +15,7 @@ const small = {
 test("worker ops and progress stages stay in lockstep", () => {
   assert.deepEqual([...GENERATOR_OPS], ["generate", "society", "routes", "recompute", "names", "climate"]);
   for (const stage of ["mesh", "tectonics", "hydrology", "climate", "society", "routes"]) {
-    assert.ok(STAGE_LABELS[stage], stage);
+    assert.ok(GENERATION_STAGE_LABELS[stage], stage);
   }
 });
 
