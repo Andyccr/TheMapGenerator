@@ -7,17 +7,6 @@ import { MapGenerator } from "../generators/mapGenerator.js";
 /** @typedef {import("../types.js").WorldData} WorldData */
 /** @typedef {import("../types.js").GenerateConfig} GenerateConfig */
 
-/** @param {string} [stage] */
-export const STAGE_LABELS = {
-  mesh: "正在铺格网…",
-  tectonics: "正在推板块、堆山链…",
-  hydrology: "正在填洼、布河网…",
-  climate: "正在算气候与生物群系…",
-  society: "正在安置文化与聚落…",
-  routes: "正在连商路、放地标…",
-};
-
-/** Operations the worker and the main-thread fallback both implement. */
 export const GENERATOR_OPS = /** @type {const} */ (["generate", "society", "routes", "recompute", "names", "climate"]);
 
 export function cancelledError() {

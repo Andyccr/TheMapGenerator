@@ -4,10 +4,6 @@
  *
  * Display labels and JSON helpers live in data/; this file is the algorithm.
  */
-import { STANCE_LABELS, stanceLabel } from "../data/catalogs.js";
-import { tiesFor, otherId, setStance, pruneDiplomacy } from "../data/diplomacy.js";
-
-export { STANCE_LABELS, stanceLabel, tiesFor, otherId, setStance, pruneDiplomacy };
 
 /**
  * @param {import("../types.js").Region[]} regions

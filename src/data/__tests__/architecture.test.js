@@ -72,3 +72,42 @@ test("UI helpers do not import generators (App and generateClient may)", () => {
   }
   assert.equal(leaks.length, 0, leaks.join("\n"));
 });
+
+test("App imports only MapGenerator from generators", () => {
+  const file = join(srcRoot, "ui/app.js");
+  const gens = importsOf(file).filter((s) => s.includes("/generators/"));
+  assert.deepEqual(gens, ["../generators/mapGenerator.js"]);
+});
+
+test("generators do not re-export data catalogs or JSON helpers", () => {
+  const banned =
+    /\bexport\s*\{[^}]*\b(BIOMES|STANCE_LABELS|stanceLabel|tiesFor|otherId|setStance|pruneDiplomacy|LANDFORMS|RECIPES|landformById|recipeFor|parseRecipe|landformLabel|stepSummary)\b/;
+  /** @type {string[]} */
+  const leaks = [];
+  for (const file of listJs(join(srcRoot, "generators"))) {
+    const text = readFileSync(file, "utf8");
+    if (banned.test(text)) leaks.push(relative(srcRoot, file));
+  }
+  assert.equal(leaks.length, 0, leaks.join("\n"));
+});
+
+test("App event wiring lives in bindings.js", () => {
+  const bind = readFileSync(join(srcRoot, "ui/bindings.js"), "utf8");
+  assert.match(bind, /export function bindWorkshop/);
+  assert.match(bind, /btn-generate/);
+  const app = readFileSync(join(srcRoot, "ui/app.js"), "utf8");
+  assert.match(app, /bindWorkshop\(this\)/);
+  assert.doesNotMatch(app, /btn-generate/);
+});
+
+test("generateClient does not alias stage labels", () => {
+  const text = readFileSync(join(srcRoot, "ui/generateClient.js"), "utf8");
+  assert.doesNotMatch(text, /STAGE_LABELS/);
+  assert.doesNotMatch(text, /GENERATION_STAGE_LABELS/);
+});
+
+test("MapGenerator no longer exposes unused rebuildRoutes", () => {
+  const text = readFileSync(join(srcRoot, "generators/mapGenerator.js"), "utf8");
+  assert.doesNotMatch(text, /rebuildRoutes\(/);
+  assert.match(text, /rebuildRoutesAndMarkers\(/);
+});

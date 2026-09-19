@@ -232,8 +232,8 @@
  * @property {(world: WorldData) => WorldData} recomputeClimate
  * @property {(world: WorldData, societySeed?: string) => WorldData} regenerateSociety
  * @property {(world: WorldData) => WorldData} regenerateNames
- * @property {(world: WorldData) => WorldData} rebuildRoutes
  * @property {(world: WorldData) => WorldData} rebuildRoutesAndMarkers
+ * @property {(world: WorldData, steps: object[]) => WorldData} applyLandformSteps
  * @property {(world: WorldData, cellIds: number[]) => WorldData} carveRiver
  */
 
@@ -261,6 +261,8 @@
  * @property {(value: string) => void} [setPaintValue]
  * @property {(msg: string, danger?: boolean) => void} [toast]
  * @property {(text: string, fallback?: string) => string | null} [promptText]
+ * @property {(cellIds: number[]) => void} [carveRiver]
+ * @property {() => void} [recomputeNow]
  */
 
 /**

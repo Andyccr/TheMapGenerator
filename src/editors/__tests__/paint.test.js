@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { MapGenerator } from "../../generators/mapGenerator.js";
-import { paintCell, paintCells, cellsInBrush, eyedrop, LAND_BIOMES } from "../paint.js";
+import { paintCell, paintCells, cellsInBrush, eyedrop } from "../paint.js";
 import { PaintTool } from "../tools.js";
-import { setStance, tiesFor } from "../../generators/diplomacy.js";
+import { setStance, tiesFor } from "../../data/diplomacy.js";
 import { applyStepsOnly } from "../../generators/landforms.js";
-import { addRouteBetween, removeRoutesThrough } from "../../generators/routes.js";
+import { addRouteBetween } from "../routes.js";
+import { removeRoutesThrough } from "../../data/routes.js";
+import { LAND_BIOMES } from "../../data/catalogs.js";
 
 function smallWorld(seed = "paint-n") {
   return new MapGenerator().generate({

@@ -25,12 +25,14 @@ import {
 import { assignClimate, assignBiomes } from "./climate.js";
 import { placeCivilizations, assignRegions } from "./civilization.js";
 import { placeCultures } from "./cultures.js";
-import { placeRoutes, pruneRoutes } from "./routes.js";
+import { placeRoutes } from "./routes.js";
+import { pruneRoutes } from "../data/routes.js";
 import { placeMarkers } from "./markers.js";
 import { placeProvinces } from "./provinces.js";
 import { placeReligions } from "./religions.js";
 import { placeFeatures } from "./features.js";
-import { applyLandform, parseRecipe } from "./landforms.js";
+import { applyLandform, applyStepsOnly } from "./landforms.js";
+import { parseRecipe } from "../data/landforms.js";
 import { pruneDiplomacy } from "../data/diplomacy.js";
 import { placeDiplomacy } from "./diplomacy.js";
 import { createNameFactory, phonologyById } from "./names.js";
@@ -204,17 +206,25 @@ export class MapGenerator {
   /**
    * @param {WorldData} world
    */
-  rebuildRoutes(world) {
-    const rng = makeRng(`${world.meta.societySeed || world.meta.seed}:routes:${world.settlements.length}`);
-    world.routes = placeRoutes(world.cells, world.settlements, rng);
+  rebuildRoutesAndMarkers(world) {
+    this.#routesAndMarkers(world, makeRng(`${world.meta.societySeed || world.meta.seed}:poi:${Date.now()}`));
     return world;
   }
 
   /**
+   * Overlay landform recipe steps on the current heightmap. Caller must recompute hydrology.
    * @param {WorldData} world
+   * @param {object[]} steps
    */
-  rebuildRoutesAndMarkers(world) {
-    this.#routesAndMarkers(world, makeRng(`${world.meta.societySeed || world.meta.seed}:poi:${Date.now()}`));
+  applyLandformSteps(world, steps) {
+    applyStepsOnly(
+      world.cells,
+      makeRng(`${world.meta.seed}:recipe-apply`),
+      world.meta.width,
+      world.meta.height,
+      steps,
+    );
+    world.meta.landformSteps = steps;
     return world;
   }
 
