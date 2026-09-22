@@ -12,7 +12,7 @@ import { createWorldShell } from "../data/worldData.js";
 import { makeRng } from "./rng.js";
 import { createMesh } from "./mesh.js";
 import { assignPlates, assignElevation } from "./tectonics.js";
-import { gradeCoastsAndShelf, erodeFluvial } from "./relief.js";
+import { gradeCoastsAndShelf, erodeFluvial, slumpSlopes } from "./relief.js";
 import {
   classifyOceanAndCoast,
   fillDepressions,
@@ -78,11 +78,13 @@ export class MapGenerator {
       world.meta.seaLevel,
       parseRecipe(world.meta.landformSteps),
     );
+    slumpSlopes(world.cells);
 
     onProgress?.("hydrology");
     this.#hydrology(world);
     onProgress?.("climate");
     this.#climate(world);
+    this.#layRivers(world);
     onProgress?.("society");
     this.#buildSociety(world, world.meta.societySeed || world.meta.seed, onProgress);
     world.generatedAt = new Date().toISOString();
@@ -110,6 +112,7 @@ export class MapGenerator {
     this.#hydrology(world);
     onProgress?.("climate");
     this.#climate(world);
+    this.#layRivers(world);
     const landIds = new Set(world.cells.filter((c) => !c.ocean && !c.lake && !c.mountain).map((c) => c.id));
     world.settlements = world.settlements.filter((s) => landIds.has(s.cellId) || this.#isLand(world, s.cellId));
     for (const s of world.settlements) {
@@ -276,8 +279,17 @@ export class MapGenerator {
     fillDepressions(cells);
     markLakesFromFill(cells);
     assignDownslope(cells);
-    accumulateFlux(cells);
     markMountains(cells);
+  }
+
+  /**
+   * Rivers after climate so wet belts carry more water than horse-latitude deserts.
+   * Wind-only restamps skip this and leave the existing network in place.
+   * @param {WorldData} world
+   */
+  #layRivers(world) {
+    const { cells } = world;
+    accumulateFlux(cells, true);
     world.rivers = extractRivers(cells, 16);
   }
 

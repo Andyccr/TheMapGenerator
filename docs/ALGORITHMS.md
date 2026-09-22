@@ -37,17 +37,18 @@ After tectonics, an optional **landform recipe** (Azgaar-style template) reshape
 1. Height `< 0` **and** connected to a map-border cell ⇒ ocean (Patel).
 2. Remaining height `< 0` ⇒ lake.
 3. Barnes priority-flood fills depressions so every land cell has a downhill path to sea (O’Leary / Planchon–Darboux).
-4. Each cell’s `downslope` is the lowest-`filledHeight` neighbor. Flux accumulates from high to low.
-5. Cells above a flux threshold become river polylines.
+4. Each cell’s `downslope` is the lowest-`filledHeight` neighbor. One thermal slump first sheds a capped slice off slopes steeper than 0.08. Flux then accumulates from high to low.
+5. After climate, flux is weighted by precipitation, so wet belts feed larger rivers than the subtropical desert belt. Cells above a flux threshold become river polylines. A descending sweep assigns Strahler order; width uses mouth flux and that order, not the trickle at the source.
 
 Because routing uses `filledHeight`, **a river cannot climb a ridge**. Editing tools that change height must call `recomputeFromElevation` so this invariant is restored.
 
 ## 4. Climate and biomes
 
-- Temperature = latitude (north is cold) minus elevation lapse.
-- Precipitation starts high, then an upwind walk (length scales with map span) adds **rain shadow** when it hits higher / mountain cells (Turner).
-- Moisture also bleeds from rivers and lakes (Patel).
+- Temperature = latitude (north is cold) minus elevation lapse, pulled toward mild on the coast (continentality from one ocean-distance BFS). `tempRange` grows inland and poleward.
+- Precipitation starts from a **latitude band** (wet equator, dry subtropics, wet storm track, dry pole), then an upwind walk (capped at 12 steps, and it stops once the shadow is saturated) adds **rain shadow** on higher / mountain cells (Turner). Coasts keep a moisture floor.
+- Moisture also bleeds from rivers and lakes (Patel), four neighbor passes.
 - Biome = Whittaker lookup on `(temperature, moisture)`, with ocean / lake / beach / ice specials.
+- Applying wind restamps temperature, moisture, and biomes only. Height edits rebuild rivers from the new rain.
 
 ## 5. Civilizations
 

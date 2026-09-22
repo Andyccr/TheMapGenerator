@@ -32,5 +32,6 @@ export function estimatePopulation(c, type) {
   if (c.riverId >= 0) m *= 1.25;
   if (c.coast) m *= 1.18;
   if (c.biome.includes("DESERT")) m *= 0.7;
+  if (c.tempRange > 0.25) m *= 0.92;
   return Math.max(80, Math.round(base * m));
 }
