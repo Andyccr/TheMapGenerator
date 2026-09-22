@@ -200,6 +200,7 @@
  * @property {string} [mapName]
  * @property {string} [landform]
  * @property {object[]} [landformSteps]
+ * @property {number} [surfaceRev]
  */
 
 /**

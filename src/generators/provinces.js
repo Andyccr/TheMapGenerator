@@ -90,6 +90,25 @@ export function assignProvinces(cells, settlements, provinces) {
   }
 }
 
+/**
+ * Drop a province id when the cell's realm no longer owns that province.
+ * Hand-painted provinces inside the same realm stay.
+ * @param {import("../types.js").Cell[]} cells
+ * @param {import("../types.js").Province[]} provinces
+ * @returns {number}
+ */
+export function clearForeignProvinces(cells, provinces) {
+  let dropped = 0;
+  for (const c of cells) {
+    if (c.provinceId < 0) continue;
+    const p = provinces?.[c.provinceId];
+    if (p && p.regionId === c.regionId) continue;
+    c.provinceId = -1;
+    dropped += 1;
+  }
+  return dropped;
+}
+
 /** @param {string} a @param {string} b @param {number} t */
 function mixHex(a, b, t) {
   const ha = hex(a);

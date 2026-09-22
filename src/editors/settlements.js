@@ -3,6 +3,7 @@
  * these are pointer-driven mutations of WorldData.
  */
 import { estimatePopulation } from "../data/population.js";
+import { bumpSurface } from "../data/worldData.js";
 
 /**
  * @param {import("../types.js").WorldData} world
@@ -26,6 +27,7 @@ export function addSettlement(world, cellId, name, type = "town") {
     note: "",
   };
   world.settlements.push(s);
+  bumpSurface(world);
   return s;
 }
 
@@ -49,6 +51,7 @@ export function moveSettlement(world, settlementId, cellId) {
   if (!s) return false;
   s.cellId = cell.id;
   s.regionId = cell.regionId;
+  bumpSurface(world);
   return true;
 }
 
@@ -71,5 +74,6 @@ export function removeSettlement(world, settlementId) {
     }
   }
   world.settlements = world.settlements.filter((x) => x.id !== settlementId);
+  bumpSurface(world);
   return true;
 }

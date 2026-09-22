@@ -47,7 +47,7 @@ export class PanTool {
 
 export class RaiseTool {
   id = "raise";
-  hint = "涂抹以抬升陆地、堆出山脊。绘制中会预览水文，松手后再算完整河流。";
+  hint = "涂抹以抬升陆地、堆出山脊。绘制时只改高程，松手后再算河流与气候。";
   /**
    * @param {import("../types.js").WorldData} world
    * @param {import("../types.js").PointerEventWorld} ev
@@ -67,7 +67,7 @@ export class RaiseTool {
 
 export class LowerTool {
   id = "lower";
-  hint = "涂抹以沉陷谷地或开辟海洋。绘制中会预览水文，松手后再算完整河流。";
+  hint = "涂抹以沉陷谷地或开辟海洋。绘制时只改高程，松手后再算河流与气候。";
   /**
    * @param {import("../types.js").WorldData} world
    * @param {import("../types.js").PointerEventWorld} ev

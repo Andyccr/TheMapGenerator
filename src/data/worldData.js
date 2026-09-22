@@ -103,6 +103,17 @@ export function cloneWorld(world) {
 }
 
 /**
+ * Bump when painted colors, realms, or settlements change so the renderer
+ * can drop a baked raster without hashing every cell each frame.
+ * @param {WorldData} world
+ */
+export function bumpSurface(world) {
+  if (!world?.meta) return 0;
+  world.meta.surfaceRev = (world.meta.surfaceRev || 0) + 1;
+  return world.meta.surfaceRev;
+}
+
+/**
  * Cheap checksum used by tests and the inspector.
  * @param {WorldData} world
  */
