@@ -3,6 +3,7 @@
  * land cells. Physical ocean stays ocean — hydrology is a different tool.
  */
 import { LAND_BIOMES } from "../data/catalogs.js";
+import { bumpSurface } from "../data/worldData.js";
 import { cellsInDisk } from "../util/spatialIndex.js";
 
 export const PAINT_LAYERS = [
@@ -59,6 +60,7 @@ export function paintCell(world, cellId, layer, value) {
   if (layer === "biome") {
     if (!LAND_BIOMES.includes(value)) return false;
     cell.biome = value;
+    bumpSurface(world);
     return true;
   }
   if (value === "" || value == null) return clearLayer(world, cell, layer);
@@ -68,12 +70,14 @@ export function paintCell(world, cellId, layer, value) {
     cell.cultureId = id;
     const s = world.settlements.find((x) => x.cellId === cellId);
     if (s) s.cultureId = id;
+    bumpSurface(world);
     return true;
   }
   if (layer === "religion") {
     const id = Number(value);
     if (!world.religions?.[id]) return false;
     cell.religionId = id;
+    bumpSurface(world);
     return true;
   }
   if (layer === "realm") {
@@ -84,6 +88,7 @@ export function paintCell(world, cellId, layer, value) {
     if (s) s.regionId = id;
     const p = cell.provinceId >= 0 ? world.provinces?.[cell.provinceId] : null;
     if (!p || p.regionId !== id) cell.provinceId = nearestProvince(world, id, cell);
+    bumpSurface(world);
     return true;
   }
   if (layer === "province") {
@@ -94,6 +99,7 @@ export function paintCell(world, cellId, layer, value) {
     cell.regionId = p.regionId;
     const s = world.settlements.find((x) => x.cellId === cellId);
     if (s) s.regionId = p.regionId;
+    bumpSurface(world);
     return true;
   }
   return false;
@@ -109,10 +115,12 @@ function clearLayer(world, cell, layer) {
     cell.cultureId = -1;
     const s = world.settlements.find((x) => x.cellId === cell.id);
     if (s) s.cultureId = -1;
+    bumpSurface(world);
     return true;
   }
   if (layer === "religion") {
     cell.religionId = -1;
+    bumpSurface(world);
     return true;
   }
   if (layer === "realm") {
@@ -120,10 +128,12 @@ function clearLayer(world, cell, layer) {
     cell.provinceId = -1;
     const s = world.settlements.find((x) => x.cellId === cell.id);
     if (s) s.regionId = -1;
+    bumpSurface(world);
     return true;
   }
   if (layer === "province") {
     cell.provinceId = -1;
+    bumpSurface(world);
     return true;
   }
   return false;

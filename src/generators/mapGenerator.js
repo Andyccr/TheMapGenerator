@@ -8,7 +8,7 @@
  *   settlements / realms → routes → markers
  */
 
-import { createWorldShell } from "../data/worldData.js";
+import { createWorldShell, bumpSurface } from "../data/worldData.js";
 import { makeRng } from "./rng.js";
 import { createMesh } from "./mesh.js";
 import { assignPlates, assignElevation } from "./tectonics.js";
@@ -22,13 +22,13 @@ import {
   extractRivers,
   markMountains,
 } from "./hydrology.js";
-import { assignClimate, assignBiomes } from "./climate.js";
+import { assignClimate, assignBiomes, spreadMoisture } from "./climate.js";
 import { placeCivilizations, assignRegions } from "./civilization.js";
 import { placeCultures } from "./cultures.js";
 import { placeRoutes } from "./routes.js";
 import { pruneRoutes } from "../data/routes.js";
 import { placeMarkers } from "./markers.js";
-import { placeProvinces } from "./provinces.js";
+import { placeProvinces, clearForeignProvinces } from "./provinces.js";
 import { placeReligions } from "./religions.js";
 import { placeFeatures } from "./features.js";
 import { applyLandform, applyStepsOnly } from "./landforms.js";
@@ -83,18 +83,21 @@ export class MapGenerator {
     onProgress?.("hydrology");
     this.#hydrology(world);
     onProgress?.("climate");
-    this.#climate(world);
+    this.#temperatures(world);
     this.#layRivers(world);
+    this.#biomes(world);
     onProgress?.("society");
     this.#buildSociety(world, world.meta.societySeed || world.meta.seed, onProgress);
     world.generatedAt = new Date().toISOString();
+    bumpSurface(world);
     return world;
   }
 
   /**
    * After an editor changes heights, rebuild water and climate.
-   * Mesh, plates, towns, hand-drawn routes/markers, culture/faith/province paint,
+   * Mesh, plates, towns, hand-drawn routes/markers, culture/faith paint,
    * and diplomacy stances stay. Realms re-flood from remaining capitals.
+   * A province id stays only while its cell is still inside that province's realm.
    * @param {WorldData} world
    * @param {(stage: string) => void} [onProgress]
    * @returns {WorldData}
@@ -111,8 +114,9 @@ export class MapGenerator {
     onProgress?.("hydrology");
     this.#hydrology(world);
     onProgress?.("climate");
-    this.#climate(world);
+    this.#temperatures(world);
     this.#layRivers(world);
+    this.#biomes(world);
     const landIds = new Set(world.cells.filter((c) => !c.ocean && !c.lake && !c.mountain).map((c) => c.id));
     world.settlements = world.settlements.filter((s) => landIds.has(s.cellId) || this.#isLand(world, s.cellId));
     for (const s of world.settlements) {
@@ -124,6 +128,7 @@ export class MapGenerator {
     }
     world.settlements = world.settlements.filter((s) => !world.cells[s.cellId].ocean);
     assignRegions(world.cells, world.settlements, world.regions);
+    clearForeignProvinces(world.cells, world.provinces || []);
     for (const s of world.settlements) {
       s.regionId = world.cells[s.cellId].regionId;
       s.cultureId = world.cells[s.cellId].cultureId ?? s.cultureId;
@@ -139,6 +144,7 @@ export class MapGenerator {
     this.#placeFeatures(world);
     carryNames(prevFeatures, world.features || [], "feature");
     world.diplomacy = pruneDiplomacy(world.diplomacy || [], world.regions);
+    bumpSurface(world);
     return world;
   }
 
@@ -147,7 +153,9 @@ export class MapGenerator {
    * @param {WorldData} world
    */
   recomputeClimate(world) {
-    this.#climate(world);
+    this.#temperatures(world);
+    this.#biomes(world);
+    bumpSurface(world);
     return world;
   }
 
@@ -159,6 +167,7 @@ export class MapGenerator {
   regenerateSociety(world, societySeed) {
     world.meta.societySeed = societySeed || `${world.meta.seed}-${Math.random().toString(36).slice(2, 8)}`;
     this.#buildSociety(world, world.meta.societySeed);
+    bumpSurface(world);
     return world;
   }
 
@@ -294,8 +303,13 @@ export class MapGenerator {
   }
 
   /** @param {WorldData} world */
-  #climate(world) {
+  #temperatures(world) {
     assignClimate(world.cells, world.meta.height, world.meta.wind, world.meta.width);
+  }
+
+  /** Moisture and biomes, after `riverId` is current. */
+  #biomes(world) {
+    spreadMoisture(world.cells);
     assignBiomes(world.cells);
   }
 
