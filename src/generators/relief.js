@@ -71,6 +71,38 @@ export function gradeCoastsAndShelf(cells, cellSize = 10) {
 }
 
 /**
+ * One thermal-slump pass. Steep cells shed a capped amount onto the lower
+ * neighbor; the cap keeps a single O(n) pass from planing off mountain belts.
+ * @param {import("../types.js").Cell[]} cells
+ */
+export function slumpSlopes(cells) {
+  const delta = new Float64Array(cells.length);
+  for (const c of cells) {
+    if (c.ocean || c.border || !c.neighbors?.length) continue;
+    let low = /** @type {import("../types.js").Cell | null} */ (null);
+    let lowH = c.height;
+    for (const nid of c.neighbors) {
+      const n = cells[nid];
+      if (n.height < lowH) {
+        lowH = n.height;
+        low = n;
+      }
+    }
+    if (!low) continue;
+    const drop = c.height - low.height;
+    if (drop < 0.08) continue;
+    const move = Math.min(0.035, (drop - 0.08) * 0.22);
+    if (low.ocean) {
+      delta[c.id] -= move * 0.35;
+    } else if (!low.border) {
+      delta[c.id] -= move;
+      delta[low.id] += move * 0.65;
+    }
+  }
+  for (const c of cells) c.height += delta[c.id];
+}
+
+/**
  * Wear high-flux steep cells and deposit a little downstream (O'Leary cartoon erosion).
  * @param {import("../types.js").Cell[]} cells
  */

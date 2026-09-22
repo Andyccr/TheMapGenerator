@@ -16,6 +16,7 @@ import {
 } from "../data/catalogs.js";
 import { tiesFor, otherId } from "../data/diplomacy.js";
 import { formatJourneySummary, journeysThrough } from "../data/journeys.js";
+import { climateBeltLabel } from "../data/climate.js";
 
 /** @param {string} s */
 export function escapeHtml(s) {
@@ -64,6 +65,17 @@ export function cellInspectHtml(world, cellId) {
   const religion = c.religionId >= 0 ? world.religions?.[c.religionId] : null;
   const feat = c.featureId >= 0 ? world.features?.[c.featureId] : null;
   const biomeName = BIOME_LABELS[c.biome] || c.biome;
+  const lat = world.meta?.height ? 1 - c.y / world.meta.height : 0.5;
+  const belt = climateBeltLabel(lat);
+  const tempText =
+    typeof c.tempRange === "number"
+      ? `${c.temperature.toFixed(2)} ±${c.tempRange.toFixed(2)}`
+      : c.temperature.toFixed(2);
+  const riverText = river?.name
+    ? `${river.name}${river.order ? ` · ${river.order}级` : ""}`
+    : c.riverId >= 0
+      ? "有"
+      : "—";
   const typeName = town ? SETTLEMENT_TYPE_LABELS[town.type] || town.type : "";
   const diplo = realm
     ? tiesFor(world.diplomacy || [], realm.id)
@@ -84,10 +96,11 @@ export function cellInspectHtml(world, cellId) {
       <dt>格子</dt><dd>#${c.id}</dd>
       <dt>海拔</dt><dd>${c.height.toFixed(2)}</dd>
       <dt>生物群系</dt><dd>${escapeHtml(biomeName)}</dd>
+      <dt>气候带</dt><dd>${escapeHtml(belt)}</dd>
       <dt>湿度</dt><dd>${c.moisture.toFixed(2)}</dd>
-      <dt>温度</dt><dd>${c.temperature.toFixed(2)}</dd>
+      <dt>温度</dt><dd>${escapeHtml(tempText)}</dd>
       <dt>径流量</dt><dd>${c.flux.toFixed(1)}</dd>
-      <dt>河流</dt><dd>${river?.name ? escapeHtml(river.name) : c.riverId >= 0 ? "有" : "—"}</dd>
+      <dt>河流</dt><dd>${escapeHtml(riverText)}</dd>
       <dt>标记</dt><dd>${[
         c.ocean && "海洋",
         c.lake && "湖泊",
@@ -161,7 +174,7 @@ export function rosterItems(world, kind) {
       .filter((r) => r.name)
       .map((r) => ({
         label: r.name,
-        hint: `河流 · ${r.cellIds.length}格`,
+        hint: `河流 · ${r.cellIds.length}格${r.order ? ` · ${r.order}级` : ""}`,
         cellId: r.cellIds[Math.floor(r.cellIds.length / 2)] ?? r.cellIds[0] ?? -1,
       }));
   }

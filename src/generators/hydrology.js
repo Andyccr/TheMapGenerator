@@ -118,13 +118,57 @@ export function assignDownslope(cells) {
 }
 
 /**
- * Precipitation seeds flux; high cells and windward slopes get more rain later.
- * This pass uses a uniform drizzle plus height so mountains still feed rivers.
+ * Strahler order. Upstream cells are higher, so one descending sweep is enough.
  * @param {import("../types.js").Cell[]} cells
+ * @returns {Int16Array}
  */
-export function accumulateFlux(cells) {
+export function assignStreamOrder(cells) {
+  const order = new Int16Array(cells.length);
+  const land = [];
   for (const c of cells) {
-    c.flux = c.ocean ? 0 : 1 + Math.max(0, c.height) * 0.8;
+    if (!c.ocean) land.push(c);
+  }
+  land.sort((a, b) => b.filledHeight - a.filledHeight);
+  for (const c of land) {
+    let max = 0;
+    let second = 0;
+    let any = false;
+    for (const nid of c.neighbors) {
+      if (cells[nid].downslope !== c.id) continue;
+      any = true;
+      const o = order[nid];
+      if (o > max) {
+        second = max;
+        max = o;
+      } else if (o > second) second = o;
+    }
+    if (!any) order[c.id] = 1;
+    else order[c.id] = second === max && max > 0 ? max + 1 : Math.max(1, max);
+  }
+  return order;
+}
+
+/**
+ * Mouth flux plus stream order. Wider downstream, still capped for the pen.
+ * @param {number} flux
+ * @param {number} order
+ */
+export function riverWidth(flux, order) {
+  return Math.min(7.2, 0.42 + Math.log2(1 + Math.max(0, flux)) * 0.33 + Math.max(0, order - 1) * 0.22);
+}
+
+/**
+ * @param {import("../types.js").Cell[]} cells
+ * @param {boolean} [usePrecip] weight flux by climate precipitation
+ */
+export function accumulateFlux(cells, usePrecip = false) {
+  for (const c of cells) {
+    if (c.ocean) {
+      c.flux = 0;
+      continue;
+    }
+    const rain = usePrecip ? Math.max(0.15, c.precipitation || 0.5) : 1;
+    c.flux = rain * (1 + Math.max(0, c.height) * 0.8);
   }
   const order = cells
     .filter((c) => !c.ocean)
@@ -150,8 +194,9 @@ export function extractRivers(cells, threshold = 14) {
 
   const landFlux = cells.filter((c) => !c.ocean && !c.lake).map((c) => c.flux).sort((a, b) => a - b);
   const percentile = landFlux.length ? landFlux[Math.min(landFlux.length - 1, Math.floor(landFlux.length * 0.93))] : threshold;
-  const cut = Math.max(8, percentile);
+  const cut = Math.max(2, percentile);
 
+  const order = assignStreamOrder(cells);
   const sources = cells
     .filter((c) => !c.ocean && !c.lake && c.flux >= cut && c.downslope >= 0)
     .sort((a, b) => a.flux - b.flux);
@@ -189,8 +234,17 @@ export function extractRivers(cells, threshold = 14) {
       path.map((cid) => [cells[cid].x, cells[cid].y]),
       cells.length > 18000 ? 1 : 2,
     );
-    const width = Math.min(6.4, 0.38 + Math.log(1 + src.flux) * 0.36);
-    rivers.push({ id: rid, cellIds: path, points, width, name: "" });
+    let mouth = 0;
+    let mouthId = path[0];
+    for (const cid of path) {
+      if (cells[cid].ocean) continue;
+      if (cells[cid].flux >= mouth) {
+        mouth = cells[cid].flux;
+        mouthId = cid;
+      }
+    }
+    const width = riverWidth(mouth, order[mouthId] || 1);
+    rivers.push({ id: rid, cellIds: path, points, width, name: "", order: order[mouthId] || 1 });
   }
   return rivers;
 }
