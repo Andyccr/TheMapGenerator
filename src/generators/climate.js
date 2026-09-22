@@ -1,10 +1,42 @@
 /**
- * Climate: latitude + elevation temperature (Amit Patel / Whittaker),
- * moisture from orographic rain and river proximity, rain-shadow from
- * prevailing wind (Scott Turner's wind-pattern explorations).
+ * Climate: latitude belts + elevation lapse (Patel / Whittaker),
+ * continentality from distance to the sea, moisture from orographic rain
+ * and river proximity, rain-shadow from prevailing wind (Turner).
+ *
+ * The upwind walk is capped and bails once the shadow is saturated, so a
+ * finer mesh does not do more work per cell than a coarse one.
  */
 
 import { BIOMES } from "../data/catalogs.js";
+import { latitudeBand } from "../data/climate.js";
+
+/**
+ * Graph hops from the nearest ocean cell. -1 when the map has no ocean.
+ * @param {import("../types.js").Cell[]} cells
+ */
+function distanceFromOcean(cells) {
+  const dist = new Int32Array(cells.length);
+  dist.fill(-1);
+  /** @type {number[]} */
+  const q = [];
+  for (let i = 0; i < cells.length; i++) {
+    if (cells[i].ocean) {
+      dist[i] = 0;
+      q.push(i);
+    }
+  }
+  let h = 0;
+  while (h < q.length) {
+    const id = q[h++];
+    const next = dist[id] + 1;
+    for (const nid of cells[id].neighbors) {
+      if (dist[nid] >= 0) continue;
+      dist[nid] = next;
+      q.push(nid);
+    }
+  }
+  return dist;
+}
 
 /**
  * @param {import("../types.js").Cell[]} cells
@@ -18,14 +50,22 @@ export function assignClimate(cells, height, wind, width) {
   const wy = wind.y / len;
   const span = Math.hypot(width || height * 1.6, height);
   const stepLen = Math.max(16, span * 0.016);
-  const nSteps = Math.min(18, Math.max(8, Math.round(span / 220)));
+  const nSteps = Math.min(12, Math.max(7, Math.round(span / 260)));
+  const fromSea = distanceFromOcean(cells);
+  const mapH = height || 1;
 
   /** Walk upwind; tall ridges steal moisture. Length scales with map span. */
   for (const cell of cells) {
-    const lat = 1 - cell.y / height; // 1 = north poleward, 0 = south/tropics
+    const lat = 1 - cell.y / mapH; // 1 = north poleward, 0 = south/tropics
     const lapse = Math.max(0, cell.height) * 0.55;
-    cell.temperature = 1 - lat * 0.85 - lapse;
-    if (cell.ocean) cell.temperature += 0.04;
+    let temperature = 1 - lat * 0.85 - lapse;
+    if (cell.ocean) temperature += 0.04;
+    const hops = fromSea[cell.id];
+    const inland = hops < 0 ? 0 : Math.min(1, hops / 16);
+    const maritime = 1 - inland;
+    temperature = temperature * (1 - 0.16 * maritime) + 0.52 * 0.16 * maritime;
+    cell.temperature = temperature;
+    cell.tempRange = (0.06 + lat * 0.2) * (0.3 + inland * 0.7);
 
     if (cell.ocean) {
       cell.precipitation = 1;
@@ -38,6 +78,7 @@ export function assignClimate(cells, height, wind, width) {
     let y = cell.y;
     let id = cell.id;
     for (let step = 0; step < nSteps; step++) {
+      if (shadow > 1.35) break;
       x -= wx * stepLen;
       y -= wy * stepLen;
       let next = -1;
@@ -61,7 +102,9 @@ export function assignClimate(cells, height, wind, width) {
     }
 
     const orographic = Math.max(0, cell.height) * 0.35;
-    cell.precipitation = Math.max(0.05, 0.72 + orographic - shadow * 0.55);
+    let precip = latitudeBand(lat) + orographic - shadow * 0.55 - inland * 0.2;
+    if (cell.coast) precip = Math.max(precip, 0.32);
+    cell.precipitation = Math.max(0.04, Math.min(1, precip));
   }
 
   // Moisture spreads downhill and from fresh water (Patel's distance-to-river idea).

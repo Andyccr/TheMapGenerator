@@ -38,6 +38,7 @@
  * @property {number} flux
  * @property {number} moisture
  * @property {number} temperature
+ * @property {number} [tempRange] seasonal half-range; larger inland and poleward
  * @property {string} biome
  * @property {boolean} ocean
  * @property {boolean} lake
@@ -59,6 +60,7 @@
  * @property {number[]} cellIds
  * @property {number[][]} points
  * @property {number} width
+ * @property {number} [order] Strahler order at the mouth
  * @property {string} [name]
  * @property {string} [note]
  */

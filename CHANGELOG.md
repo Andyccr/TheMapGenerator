@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.4.0
+
+- Climate follows latitude bands (wet equator, dry subtropics, storm track, dry pole) plus distance from the sea. Coasts stay milder; interiors have a wider seasonal range, which also nudges where towns prefer to sit.
+- One slope-slump pass, then rivers are redrawn from precipitation. Width and Strahler order come from the mouth, so a trunk reads wider than its sources. The upwind walk stays capped, and wind-only restamps still leave the river network alone.
+
 ## 2.3.0
 
 - Campaign journeys: click waypoints and the workshop pathfinds a march that prefers roads, or a sea lane when the coast-to-coast chronicle is faster. Enter (or 封存行程) stores days, leagues, and stops (towns, fords, biomes) on the save. The roster, search, inspector, and map draw them; Backspace drops the last stop.

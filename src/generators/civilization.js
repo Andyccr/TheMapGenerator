@@ -25,6 +25,7 @@ export function settlementScore(c, cells, rng) {
   s += (0.35 - Math.abs(c.height - 0.12)) * 1.2;
   if (c.biome.includes("DESERT")) s -= 1.1;
   if (c.biome === "MARSH") s -= 0.6;
+  if (c.tempRange > 0.22) s -= (c.tempRange - 0.22) * 1.2;
   return s + rng() * 0.15;
 }
 
