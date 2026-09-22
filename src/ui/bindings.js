@@ -93,6 +93,13 @@ export function bindWorkshop(app) {
     app.showRoutes = /** @type {HTMLInputElement} */ (e.target).checked;
     app.redraw();
   });
+  el("opt-journeys")?.addEventListener("change", (e) => {
+    app.showJourneys = /** @type {HTMLInputElement} */ (e.target).checked;
+    app.redraw();
+  });
+  el("btn-journey-seal")?.addEventListener("click", () => app.sealJourney());
+  el("btn-journey-undo")?.addEventListener("click", () => app.popJourneyStop());
+  el("btn-journey-clear")?.addEventListener("click", () => app.clearJourneyDraft());
   el("opt-markers")?.addEventListener("change", (e) => {
     app.showMarkers = /** @type {HTMLInputElement} */ (e.target).checked;
     app.redraw();

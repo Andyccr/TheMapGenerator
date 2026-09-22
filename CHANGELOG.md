@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.3.0
+
+- Campaign journeys: click waypoints and the workshop pathfinds a march that prefers roads, or a sea lane when the coast-to-coast chronicle is faster. Enter (or 封存行程) stores days, leagues, and stops (towns, fords, biomes) on the save. The roster, search, inspector, and map draw them; Backspace drops the last stop.
+- Raise, lower, and paint brushes query a cached spatial grid instead of scanning every cell on each stroke.
+
 ## 2.2.0
 
 - Generators no longer re-export data catalogs or JSON helpers. Diplomacy labels/ties, biome ids, and landform recipes are imported from `data/` (tests included).

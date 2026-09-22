@@ -4,7 +4,7 @@ import { createTools, RiverTool, StampTool } from "../tools.js";
 
 test("every tool exposes a Chinese hint as the single source", () => {
   const tools = createTools();
-  const ids = ["pan", "raise", "lower", "stamp", "paint", "river", "road", "burg", "erase", "marker", "move", "rename", "measure"];
+  const ids = ["pan", "raise", "lower", "stamp", "paint", "river", "road", "burg", "erase", "marker", "move", "rename", "measure", "journey"];
   assert.deepEqual(Object.keys(tools).sort(), [...ids].sort());
   for (const id of ids) {
     const hint = tools[id].hint;

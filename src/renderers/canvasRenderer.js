@@ -116,6 +116,7 @@ export class CanvasRenderer {
     this.#drawCoast(world, ink, style, bounds, lod);
     if (options.rivers !== false) this.#drawRivers(world, ink, style, bounds, lod);
     if (options.routes !== false) this.#drawRoutes(world, ink, style, bounds, lod);
+    if (options.journeys !== false) this.#drawJourneys(world, style, bounds, lod);
     if (options.borders !== false) {
       if (style === "cultural") this.#drawCultureBorders(world, ink, bounds, lod);
       else if (style === "provinces") this.#drawProvinceBorders(world, ink, bounds, lod);
@@ -743,6 +744,55 @@ export class CanvasRenderer {
     }
     ctx.setLineDash([]);
     ctx.globalAlpha = 1;
+  }
+
+  /**
+   * Sealed party itineraries. Few polylines, so they stay visible at fit zoom.
+   * @param {import("../types.js").WorldData} world
+   * @param {string} style
+   * @param {{ x0: number, y0: number, x1: number, y1: number }} bounds
+   * @param {ReturnType<typeof lodConfig>} lod
+   */
+  #drawJourneys(world, style, bounds, lod) {
+    const ctx = this.ctx;
+    const journeys = world.journeys;
+    if (!ctx || !journeys?.length) return;
+    const night = style === "night";
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.font = `${this.#px(11)}px Palatino, Georgia, serif`;
+    ctx.textAlign = "center";
+    for (const journey of journeys) {
+      const pts = journey.points;
+      if (!pts || pts.length < 2) continue;
+      if (!this.#lineInView(pts, bounds)) continue;
+      ctx.strokeStyle = night ? "#f0c36a" : "#8c2f2f";
+      ctx.fillStyle = ctx.strokeStyle;
+      ctx.globalAlpha = 0.92;
+      ctx.setLineDash([this.#px(1.5), this.#px(6)]);
+      ctx.lineWidth = this.#px(2.15);
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      const ends = [journey.cellIds?.[0], journey.cellIds?.[journey.cellIds.length - 1]];
+      for (const id of ends) {
+        const cell = world.cells[id];
+        if (!cell) continue;
+        ctx.beginPath();
+        ctx.arc(cell.x, cell.y, this.#px(3.1), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (lod.level !== "overview" && journey.name) {
+        const mid = pts[pts.length >> 1];
+        ctx.globalAlpha = 0.95;
+        ctx.fillText(journey.name, mid[0], mid[1] - this.#px(8));
+      }
+    }
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+    ctx.textAlign = "left";
   }
 
   /**
