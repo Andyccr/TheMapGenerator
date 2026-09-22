@@ -6,7 +6,7 @@
  * write `world.view` (session state, not geography).
  */
 import { pointInPolygon, simplifyPolyline } from "../util/geometry.js";
-import { buildSpatialIndex } from "../util/spatialIndex.js";
+import { buildSpatialIndex, visitCellsInRect } from "../util/spatialIndex.js";
 import { fillFor, inkFor, ATLAS_BIOME } from "./styles.js";
 import { lodConfig, lodFromZoom, LOD_LABELS } from "./lod.js";
 import { buildContours } from "./contours.js";
@@ -387,10 +387,12 @@ export class CanvasRenderer {
   /** @param {import("../types.js").WorldData} world @param {string} style */
   #paintKey(world, style) {
     const cells = world.cells;
-    let acc = world.rivers.length;
+    let acc = world.rivers.length + (world.meta.surfaceRev || 0) * 10007;
     const step = Math.max(1, (cells.length / 180) | 0);
     for (let i = 0; i < cells.length; i += step) acc += cells[i].height;
-    return `${world.meta.seed}:${world.generatedAt}:${style}:${cells.length}:${acc.toFixed(3)}`;
+    let towns = world.settlements?.length || 0;
+    for (const s of world.settlements || []) towns = Math.imul(towns, 33) + s.cellId + (s.population || 0);
+    return `${world.meta.seed}:${world.generatedAt}:${style}:${cells.length}:${acc.toFixed(3)}:${towns}`;
   }
 
   /** @param {import("../types.js").WorldData} world */
@@ -474,8 +476,9 @@ export class CanvasRenderer {
   #drawCells(world, style, bounds, lod) {
     const ctx = this.ctx;
     if (!ctx) return;
-    for (const cell of world.cells) {
-      if (cell.polygon.length < 3 || !this.#inView(cell, bounds)) continue;
+    visitCellsInRect(world.cells, bounds.x0, bounds.y0, bounds.x1, bounds.y1, (id) => {
+      const cell = world.cells[id];
+      if (!cell || cell.polygon.length < 3 || !this.#inView(cell, bounds)) return;
       ctx.beginPath();
       const p = cell.polygon;
       ctx.moveTo(p[0][0], p[0][1]);
@@ -488,7 +491,7 @@ export class CanvasRenderer {
         ctx.lineWidth = this.#px(0.45);
         ctx.stroke();
       }
-      if (!lod.hillshade || cell.ocean || cell.lake) continue;
+      if (!lod.hillshade || cell.ocean || cell.lake) return;
       let shade = 0;
       let w = 0;
       for (const nid of cell.neighbors) {
@@ -497,12 +500,12 @@ export class CanvasRenderer {
         shade += (cell.height - n.height) * 2.4;
         w += 1;
       }
-      if (!w) continue;
+      if (!w) return;
       shade = Math.max(-0.28, Math.min(0.22, shade / w));
-      if (Math.abs(shade) < 0.02) continue;
+      if (Math.abs(shade) < 0.02) return;
       ctx.fillStyle = shade > 0 ? `rgba(255,246,220,${shade})` : `rgba(12,16,28,${-shade * 1.15})`;
       ctx.fill();
-    }
+    });
   }
 
   /**
@@ -810,10 +813,11 @@ export class CanvasRenderer {
     ctx.lineWidth = this.#px(0.9);
     const step = lod.mountainStep || 1;
     const minPx = lod.level === "regional" ? 5.8 : 4.2;
-    for (const cell of world.cells) {
-      if (!cell.mountain || cell.id % step !== 0 || !this.#inView(cell, bounds)) continue;
+    visitCellsInRect(world.cells, bounds.x0, bounds.y0, bounds.x1, bounds.y1, (id) => {
+      const cell = world.cells[id];
+      if (!cell || !cell.mountain || cell.id % step !== 0 || !this.#inView(cell, bounds)) return;
       const s = Math.max(this.#px(4.5), Math.min(9 + cell.height * 7, this.#px(16)));
-      if (s * scale < minPx) continue;
+      if (s * scale < minPx) return;
       ctx.beginPath();
       ctx.moveTo(cell.x, cell.y - s);
       ctx.lineTo(cell.x - s * 0.72, cell.y + s * 0.38);
@@ -821,7 +825,7 @@ export class CanvasRenderer {
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
-    }
+    });
   }
 
   /**

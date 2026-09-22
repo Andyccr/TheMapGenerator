@@ -103,6 +103,7 @@ export class App {
     this.fillSlotSelect();
     this.syncRecipeList();
     this.syncPaintPigment();
+    this.fillExamples();
     this.setTool(this.toolId);
     window.addEventListener("resize", () => {
       this.renderer.resize();
@@ -356,6 +357,7 @@ export class App {
       ev.preventDefault();
       if (!this.world) return;
       if (ev.shiftKey) {
+        this.rememberRecipe();
         downloadJson(this.world, `world-${this.world.meta.seed}.json`);
         this.toast("已导出 JSON。");
         return;
@@ -501,11 +503,12 @@ export class App {
       this.redraw();
       return;
     }
+    const sameCell = cellId === this.highlight;
     this.highlight = cellId;
-    this.hover(cellId, x, y);
-    this.setStatus(cellId);
+    this.hover(cellId, x, y, sameCell);
+    if (!sameCell) this.setStatus(cellId);
     if (!this.painting) {
-      this.redraw();
+      if (!sameCell) this.redraw();
       return;
     }
     const ctx = this.editorContext();
@@ -611,14 +614,7 @@ export class App {
   }
 
   scheduleRecompute() {
-    if (this.recomputeTimer) return;
-    this.recomputeTimer = window.setTimeout(() => {
-      this.recomputeTimer = 0;
-      if (this.world && (this.toolId === "raise" || this.toolId === "lower" || this.toolId === "stamp")) {
-        this.generator.recomputeFromElevation(this.world);
-        this.redraw();
-      }
-    }, 90);
+    /* Brushes redraw the live height. The full river and climate pass runs on pointer up. */
   }
 
   pushUndo() {
@@ -657,9 +653,17 @@ export class App {
     this.autosaveTimer = window.setTimeout(() => this.flushAutosave(), 400);
   }
 
+  rememberRecipe() {
+    if (!this.world || !Array.isArray(this.landformSteps)) return;
+    this.world.meta.landformSteps = this.landformSteps.map((step) => ({ ...step }));
+    const el = this.el("opt-landform");
+    if (el instanceof HTMLSelectElement && el.value) this.world.meta.landform = el.value;
+  }
+
   async flushAutosave() {
     if (this.autosaveTimer) window.clearTimeout(this.autosaveTimer);
     this.autosaveTimer = 0;
+    this.rememberRecipe();
     if (!this.world) return;
     const ok = await saveAutosave(this.world);
     this._dirty = !ok;
@@ -773,20 +777,21 @@ export class App {
    * @param {number} x
    * @param {number} y
    */
-  hover(cellId, x, y) {
+  hover(cellId, x, y, sameCell = false) {
     const card = this.el("hover-card");
     if (!(card instanceof HTMLElement) || !this.world) return;
     if (cellId < 0) {
       card.hidden = true;
       return;
     }
+    card.hidden = false;
+    card.style.left = `${x + 14}px`;
+    card.style.top = `${y + 14}px`;
+    if (sameCell) return;
     const c = this.world.cells[cellId];
     const town = this.world.settlements.find((s) => s.cellId === cellId);
     const marker = (this.world.markers || []).find((m) => m.cellId === cellId);
     const cult = c.cultureId >= 0 ? this.world.cultures?.[c.cultureId] : null;
-    card.hidden = false;
-    card.style.left = `${x + 14}px`;
-    card.style.top = `${y + 14}px`;
     if (town) card.textContent = `${town.name} · ${SETTLEMENT_TYPE[town.type] || town.type}`;
     else if (marker) card.textContent = marker.name;
     else {

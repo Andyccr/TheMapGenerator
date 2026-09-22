@@ -46,7 +46,7 @@ Because routing uses `filledHeight`, **a river cannot climb a ridge**. Editing t
 
 - Temperature = latitude (north is cold) minus elevation lapse, pulled toward mild on the coast (continentality from one ocean-distance BFS). `tempRange` grows inland and poleward.
 - Precipitation starts from a **latitude band** (wet equator, dry subtropics, wet storm track, dry pole), then an upwind walk (capped at 12 steps, and it stops once the shadow is saturated) adds **rain shadow** on higher / mountain cells (Turner). Coasts keep a moisture floor.
-- Moisture also bleeds from rivers and lakes (Patel), four neighbor passes.
+- Moisture bleeds from rivers and lakes (Patel) in four neighbor passes. That pass runs after the rivers are laid, so the channel itself raises moisture before biomes are chosen. A wind restamp reuses the rivers already on the map.
 - Biome = Whittaker lookup on `(temperature, moisture)`, with ocean / lake / beach / ice specials.
 - Applying wind restamps temperature, moisture, and biomes only. Height edits rebuild rivers from the new rain.
 
@@ -70,7 +70,7 @@ Rivers pick names from the culture at mid-course.
 
 | Tool | Mutation | Rebuild |
 | --- | --- | --- |
-| Raise / Lower | `height` brush | hydrology, climate, biomes, culture/realm flood, routes |
+| Raise / Lower | `height` brush while drawing; full rebuild on release | hydrology, climate, biomes, culture/realm flood, routes |
 | 印戳 | one hill / pit / range blob at the click | same |
 | 涂色 | biome / culture / religion / realm / province ids | none |
 | 应用到当前图 | landform steps on existing heights | hydrology, climate, society flood |
