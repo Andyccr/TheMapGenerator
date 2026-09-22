@@ -617,6 +617,7 @@ button:hover {
 
 .cell-edit[hidden],
 .diplo-edit[hidden],
+.journey-edit[hidden],
 .route-edit[hidden],
 .create-edit[hidden],
 .note-field[hidden] {
@@ -639,6 +640,35 @@ button:hover {
   align-items: center;
   gap: 0.4rem;
   font-size: 0.82rem;
+}
+
+.route-edit li.journey-card {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.journey-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.journey-actions-inline {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.journey-legs {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  max-height: 9rem;
+  overflow: auto;
+  font-size: 0.75rem;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 #entity-color {

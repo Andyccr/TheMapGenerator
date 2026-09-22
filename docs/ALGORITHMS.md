@@ -80,6 +80,7 @@ Rivers pick names from the culture at mid-course.
 | Move | `settlement.cellId` (land only) | none |
 | Rename | name fields | none |
 | 测距 | none (overlay) | none |
+| 行程 | append a sealed `journeys[]` chronicle (march prefers roads; voyage only if faster) | none |
 | 重掷文明 | cultures, towns, realms, routes, markers | terrain untouched |
 | 重掷地名 | names only | none |
 | 重掷商路与地标 | routes + markers | none |

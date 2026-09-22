@@ -15,6 +15,7 @@ import {
   routeKindLabel,
 } from "../data/catalogs.js";
 import { tiesFor, otherId } from "../data/diplomacy.js";
+import { formatJourneySummary, journeysThrough } from "../data/journeys.js";
 
 /** @param {string} s */
 export function escapeHtml(s) {
@@ -43,6 +44,7 @@ export function overviewInspectHtml(world, lodLabel) {
         <dt>信仰</dt><dd>${sum.religions}</dd>
         <dt>地貌</dt><dd>${sum.features}</dd>
         <dt>商路</dt><dd>${sum.routes}</dd>
+        <dt>行程</dt><dd>${sum.journeys}</dd>
         <dt>地标</dt><dd>${sum.markers}</dd>`;
 }
 
@@ -76,6 +78,8 @@ export function cellInspectHtml(world, cellId) {
   const roadHint = roads.length
     ? roads.map((r) => `${routeKindLabel(r.kind)} #${r.id}`).join(" · ")
     : "—";
+  const trips = journeysThrough(world, cellId);
+  const tripHint = trips.length ? trips.map((j) => `${j.name}（${formatJourneySummary(j)}）`).join(" · ") : "—";
   return `
       <dt>格子</dt><dd>#${c.id}</dd>
       <dt>海拔</dt><dd>${c.height.toFixed(2)}</dd>
@@ -100,7 +104,8 @@ export function cellInspectHtml(world, cellId) {
       <dt>地貌</dt><dd>${feat ? escapeHtml(`${feat.name}（${featureTypeLabel(feat.type)}）`) : "—"}</dd>
       <dt>聚落</dt><dd>${town ? escapeHtml(`${town.name}（${typeName} · ${town.population || "?"}人）`) : "—"}</dd>
       <dt>地标</dt><dd>${marker ? escapeHtml(marker.name) : "—"}</dd>
-      <dt>过路</dt><dd>${escapeHtml(roadHint)}</dd>`;
+      <dt>过路</dt><dd>${escapeHtml(roadHint)}</dd>
+      <dt>行程</dt><dd>${escapeHtml(tripHint)}</dd>`;
 }
 
 /**
@@ -159,6 +164,13 @@ export function rosterItems(world, kind) {
         hint: `河流 · ${r.cellIds.length}格`,
         cellId: r.cellIds[Math.floor(r.cellIds.length / 2)] ?? r.cellIds[0] ?? -1,
       }));
+  }
+  if (kind === "journeys") {
+    return (world.journeys || []).map((j) => ({
+      label: j.name,
+      hint: formatJourneySummary(j),
+      cellId: j.cellIds[Math.floor(j.cellIds.length / 2)] ?? j.cellIds[0] ?? -1,
+    }));
   }
   if (kind === "routes") {
     return (world.routes || []).map((r) => {
@@ -220,6 +232,15 @@ export function searchHits(world, query) {
   }
   for (const m of world.markers || []) {
     if (m.name.toLowerCase().includes(q)) hits.push({ label: m.name, hint: markerLabel(m.type), cellId: m.cellId });
+  }
+  for (const j of world.journeys || []) {
+    if ((j.name || "").toLowerCase().includes(q)) {
+      hits.push({
+        label: j.name,
+        hint: formatJourneySummary(j),
+        cellId: j.cellIds[Math.floor(j.cellIds.length / 2)] ?? j.cellIds[0] ?? -1,
+      });
+    }
   }
   for (const r of world.routes || []) {
     const a = world.settlements.find((s) => s.id === r.fromId);

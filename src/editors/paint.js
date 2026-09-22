@@ -3,6 +3,7 @@
  * land cells. Physical ocean stays ocean — hydrology is a different tool.
  */
 import { LAND_BIOMES } from "../data/catalogs.js";
+import { cellsInDisk } from "../util/spatialIndex.js";
 
 export const PAINT_LAYERS = [
   { id: "biome", label: "生物群系", style: "atlas" },
@@ -20,13 +21,12 @@ export const PAINT_LAYERS = [
  * @returns {number[]}
  */
 export function cellsInBrush(world, cx, cy, radius) {
-  const r2 = radius * radius;
   /** @type {number[]} */
   const out = [];
-  for (const cell of world.cells) {
-    if (cell.border || cell.ocean) continue;
-    const d2 = (cell.x - cx) ** 2 + (cell.y - cy) ** 2;
-    if (d2 <= r2) out.push(cell.id);
+  for (const id of cellsInDisk(world.cells, cx, cy, radius)) {
+    const cell = world.cells[id];
+    if (!cell || cell.border || cell.ocean) continue;
+    out.push(id);
   }
   return out;
 }

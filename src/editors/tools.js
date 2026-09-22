@@ -5,6 +5,8 @@ import { stampAt } from "../generators/landforms.js";
 import { addRouteBetween } from "./routes.js";
 import { removeRoutesThrough, pruneRoutes } from "../data/routes.js";
 import { cellsInBrush, eyedrop, paintCells } from "./paint.js";
+import { cellsInDisk } from "../util/spatialIndex.js";
+import { JourneyTool } from "./journeys.js";
 
 /**
  * Raise or lower a gaussian brush of cells.
@@ -15,12 +17,12 @@ import { cellsInBrush, eyedrop, paintCells } from "./paint.js";
  * @param {number} delta
  */
 export function sculptElevation(world, cx, cy, radius, delta) {
-  const r2 = radius * radius;
-  for (const cell of world.cells) {
-    if (cell.border) continue;
-    const d2 = (cell.x - cx) ** 2 + (cell.y - cy) ** 2;
-    if (d2 > r2) continue;
-    const w = 1 - Math.sqrt(d2) / radius;
+  if (!(radius > 0)) return;
+  for (const id of cellsInDisk(world.cells, cx, cy, radius)) {
+    const cell = world.cells[id];
+    if (!cell || cell.border) continue;
+    const d = Math.hypot(cell.x - cx, cell.y - cy);
+    const w = 1 - d / radius;
     cell.height = Math.max(-0.95, Math.min(1.15, cell.height + delta * w * w));
   }
 }
@@ -415,5 +417,6 @@ export function createTools() {
     move: new MoveSettlementTool(),
     rename: new RenameTool(),
     measure: new MeasureTool(),
+    journey: new JourneyTool(),
   };
 }

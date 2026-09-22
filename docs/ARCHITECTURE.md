@@ -48,6 +48,7 @@ Plain object, versioned. This is the save file.
   religions: [ { id, name, type, cultureId, color, originId } ],
   features: [ { id, name, type, size, originId, cx, cy } ],
   diplomacy: [ { a, b, stance } ],
+  journeys: [ { id, name, cellIds, points, days, leagues, mode, legs } ],
   view: { x, y, scale },
   generatedAt: "ISO-8601"
 }
@@ -80,7 +81,7 @@ class MapGenerator {
 
 Sculpt tools change `height` only. They **must not** hand-edit `riverId` or `biome`. The generator rebuilds those so water cannot be left inconsistent. Thematic paint (`src/editors/paint.js`) is the exception for biome / culture / faith / realm / province ids — it must not call `recomputeFromElevation`. `recomputeFromElevation` rebuilds hydrology and climate, prunes drowned towns/routes/ocean markers, and re-floods realms from remaining capitals. It does **not** regenerate routes, markers, or diplomacy, and it does not re-flood culture / faith / province paint. `recomputeClimate` restamps temperature, moisture, and biomes from `meta.wind` only.
 
-Founding or deleting a town is an editor mutation (`src/editors/settlements.js` + `src/data/routes.js` `pruneRoutes`). Drawing an extra road is `src/editors/routes.js` (pathfind stays in generators). Placing a marker is `src/editors/markers.js`. The river tool carves through `EditorContext.carveRiver`; stamp asks `recomputeNow`. The generator does not secretly regenerate the road network on those clicks. Landform recipe JSON lives in `src/data/landforms.js`; `MapGenerator.applyLandformSteps` is the only App entry that overlays those steps.
+Founding or deleting a town is an editor mutation (`src/editors/settlements.js` + `src/data/routes.js` `pruneRoutes`). Drawing an extra road is `src/editors/routes.js` (pathfind stays in generators). A campaign journey is `src/editors/journeys.js`; day counts live in `src/data/journeys.js` and the march/voyage choice in `src/generators/travel.js`. Placing a marker is `src/editors/markers.js`. The river tool carves through `EditorContext.carveRiver`; stamp asks `recomputeNow`. The generator does not secretly regenerate the road network on those clicks. Landform recipe JSON lives in `src/data/landforms.js`; `MapGenerator.applyLandformSteps` is the only App entry that overlays those steps.
 
 ### Renderer
 

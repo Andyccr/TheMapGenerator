@@ -33,9 +33,10 @@ function stepCost(cell, kind) {
  * @param {number} start
  * @param {number} goal
  * @param {"road"|"sea"} kind
+ * @param {number} [maxSteps]
  * @returns {number[] | null}
  */
-export function pathfind(cells, start, goal, kind) {
+export function pathfind(cells, start, goal, kind, maxSteps = Math.min(cells.length, 14000)) {
   if (start === goal) return [start];
   const heap = new MinHeap();
   const gScore = new Float64Array(cells.length);
@@ -46,9 +47,9 @@ export function pathfind(cells, start, goal, kind) {
   gScore[start] = 0;
   heap.push(start, 0);
   let steps = 0;
-  const maxSteps = Math.min(cells.length, 14000);
+  const limit = maxSteps;
 
-  while (heap.size && steps++ < maxSteps) {
+  while (heap.size && steps++ < limit) {
     const popped = heap.pop();
     if (!popped) break;
     const id = popped.item;
