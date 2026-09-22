@@ -105,9 +105,17 @@ export function assignClimate(cells, height, wind, width) {
     let precip = latitudeBand(lat) + orographic - shadow * 0.55 - inland * 0.2;
     if (cell.coast) precip = Math.max(precip, 0.32);
     cell.precipitation = Math.max(0.04, Math.min(1, precip));
+    cell.moisture = cell.precipitation;
   }
+}
 
-  // Moisture spreads downhill and from fresh water (Patel's distance-to-river idea).
+/**
+ * Freshwater floor, then a few neighbor passes.
+ * Call this after rivers exist: the floor reads `riverId`, and biomes should
+ * be stamped from the moisture that results.
+ * @param {import("../types.js").Cell[]} cells
+ */
+export function spreadMoisture(cells) {
   for (const cell of cells) {
     if (cell.ocean) continue;
     cell.moisture = cell.precipitation;

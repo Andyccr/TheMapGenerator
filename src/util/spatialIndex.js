@@ -105,3 +105,34 @@ export function cellsInDisk(cells, x, y, radius) {
   }
   return out;
 }
+
+/**
+ * Cell ids whose centers fall inside the rectangle.
+ * Shares the brush grid, so a zoomed-in redraw does not walk the whole mesh.
+ * @param {import("../types.js").Cell[]} cells
+ * @param {number} x0
+ * @param {number} y0
+ * @param {number} x1
+ * @param {number} y1
+ * @param {(id: number) => void} visit
+ */
+export function visitCellsInRect(cells, x0, y0, x1, y1, visit) {
+  if (!cells?.length) return;
+  let grid = diskGrids.get(cells);
+  if (!grid) {
+    grid = buildCellGrid(cells, gridSpacing(cells));
+    diskGrids.set(cells, grid);
+  }
+  const { cellSize, buckets } = grid;
+  const gx0 = Math.floor(x0 / cellSize);
+  const gx1 = Math.floor(x1 / cellSize);
+  const gy0 = Math.floor(y0 / cellSize);
+  const gy1 = Math.floor(y1 / cellSize);
+  for (let gy = gy0; gy <= gy1; gy++) {
+    for (let gx = gx0; gx <= gx1; gx++) {
+      const bucket = buckets.get(`${gx},${gy}`);
+      if (!bucket) continue;
+      for (const id of bucket) visit(id);
+    }
+  }
+}

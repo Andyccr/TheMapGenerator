@@ -39,6 +39,8 @@ Shipped: cultures, routes, markers, provinces, religions, named features, landfo
 
 Shipped in 2.4.0: latitude climate bands, coastal versus inland seasonal range, one capped slope slump, and rivers whose width and Strahler order follow mouth discharge. The upwind walk stays bounded. Wind restamp still does not rebuild rivers.
 
+Shipped in 2.4.1: freshwater moisture after rivers, province ids kept inside their realm, drowned roads pruned, and sculpt/redraw work limited to the brush and the visible cells.
+
 Shipped in 2.3.0: campaign journeys (road-preferring march or a faster sea lane, sealed with a day chronicle) and spatial-hash brushes so raise / lower / paint no longer scan the whole mesh per stroke.
 
 Still later:

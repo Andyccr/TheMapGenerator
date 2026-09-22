@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { latitudeBand, climateBeltLabel } from "../../data/climate.js";
-import { assignClimate } from "../climate.js";
+import { assignClimate, spreadMoisture } from "../climate.js";
+import { clearForeignProvinces } from "../provinces.js";
 import { assignStreamOrder, riverWidth } from "../hydrology.js";
 import { slumpSlopes } from "../relief.js";
 
@@ -61,6 +62,28 @@ test("stream order rises where two tributaries meet, and width follows the mouth
   assert.equal(order[1], 1);
   assert.equal(order[2], 2);
   assert.ok(riverWidth(80, 3) > riverWidth(4, 1));
+});
+
+test("river moisture is applied before it diffuses to the banks", () => {
+  const river = cell(0, 0, 0, [1], { precipitation: 0.12, moisture: 0.12, riverId: 0 });
+  const bank = cell(1, 10, 0, [0], { precipitation: 0.12, moisture: 0.12 });
+  spreadMoisture([river, bank]);
+  const dry = cell(0, 0, 20, [1], { precipitation: 0.12, moisture: 0.12 });
+  const other = cell(1, 10, 20, [0], { precipitation: 0.12, moisture: 0.12 });
+  spreadMoisture([dry, other]);
+  assert.ok(river.moisture > dry.moisture);
+  assert.ok(bank.moisture > other.moisture);
+});
+
+test("a province id is cleared when the cell leaves that realm", () => {
+  const cells = [
+    cell(0, 0, 0, [], { regionId: 1, provinceId: 0 }),
+    cell(1, 10, 0, [], { regionId: 0, provinceId: 0 }),
+  ];
+  const provinces = [{ id: 0, name: "东", color: "#ccc", regionId: 0, seatId: 1, note: "" }];
+  assert.equal(clearForeignProvinces(cells, provinces), 1);
+  assert.equal(cells[0].provinceId, -1);
+  assert.equal(cells[1].provinceId, 0);
 });
 
 test("one slump pass lowers a spike without erasing it", () => {

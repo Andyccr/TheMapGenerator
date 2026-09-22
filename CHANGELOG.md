@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.4.1
+
+- River moisture is applied after the channels exist, so a dry-belt river still freshens its banks before biomes are chosen. A province id is dropped when a height edit moves that cell into another realm.
+- Roads that now cross ocean, and sea lanes that now cross inland, are pruned. The examples list is filled when the workshop opens, and an edited landform recipe is written into the autosave.
+- Raise and lower no longer rerun the full hydrology pass on every brush tick. Zoomed-in drawing walks only the cells in view, and the population layer caches hinterland pressure until towns move.
+- The header actions wrap, so 范例 and 帮助 stay reachable when the window is narrower than the full toolbar.
+
 ## 2.4.0
 
 - Climate follows latitude bands (wet equator, dry subtropics, storm track, dry pole) plus distance from the sea. Coasts stay milder; interiors have a wider seasonal range, which also nudges where towns prefer to sit.
