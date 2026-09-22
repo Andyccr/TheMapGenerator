@@ -193,6 +193,33 @@ export function routeKindLabel(kind) {
   return ROUTE_KIND_LABELS[kind] || ROUTE_KIND_LABELS.road;
 }
 
+/** @type {Record<string, string>} */
+export const JOURNEY_MODE_LABELS = {
+  march: "陆路",
+  voyage: "海路",
+  mixed: "水陆",
+};
+
+/** @param {string} [mode] */
+export function journeyModeLabel(mode) {
+  return JOURNEY_MODE_LABELS[mode] || JOURNEY_MODE_LABELS.march;
+}
+
+/** @type {Record<string, string>} */
+export const JOURNEY_LEG_LABELS = {
+  start: "启程",
+  town: "经城",
+  marker: "地标",
+  ford: "渡河",
+  biome: "进入",
+  end: "抵达",
+};
+
+/** @param {string} [kind] */
+export function journeyLegLabel(kind) {
+  return JOURNEY_LEG_LABELS[kind] || "途经";
+}
+
 /** Pipeline stages reported by MapGenerator.generate. */
 export const GENERATION_STAGE_LABELS = {
   mesh: "正在铺格网…",

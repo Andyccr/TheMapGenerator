@@ -118,6 +118,7 @@ export function summarizeWorld(world) {
     regions: world.regions.length,
     cultures: world.cultures?.length ?? 0,
     routes: world.routes?.length ?? 0,
+    journeys: world.journeys?.length ?? 0,
     markers: world.markers?.length ?? 0,
     provinces: world.provinces?.length ?? 0,
     religions: world.religions?.length ?? 0,
@@ -157,6 +158,7 @@ export function hydrateWorld(w) {
   if (!w.religions) w.religions = [];
   if (!w.features) w.features = [];
   if (!w.diplomacy) w.diplomacy = [];
+  if (!w.journeys) w.journeys = [];
   if (!w.meta.societySeed) w.meta.societySeed = w.meta.seed;
   if (!w.meta.mapName) w.meta.mapName = "";
   if (!w.meta.landform) w.meta.landform = "continents";
@@ -198,5 +200,14 @@ export function hydrateWorld(w) {
   }
   for (const m of w.markers) {
     if (m.note == null) m.note = "";
+  }
+  for (const j of w.journeys) {
+    if (j.note == null) j.note = "";
+    if (!Array.isArray(j.legs)) j.legs = [];
+    if (!Array.isArray(j.points)) j.points = [];
+    if (!Array.isArray(j.cellIds)) j.cellIds = [];
+    if (!j.mode) j.mode = "march";
+    if (j.days == null) j.days = 0;
+    if (j.leagues == null) j.leagues = 0;
   }
 }

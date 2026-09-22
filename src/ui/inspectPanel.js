@@ -2,8 +2,9 @@
  * Inspector chrome: cell layer selects, diplomacy stances, routes through a cell,
  * and paint-pigment options. No undo — App owns mutations via callbacks.
  */
-import { BIOME_LABELS, LAND_BIOMES, STANCE_LABELS, routeKindLabel } from "../data/catalogs.js";
+import { BIOME_LABELS, LAND_BIOMES, STANCE_LABELS, routeKindLabel, journeyLegLabel } from "../data/catalogs.js";
 import { tiesFor, otherId } from "../data/diplomacy.js";
+import { formatDays, formatJourneySummary, journeysThrough } from "../data/journeys.js";
 import { escapeHtml } from "./format.js";
 
 /**
@@ -125,6 +126,47 @@ export function fillRouteEdit(doc, world, cellId, onDropRoute) {
   wrap.querySelectorAll("[data-drop-route]").forEach((btn) => {
     btn.addEventListener("click", () => {
       onDropRoute(Number(btn.getAttribute("data-drop-route")));
+    });
+  });
+}
+
+/**
+ * Journeys crossing this cell, with the chronicle and rename/delete.
+ * @param {Document} doc
+ * @param {import("../types.js").WorldData} world
+ * @param {number} cellId
+ * @param {{ onDrop: (id: number) => void, onRename: (id: number, name: string) => void }} handlers
+ */
+export function fillJourneyEdit(doc, world, cellId, handlers) {
+  const wrap = doc.getElementById("journey-edit");
+  if (!(wrap instanceof HTMLElement)) return;
+  const trips = journeysThrough(world, cellId);
+  if (!trips.length) {
+    wrap.hidden = true;
+    wrap.innerHTML = "";
+    return;
+  }
+  wrap.hidden = false;
+  wrap.innerHTML = trips
+    .map((j) => {
+      const legs = (j.legs || [])
+        .slice(0, 12)
+        .map((leg) => `<li>${escapeHtml(formatDays(leg.day))} ${escapeHtml(journeyLegLabel(leg.kind))} · ${escapeHtml(leg.label)}</li>`)
+        .join("");
+      const more = (j.legs || []).length > 12 ? `<li>…</li>` : "";
+      return `<li class="journey-card"><div class="journey-head"><span>${escapeHtml(j.name)} · ${escapeHtml(formatJourneySummary(j))}</span><span class="journey-actions-inline"><button type="button" data-rename-journey="${j.id}">改名</button><button type="button" data-drop-journey="${j.id}">删</button></span></div><ol class="journey-legs">${legs}${more}</ol></li>`;
+    })
+    .join("");
+  wrap.querySelectorAll("[data-drop-journey]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      handlers.onDrop(Number(btn.getAttribute("data-drop-journey")));
+    });
+  });
+  wrap.querySelectorAll("[data-rename-journey]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = Number(btn.getAttribute("data-rename-journey"));
+      const journey = (world.journeys || []).find((j) => j.id === id);
+      handlers.onRename(id, journey?.name || "");
     });
   });
 }

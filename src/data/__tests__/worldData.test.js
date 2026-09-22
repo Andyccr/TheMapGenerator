@@ -21,6 +21,7 @@ test("parseWorld hydrates missing playability arrays on version 1 saves", () => 
   assert.deepEqual(w.religions, []);
   assert.deepEqual(w.features, []);
   assert.deepEqual(w.diplomacy, []);
+  assert.deepEqual(w.journeys, []);
   assert.equal(w.cells[0].cultureId, -1);
   assert.equal(w.meta.landform, "continents");
 });
