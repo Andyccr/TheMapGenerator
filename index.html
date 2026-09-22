@@ -12,7 +12,7 @@
     <meta property="og:title" content="幻想世界地图生成器" />
     <meta property="og:description" content="用一个种子生成说得通的大陆，再当战役地图来改。" />
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="stylesheet" href="./src/styles.css?v=2.2.0" />
+    <link rel="stylesheet" href="./src/styles.css?v=2.3.0" />
     <link rel="icon" href="./icon.svg" />
     <link rel="apple-touch-icon" href="./icon.svg" />
   </head>
@@ -143,6 +143,7 @@
             <label class="check"><input id="opt-borders" type="checkbox" checked /> 国境</label>
             <label class="check"><input id="opt-rivers" type="checkbox" checked /> 河流</label>
             <label class="check"><input id="opt-routes" type="checkbox" checked /> 商路</label>
+            <label class="check"><input id="opt-journeys" type="checkbox" checked /> 行程</label>
             <label class="check"><input id="opt-markers" type="checkbox" checked /> 地标</label>
             <label class="check"><input id="opt-relief" type="checkbox" checked /> 山纹</label>
             <label class="check"><input id="opt-grid" type="checkbox" /> 经纬网</label>
@@ -165,6 +166,12 @@
             <button class="tool" data-tool="move" type="button" title="移动聚落（M）">移动</button>
             <button class="tool" data-tool="rename" type="button" title="重命名（N）">命名</button>
             <button class="tool" data-tool="measure" type="button" title="测量距离（G）">测距</button>
+            <button class="tool" data-tool="journey" type="button" title="战役行程（J）">行程</button>
+          </div>
+          <div class="btn-row" id="journey-actions" hidden>
+            <button type="button" id="btn-journey-seal">封存行程</button>
+            <button type="button" id="btn-journey-undo">撤一站</button>
+            <button type="button" id="btn-journey-clear">清空草稿</button>
           </div>
           <label>笔刷
             <input id="opt-brush" type="range" min="1" max="8" value="3" />
@@ -202,7 +209,7 @@
             </select>
           </label>
           <p class="hint" id="tool-hint">滚轮缩放：全图合并色块与干流，近景晕渲、细河与村落。格子数据不变。</p>
-          <p class="hint keys-hint">快捷键：V 平移 · R 抬升 · F 降低 · T 印戳 · P 涂色 · I 河流 · L 连路 · B 建城 · X 擦除 · K 地标 · M 移动 · N 命名 · G 测距 · Ctrl+S 保存 · Esc 取消 · Ctrl+Z 撤销 · / 检索</p>
+          <p class="hint keys-hint">快捷键：V 平移 · R 抬升 · F 降低 · T 印戳 · P 涂色 · I 河流 · L 连路 · B 建城 · X 擦除 · K 地标 · M 移动 · N 命名 · G 测距 · J 行程 · Ctrl+S 保存 · Esc 取消 · Ctrl+Z 撤销 · / 检索</p>
         </details>
 
         <details>
@@ -290,7 +297,7 @@
           <h2>检索</h2>
           <label class="search-field">
             查找
-            <input id="opt-search" type="search" placeholder="聚落、国度、行省、文化、信仰、地貌、河流、商路、地标…" autocomplete="off" />
+            <input id="opt-search" type="search" placeholder="聚落、国度、行省、文化、信仰、地貌、河流、商路、行程、地标…" autocomplete="off" />
           </label>
           <ol class="roster" id="search-results"></ol>
         </section>
@@ -327,6 +334,7 @@
             <button type="button" data-create="realm">立国</button>
           </div>
           <ol id="route-edit" class="route-edit" hidden></ol>
+          <ol id="journey-edit" class="route-edit journey-edit" hidden></ol>
           <div id="cell-edit" class="cell-edit" hidden>
             <label>生物群系 <select id="opt-cell-biome"></select></label>
             <label>文化 <select id="opt-cell-culture"></select></label>
@@ -347,6 +355,7 @@
             <button type="button" class="tab" role="tab" aria-selected="false" data-roster="features">地貌</button>
             <button type="button" class="tab" role="tab" aria-selected="false" data-roster="rivers">河流</button>
             <button type="button" class="tab" role="tab" aria-selected="false" data-roster="routes">商路</button>
+            <button type="button" class="tab" role="tab" aria-selected="false" data-roster="journeys">行程</button>
             <button type="button" class="tab" role="tab" aria-selected="false" data-roster="markers">地标</button>
           </div>
           <ol class="roster" id="roster-list"></ol>
@@ -357,7 +366,7 @@
         </section>
         <footer class="colophon">
           算法灵感：Martin O’Leary、Amit Patel、Scott Turner；玩法层对照 Azgaar FMG。
-          四层架构：数据 · 生成器 · 编辑器 · 渲染器。无需后端。v<span id="app-version">2.2.0</span>
+          四层架构：数据 · 生成器 · 编辑器 · 渲染器。无需后端。v<span id="app-version">2.3.0</span>
         </footer>
       </aside>
     </div>
@@ -373,12 +382,13 @@
     </dialog>
     <dialog id="help-dialog" class="folio-dialog help-dialog">
       <form method="dialog">
-        <h2>工坊说明 <span class="ver" id="help-version">v2.2.0</span></h2>
+        <h2>工坊说明 <span class="ver" id="help-version">v2.3.0</span></h2>
         <p>用一个种子生成说得通的大陆，再当战役地图来改。第一次打开会先问你要快速开始还是看范例，不必干等一张大图。刷新页面会恢复自动存档。地址栏里的查询串可以分享同一张图。页头「范例」打开几张现成的陆形。生成过程中可点「取消」或按 Esc。</p>
         <h3>快捷键</h3>
         <ul>
           <li><kbd>V</kbd> 平移 · <kbd>R</kbd> 抬升 · <kbd>F</kbd> 降低 · <kbd>T</kbd> 印戳 · <kbd>P</kbd> 涂色 · <kbd>I</kbd> 河流 · <kbd>L</kbd> 连路</li>
-          <li><kbd>B</kbd> 建城 · <kbd>X</kbd> 擦除 · <kbd>K</kbd> 地标 · <kbd>M</kbd> 移动 · <kbd>N</kbd> 命名 · <kbd>G</kbd> 测距</li>
+          <li><kbd>B</kbd> 建城 · <kbd>X</kbd> 擦除 · <kbd>K</kbd> 地标 · <kbd>M</kbd> 移动 · <kbd>N</kbd> 命名 · <kbd>G</kbd> 测距 · <kbd>J</kbd> 行程</li>
+          <li>行程：逐站点选，<kbd>Enter</kbd> 封存，<kbd>Backspace</kbd> 撤一站。沿商路更省时，海路只在更快时采用。</li>
           <li><kbd>Ctrl+Z</kbd> 撤销 · <kbd>Ctrl+Y</kbd> 重做 · <kbd>Ctrl+S</kbd> 立即保存 · <kbd>Shift+Ctrl+S</kbd> 导出 JSON · <kbd>/</kbd> 检索</li>
           <li><kbd>[</kbd> / <kbd>]</kbd> 折叠侧栏 · <kbd>H</kbd> 全屏地图 · <kbd>Esc</kbd> 取消生成 / 关闭对话框 · <kbd>F1</kbd> 本说明</li>
         </ul>
@@ -417,6 +427,6 @@
         <p class="hint">快速开始用中幅粗略图，通常一两秒。刷新会恢复自动存档。把 JSON 拖进窗口即可导入。</p>
       </form>
     </dialog>
-    <script type="module" src="./src/main.js?v=2.2.0"></script>
+    <script type="module" src="./src/main.js?v=2.3.0"></script>
   </body>
 </html>

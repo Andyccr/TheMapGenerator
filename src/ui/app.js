@@ -20,7 +20,8 @@ import { PAINT_LAYERS, paintCell } from "../editors/paint.js";
 import { createCulture, createReligion, createRealm } from "../editors/entities.js";
 import { escapeHtml, overviewInspectHtml, cellInspectHtml, rosterItems, searchHits, rosterListHtml } from "./format.js";
 import { FolioDialogs } from "./dialogs.js";
-import { fillCellEdit, fillDiploEdit, fillRouteEdit, syncPaintPigment } from "./inspectPanel.js";
+import { fillCellEdit, fillDiploEdit, fillRouteEdit, fillJourneyEdit, syncPaintPigment } from "./inspectPanel.js";
+import { removeJourney, renameJourney } from "../data/journeys.js";
 import { renderRecipeList } from "./recipePanel.js";
 import { EditHistory } from "./history.js";
 import { setLoadingOverlay, setBusyChrome } from "./jobChrome.js";
@@ -42,6 +43,7 @@ const TOOL_KEYS = {
   m: "move",
   n: "rename",
   g: "measure",
+  j: "journey",
 };
 
 export class App {
@@ -70,6 +72,7 @@ export class App {
     this.showRoutes = true;
     this.showMarkers = true;
     this.showRelief = true;
+    this.showJourneys = true;
     this.rosterKind = "settlements";
     /** @type {{ x0: number, y0: number, x1: number, y1: number } | null} */
     this.measure = null;
@@ -248,8 +251,8 @@ export class App {
 
   redraw() {
     if (!this.world) return;
-    const draft =
-      this.toolId === "river" ? /** @type {any} */ (this.tools.river).path || [] : [];
+    const tool = /** @type {{ path?: number[] }} */ (this.tools[this.toolId]);
+    const draft = this.toolId === "river" || this.toolId === "journey" ? tool?.path || [] : [];
     this.renderer.draw(this.world, {
       labels: this.labels,
       borders: this.borders,
@@ -258,6 +261,7 @@ export class App {
       routes: this.showRoutes,
       markers: this.showMarkers,
       relief: this.showRelief,
+      journeys: this.showJourneys,
       highlightCell: this.highlightCell(),
       draftPath: draft,
       measure: this.measure,
@@ -278,11 +282,27 @@ export class App {
   setTool(id) {
     this.toolId = id;
     this.doc.querySelectorAll(".tool").forEach((b) => b.classList.toggle("active", b.getAttribute("data-tool") === id));
+    const journeyActions = this.el("journey-actions");
+    if (journeyActions instanceof HTMLElement) journeyActions.hidden = id !== "journey";
     const hint = this.el("tool-hint");
     if (hint) hint.textContent = this.tools[this.toolId]?.hint || this.tools.pan?.hint || "";
     const canvas = /** @type {HTMLCanvasElement} */ (this.el("map"));
     canvas.style.cursor = this.toolId === "pan" ? "grab" : "crosshair";
     if (id === "paint") this.matchStyleToPaint();
+  }
+
+  sealJourney() {
+    this.tools.journey?.seal(this.world, this.editorContext());
+  }
+
+  popJourneyStop() {
+    this.tools.journey?.pop();
+    this.redraw();
+  }
+
+  clearJourneyDraft() {
+    this.tools.journey?.clear();
+    this.redraw();
   }
 
   /**
@@ -389,6 +409,17 @@ export class App {
       this.togglePanel("right");
       return;
     }
+    if (this.toolId === "journey" && ev.key === "Enter") {
+      ev.preventDefault();
+      this.sealJourney();
+      return;
+    }
+    if (this.toolId === "journey" && ev.key === "Backspace") {
+      ev.preventDefault();
+      this.tools.journey?.pop();
+      this.redraw();
+      return;
+    }
     if (ev.key.toLowerCase() === "h") {
       ev.preventDefault();
       const app = this.el("app");
@@ -436,7 +467,8 @@ export class App {
       this.toolId === "marker" ||
       this.toolId === "rename" ||
       this.toolId === "stamp" ||
-      this.toolId === "road";
+      this.toolId === "road" ||
+      this.toolId === "journey";
     if (clickOnce) {
       const ctx = this.editorContext();
       this.tools[this.toolId]?.apply(this.world, { worldX, worldY, cellId, phase: "down", shiftKey: ev.shiftKey }, ctx);
@@ -651,6 +683,7 @@ export class App {
       this.hideInspect("color-wrap", true);
       this.hideInspect("create-edit", true);
       this.hideInspect("route-edit", true);
+      this.hideInspect("journey-edit", true);
       box.innerHTML = overviewInspectHtml(this.world, this.renderer.lodLabel(this.world));
       this.setStatus(-1);
       return;
@@ -702,6 +735,29 @@ export class App {
       this.redraw();
       this.toast("已删去这条路。");
     });
+    fillJourneyEdit(this.doc, this.world, cellId, {
+      onDrop: (id) => {
+        if (!this.world) return;
+        this.pushUndo();
+        removeJourney(this.world, id);
+        this.scheduleAutosave();
+        this.fillRoster();
+        this.inspect(this._inspectCellId);
+        this.redraw();
+        this.toast("已删去这条行程。");
+      },
+      onRename: (id, current) => {
+        this.dialogs.askText("行程名称", current, (next) => {
+          if (!next || !this.world) return;
+          this.pushUndo();
+          renameJourney(this.world, id, next);
+          this.scheduleAutosave();
+          this.fillRoster();
+          this.inspect(this._inspectCellId);
+          this.redraw();
+        });
+      },
+    });
     box.innerHTML = cellInspectHtml(this.world, cellId);
     this.setStatus(cellId);
   }
@@ -733,7 +789,10 @@ export class App {
     card.style.top = `${y + 14}px`;
     if (town) card.textContent = `${town.name} · ${SETTLEMENT_TYPE[town.type] || town.type}`;
     else if (marker) card.textContent = marker.name;
-    else card.textContent = [BIOME_LABELS[c.biome] || c.biome.replaceAll("_", " "), cult?.name].filter(Boolean).join(" · ");
+    else {
+      const trip = (this.world.journeys || []).find((j) => j.cellIds.includes(cellId));
+      card.textContent = [BIOME_LABELS[c.biome] || c.biome.replaceAll("_", " "), cult?.name, trip?.name].filter(Boolean).join(" · ");
+    }
   }
 
   fillLegend() {

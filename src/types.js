@@ -149,6 +149,28 @@
  */
 
 /**
+ * @typedef {Object} JourneyLeg
+ * @property {number} cellId
+ * @property {number} day cumulative days from the start
+ * @property {"start"|"town"|"marker"|"ford"|"biome"|"end"} kind
+ * @property {string} label
+ */
+
+/**
+ * A sealed party itinerary. Draw-only after commit; editors append these.
+ * @typedef {Object} Journey
+ * @property {number} id
+ * @property {string} name
+ * @property {string} [note]
+ * @property {number[]} cellIds
+ * @property {number[][]} points
+ * @property {number} days
+ * @property {number} leagues
+ * @property {"march"|"voyage"|"mixed"} mode
+ * @property {JourneyLeg[]} legs
+ */
+
+/**
  * @typedef {Object} DiplomacyTie
  * @property {number} a
  * @property {number} b
@@ -196,6 +218,7 @@
  * @property {Religion[]} [religions]
  * @property {GeoFeature[]} [features]
  * @property {DiplomacyTie[]} [diplomacy]
+ * @property {Journey[]} [journeys]
  * @property {WorldView} view
  * @property {string} generatedAt
  */
@@ -294,6 +317,7 @@
  * @property {boolean} [routes]
  * @property {boolean} [markers]
  * @property {boolean} [relief]
+ * @property {boolean} [journeys]
  * @property {number} [highlightCell]
  * @property {number[]} [draftPath]
  * @property {{ x0: number, y0: number, x1: number, y1: number } | null} [measure]
