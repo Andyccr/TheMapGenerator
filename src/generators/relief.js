@@ -115,7 +115,8 @@ export function erodeFluvial(cells) {
     if (c.ocean || c.downslope < 0) continue;
     const ds = cells[c.downslope];
     const slope = Math.max(0, c.filledHeight - ds.filledHeight);
-    const wear = Math.min(0.07, 0.01 * Math.pow(Math.max(1, c.flux), 0.38) * slope * 6);
+    if (slope < 0.004 || c.height < 0.02) continue;
+    const wear = Math.min(0.028, 0.012 * Math.pow(Math.max(1, c.flux), 0.45) * slope);
     delta[c.id] -= wear;
     if (!ds.ocean) delta[ds.id] += wear * 0.35;
   }

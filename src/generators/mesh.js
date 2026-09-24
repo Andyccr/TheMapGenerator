@@ -78,6 +78,7 @@ export function createMesh(opts) {
         cultureId: -1,
         provinceId: -1,
         precipitation: 0,
+        basinId: -1,
       });
       at.set(`${c},${r}`, id);
     }
@@ -131,8 +132,8 @@ export function createMesh(opts) {
     rebuildPolygons();
   }
 
-  const amp = 0.16 * size;
-  const subdivide = cells.length < 12000;
+  const amp = size <= 6 ? 0.2 * size : 0.16 * size;
+  const subdivide = size <= 8 || cells.length < 20000;
   for (const cell of cells) {
     if (cell.polygon.length >= 3) {
       cell.polygon = clipPolygon(organicPolygon(cell.polygon, amp, subdivide), 0, 0, width, height);

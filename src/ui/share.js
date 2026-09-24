@@ -2,6 +2,7 @@
  * Shareable atlas query. Pure URL helpers — no DOM — so Node tests can run them.
  *
  * Example: ?seed=terra&landform=archipelago&extent=2560,1600&detail=7&style=political
+ * Defaults match the workshop: 3840×2400 at cell size 5.
  */
 import { LANDFORM_LABELS, STYLE_IDS, MAP_EXTENTS, MAP_DETAILS } from "../data/catalogs.js";
 
@@ -69,8 +70,8 @@ export function serializeShare(state) {
   const q = new URLSearchParams();
   if (state.seed) q.set("seed", state.seed);
   if (state.landform && state.landform !== "continents") q.set("landform", state.landform);
-  if (state.extent && state.extent !== "2560,1600") q.set("extent", state.extent);
-  if (state.detail && state.detail !== "7") q.set("detail", state.detail);
+  if (state.extent && state.extent !== "3840,2400") q.set("extent", state.extent);
+  if (state.detail && state.detail !== "5") q.set("detail", state.detail);
   if (state.style && state.style !== "atlas") q.set("style", state.style);
   if (state.plates && state.plates !== "12") q.set("plates", state.plates);
   if (state.sea && state.sea !== "0") q.set("sea", state.sea);
