@@ -4,7 +4,8 @@ import { latitudeBand, climateBeltLabel, circulationWind } from "../../data/clim
 import { assignClimate, spreadMoisture } from "../climate.js";
 import { clearForeignProvinces } from "../provinces.js";
 import { assignStreamOrder, riverWidth, assignBasins } from "../hydrology.js";
-import { slumpSlopes } from "../relief.js";
+import { slumpSlopes, glaciateColdHighlands } from "../relief.js";
+import { shapeHypsometry } from "../tectonics.js";
 
 /** @param {number} id @param {number} x @param {number} y @param {number[]} neighbors @param {Partial<import("../../types.js").Cell>} extra */
 function cell(id, x, y, neighbors, extra = {}) {
@@ -95,6 +96,24 @@ test("a province id is cleared when the cell leaves that realm", () => {
   assert.equal(clearForeignProvinces(cells, provinces), 1);
   assert.equal(cells[0].provinceId, -1);
   assert.equal(cells[1].provinceId, 0);
+});
+
+test("hypsometry keeps low land low and a high tail", () => {
+  assert.ok(shapeHypsometry(0.12) < 0.12);
+  assert.ok(shapeHypsometry(0.9) > 0.7);
+  assert.ok(shapeHypsometry(0.9) > shapeHypsometry(0.2));
+});
+
+test("glaciers carve cold highlands and leave warm lowlands", () => {
+  const peak = cell(0, 10, 8, [1], { height: 0.72 });
+  const foot = cell(1, 18, 8, [0], { height: 0.4 });
+  const warm = cell(2, 10, 90, [3], { height: 0.72 });
+  const warmFoot = cell(3, 18, 90, [2], { height: 0.4 });
+  const before = peak.height;
+  glaciateColdHighlands([peak, foot, warm, warmFoot], 100);
+  assert.ok(peak.height < before);
+  assert.ok(peak.height > 0.55);
+  assert.equal(warm.height, 0.72);
 });
 
 test("one slump pass lowers a spike without erasing it", () => {

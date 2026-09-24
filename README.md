@@ -49,7 +49,7 @@ npm run dev
 
 ### 怎么用地图
 
-1. 第一次打开会先出现欢迎层：**快速开始**（中幅粗略，大约一两秒）、**看范例**，或按左侧设置生成。刷新页面会**恢复自动存档**。地址栏带 `?seed=` 时按链接生成。默认画幅 **2560×1600**、精细度中等（格距 7，约 3 万格）；可选洲际 / 超大陆。超过约 11 万格时会自动略微放粗格距。生成在后台线程跑，可随时 **取消** 或按 Esc。阶段：格网 → 板块 → 水文 → 气候 → 文明 → 商路。
+1. 第一次打开会先出现欢迎层：**快速开始**（中幅粗略，大约一两秒）、**看范例**，或按左侧设置生成。刷新页面会**恢复自动存档**。地址栏带 `?seed=` 时按链接生成。默认画幅 **3840×2400**、精细（格距 5，约 14 万格）；也可改回宽幅或放到超大陆。超过约 20 万格时会自动略微放粗格距。生成在后台线程跑，可随时 **取消** 或按 Esc。阶段：格网 → 板块 → 水文 → 气候 → 文明 → 商路。
 2. 滚轮平滑缩放（对准光标），双击放大，Shift+双击缩小；右下角 **+ / − / 适应**。缩放只改**绘制**：全图合并色块与干流，近景才画晕渲、细河和村落。格子数据不变。侧栏可用 **[** / **]** 或页头 **左栏 / 右栏** 折叠，**H** 全屏看图。
 3. **陆形** 决定海岸轮廓：诸大陆、盘古、群岛、大岛、半岛、地峡、内海、湖区。每个模板是一串可编辑步骤（丘、洼、岭、海峡），叠在板块造山之上。
 4. **抬升 / 降低** 是主要编辑工具：在陆地上涂抹，松手后河流会按重力重算，手绘商路、地标与外交会留下。**印戳** 点击放下丘、洼或岭；**涂色** 改群系、文化、信仰、国度、行省（空颜料点击吸取）；**连路** 点两座城画出商路。右侧检视可以直接改这些层，也能改名称、颜色与外交，并新建文化 / 信仰 / 国度。
@@ -72,8 +72,8 @@ npm run dev
 
 ### 地理规则（为什么看起来像真的地图）
 
-- 大陆来自**板块**（边界带噪声弯曲），不是噪声色块。山脉出现在板块挤压带，有宽度的山链与山麓。
-- 近海是平原与陆架，远海更深；还有岛弧。河流经轻度侵蚀后从高地汇入海洋，**不会翻山**。
+- 大陆来自**板块**（边界带噪声弯曲），不是噪声色块。挤压带长出有宽度的山链；山前有浅的前陆盆地；大洋板块俯冲处是海沟和岛弧；板块内部远离边界处有少量热点火山。高程曲线让大部分陆地偏低，只有少数高峰。
+- 近海是平原与陆架，远海更深。高纬高山会做一次有上限的冰蚀，把冰斗刻进山体，冰碛堆在下方。河流按河流功率下切后从高地汇入海洋，缓坡河段会蜿蜒，**不会翻山**。
 - 气候看纬度带和海拔：赤道湿、副热带干、西风带再转湿，北方冷，山上更冷；离海越远季节差越大。湿气在迎风坡增加，在背风面形成雨影沙漠。干流按河口流量和河级变粗。
 - 城镇优先靠近河流与海岸，名称来自当地文化；国度再分成行省；民俗信仰跟文化走，建制宗教从大城市扩出去；大陆、岛屿与海域有名字；都城之间有商路，荒原上有废墟与龙巢一类地标。
 - 放大后可见坡向晕渲；缩小后隐藏次要地名。图层预设对照 Azgaar FMG 的玩法层，但绘制仍是 Canvas 2D。
@@ -114,15 +114,93 @@ src/
 
 ## English
 
-A **static**, client-side atlas workshop. GitHub Pages serves `index.html` and `src/` **directly** — no Vite build is required to run the app.
+A static, client-side fantasy atlas. One seed builds continents, mountain belts, rivers, climate, biomes, realms, and towns. You then paint, rename, and export in the browser. There is no backend and no external API.
 
-Live site (after Pages is enabled on `main`): https://andyccr.github.io/TheMapGenerator/
+**GitHub Pages serves the site as-is. You do not need Node, and you do not need `npm run build`.**
+
+License: [GNU Affero General Public License v3](LICENSE)
+
+### Use it online
+
+After this repo is on `main`, set Pages once. Later pushes update the site.
+
+1. Open **Settings → Pages**.
+2. **Build and deployment → Source** (the first option needs no build):
+   - **Deploy from a branch**: Branch `main`, Folder `/ (root)`.
+   - Or **GitHub Actions**, which runs `.github/workflows/pages.yml` and publishes `index.html` plus `src/`.
+3. Open **https://andyccr.github.io/TheMapGenerator/**
+
+The repository must be **Public** for free Pages. Use a browser. Do not double-click `index.html`: `file://` blocks ES modules.
+
+If the page is blank, check the network panel. `./src/main.js` and `./src/styles.css` must return 200. Paths stay relative (`./src/...`).
+
+### Local preview
 
 ```bash
-python3 -m http.server 8080   # open http://localhost:8080/
-npm test && npm run dev       # optional hot reload
+python3 -m http.server 8080
+# or
+npx --yes serve -p 8080
 ```
 
-Do not open `index.html` via `file://`. Enable Pages: **Settings → Pages → Deploy from a branch → `main` / `/ (root)`**, or use the included GitHub Actions workflow.
+Open http://localhost:8080/ . For hot reload: `npm install`, `npm test`, `npm run dev`.
 
-Architecture, algorithms, and MVP notes: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/ALGORITHMS.md](docs/ALGORITHMS.md), [docs/MVP.md](docs/MVP.md).
+### How to use the map
+
+1. The first visit opens a welcome: **quick start** (medium, coarse, about a second or two), **examples**, or generate with the left-hand settings. Refresh restores the autosave. A `?seed=` link generates that world. The default sheet is **3840×2400** at fine spacing (cell size 5, about 140k cells). Wider and smaller sheets are in the same menu. Past about 200k cells the grid coarsens slightly. Generation runs in a worker and can be **cancelled** or stopped with Esc. Stages: mesh → plates → water → climate → society → roads.
+2. Scroll to zoom toward the cursor. Double-click zooms in; Shift+double-click zooms out. **+ / − / fit** sit at the lower right. Zoom changes drawing only: the overview uses baked color and trunk rivers; hillshade, minor rivers, and villages appear up close. **[** / **]** or the header buttons fold the side panels. **H** hides both.
+3. **Landform** sets the coastline: several continents, Pangaea, archipelago, island, peninsula, isthmus, inland sea, lakes. Each preset is an editable stack of hills, pits, ranges, and straits on top of the plates.
+4. **Raise / lower** is the main brush. Release the pointer and rivers recompute from gravity. Hand-drawn roads, markers, and diplomacy stay. **Stamp** drops a hill, pit, or range. **Paint** edits biome, culture, faith, realm, or province (an empty pigment eyedrops). **Road** links two towns. The inspector edits those layers, plus names, colors, diplomacy, and new cultures, faiths, and realms.
+5. **River** drags a channel downhill. **Town / erase / marker** place or remove places; erase can cut one road cell without rerolling the network. **Move** drags a town onto land. **Rename** and **measure** do what they say. **Journey** clicks waypoints, prefers roads, and takes a sea lane when both ends are coastal and the voyage is faster. Enter stores days, leagues, and stops. **Apply wind** restamps climate only.
+6. **Layers** switch atlas, relief, political, culture, provinces, faith, temperature, precipitation, and population. Roads and markers can be hidden. The status bar describes the cell under the cursor.
+7. **Reroll society** rebuilds peoples and states and leaves the terrain. The roster and search jump to towns, realms, provinces, cultures, faiths, features, rivers, roads, and markers. The inspector holds campaign notes.
+8. **F1** opens help. **Examples** opens ready-made coastlines. **Link** copies a share URL. **Export JSON** saves the world. **Slots** keep up to six worlds in IndexedDB. **Export atlas PNG** writes a titled sheet with a legend. Landform steps can be applied to the current map.
+
+### What it includes
+
+- Plate orogeny, gravity-obeying rivers, rain-shadow climate, Whittaker biomes
+- Landform recipes (archipelago, island, peninsula, Pangaea, inland sea, and others)
+- Stamps, paint, roads, inspector edits, new cultures and faiths, recolor, delete one road, apply wind
+- Cultures and phonologies, realms, provinces, faiths, diplomacy, named features, roads, markers, campaign journeys, a population layer
+- Layer presets, realm and continent labels, label collision, scale bar, measure, status bar
+- Examples, share links, autosave, named slots, undo/redo, cancellable generation in a worker
+- Drag-and-drop JSON, Ctrl+S, atlas PNG, and a fully static GitHub Pages build
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [CHANGELOG.md](CHANGELOG.md).
+
+### Why the terrain looks geographic
+
+- Continents come from **plates** with warped boundaries, not from a noise threshold. Convergent belts become mountain chains of finite width, with a shallow foreland basin in front. Oceanic subduction cuts a trench and can raise an island arc. A few hotspots sit far from plate edges. The hypsometric curve keeps most land low and leaves a short high tail.
+- Coasts grade into plains and a shelf; the far ocean is deeper. Cold highlands take one capped glacial pass: a cirque is cut into the peak and a moraine is left downhill. Rivers incise by stream power, meander on gentle slopes, and **never climb a ridge**.
+- Climate follows latitude bands and elevation: a wet equator, a dry subtropics, a wet storm track, and a cold north. Seasonal range grows inland. Moisture rises on the windward slope and deserts form in the rain shadow. Surface wind turns with latitude (trades, westerlies, polar easterlies); the wind control is a bias on that field. Trunk rivers are wider at the mouth, and the inspector names the drainage basin.
+- Towns prefer rivers and coasts. Names follow the local culture. Realms split into provinces. Folk faiths follow culture; organized creeds spread from large cities. Continents, islands, and seas are named. Capitals are linked by roads. Wild country holds ruins, lights, and similar markers.
+- Hillshade appears when you zoom in. Minor labels hide when you zoom out. The layer presets follow the playable layers of Azgaar’s Fantasy Map Generator; drawing stays on Canvas 2D.
+
+The algorithms follow Martin O’Leary, Amit Patel, and Scott Turner. See [docs/ALGORITHMS.md](docs/ALGORITHMS.md).
+
+### Why Canvas 2D
+
+A medium map is tens of thousands of polygons, edited while you pan and zoom. One canvas transform and a fill is enough. SVG would create a DOM node per cell and stall on every brush stroke. Hit tests use a spatial hash. The fit view skips hillshade. PNG export uses `canvas.toBlob`. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+### Layout
+
+```
+index.html              # GitHub Pages entry (relative paths, no bundle)
+src/
+  main.js
+  styles.css
+  data/worldData.js     # plain JSON, no methods
+  data/catalogs.js      # shared labels
+  data/diplomacy.js     # diplomacy JSON, not placement
+  data/landforms.js     # recipe steps, not the algorithm
+  data/routes.js        # drop or prune roads
+  generators/           # seed → world
+  editors/              # controlled edits
+  renderers/            # canvas, read-only; HUD in hud.js
+  ui/app.js             # the only UI module that may import MapGenerator
+  ui/bindings.js        # DOM listeners
+  ui/format.js          # inspector and roster HTML
+  ui/dialogs.js
+  workers/              # generation, no DOM
+```
+
+Deployment notes: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). `.nojekyll` is in the repo root so GitHub does not run Jekyll on the site.

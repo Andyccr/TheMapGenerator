@@ -107,6 +107,7 @@ export function assignElevation(cells, plates, rng, width, height, seaLevel, cel
 
   /** @type {number[]} */
   const strain = new Array(cells.length).fill(0);
+  const trench = new Float64Array(cells.length);
 
   for (const cell of cells) {
     const p = plates[cell.plateId];
@@ -131,6 +132,9 @@ export function assignElevation(cells, plates, rng, width, height, seaLevel, cel
       } else if (closing < -0.1) {
         s -= 0.42 * -closing;
       }
+      if (!p.continental && q.continental && closing > 0.15) {
+        trench[cell.id] = Math.max(trench[cell.id], closing);
+      }
       n++;
     }
     strain[cell.id] = n ? s / Math.max(1, n * 0.5) : 0;
@@ -153,6 +157,17 @@ export function assignElevation(cells, plates, rng, width, height, seaLevel, cel
     field = next;
   }
 
+  const hotspots = [];
+  const nHot = 2 + Math.floor(rng() * 3);
+  for (let i = 0; i < nHot; i++) {
+    hotspots.push({
+      x: rng() * width,
+      y: rng() * height,
+      r2: (Math.min(width, height) * (0.03 + rng() * 0.028)) ** 2,
+      amp: 0.16 + rng() * 0.2,
+    });
+  }
+
   const tiltAng = rng() * Math.PI * 2;
   const tx = Math.cos(tiltAng);
   const ty = Math.sin(tiltAng);
@@ -172,6 +187,16 @@ export function assignElevation(cells, plates, rng, width, height, seaLevel, cel
     const mountains = Math.max(0, field[cell.id]) * (0.42 + 0.95 * belt);
     const rift = Math.min(0, field[cell.id]) * (0.35 + 0.25 * belt);
     let h = continental + mountains + rift + rolling + detail + wrinkle + micro + slope;
+    if (!p.continental && trench[cell.id] > 0) h -= 0.16 * trench[cell.id];
+    if (p.continental && belt > 0.18 && belt < 0.62 && mountains < 0.22) h -= 0.07 * belt;
+    if (d > beltLength * 1.5) {
+      for (const spot of hotspots) {
+        const dx = cell.x - spot.x;
+        const dy = cell.y - spot.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < spot.r2) h += spot.amp * (1 - d2 / spot.r2);
+      }
+    }
 
     if (p.continental) {
       let oceanNb = 0;
@@ -228,9 +253,20 @@ export function setLandFraction(cells, targetLand, seaSlider) {
  * Soften plains and keep peaks (O'Leary "round hills").
  * @param {import("../types.js").Cell[]} cells
  */
+/**
+ * Earth-like hypsometry: most land stays low, a short tail keeps the ranges.
+ * @param {number} height
+ */
+export function shapeHypsometry(height) {
+  if (height <= 0) return height;
+  if (height < 0.2) return height * 0.65;
+  const t = (height - 0.2) / 0.8;
+  return 0.13 + Math.pow(Math.max(0, t), 0.62) * 0.87;
+}
+
 function roundLand(cells) {
   for (const c of cells) {
     if (c.height <= 0) continue;
-    c.height = Math.pow(c.height, 0.82);
+    c.height = shapeHypsometry(c.height);
   }
 }
