@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.5.1
+
+- Terrain adds subduction trenches, foreland basins, and a few intraplate hotspots. Land heights follow a hypsometric curve (broad lowlands, a short high tail). Cold highlands take one capped glacial carve.
+- The README now has a full English guide beside the Chinese one, including the continental default sheet.
+
 ## 2.5.0
 
 - Default atlas is the continental sheet at fine spacing (3840×2400, cell size 5), with a 200k cell budget. Fine meshes subdivide coast polygons.
