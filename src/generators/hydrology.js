@@ -98,6 +98,33 @@ export function fillDepressions(cells) {
 /**
  * @param {import("../types.js").Cell[]} cells
  */
+/**
+ * One id per drainage basin. Ocean stays -1. Total work is O(cells).
+ * @param {import("../types.js").Cell[]} cells
+ */
+export function assignBasins(cells) {
+  const basin = new Int32Array(cells.length);
+  basin.fill(-1);
+  let next = 0;
+  for (const start of cells) {
+    if (start.ocean || basin[start.id] >= 0) continue;
+    /** @type {number[]} */
+    const path = [];
+    let id = start.id;
+    let guard = 0;
+    while (id >= 0 && basin[id] < 0 && guard++ < cells.length) {
+      path.push(id);
+      const cell = cells[id];
+      const n = cell.downslope;
+      if (n < 0 || cells[n].ocean) break;
+      id = n;
+    }
+    const inherited = id >= 0 && basin[id] >= 0 ? basin[id] : next++;
+    for (const pid of path) basin[pid] = inherited;
+  }
+  for (const c of cells) c.basinId = c.ocean ? -1 : basin[c.id];
+}
+
 export function assignDownslope(cells) {
   for (const cell of cells) {
     if (cell.ocean) {
@@ -230,9 +257,13 @@ export function extractRivers(cells, threshold = 14) {
       used[cid] = 1;
       if (cells[cid].riverId < 0) cells[cid].riverId = rid;
     }
-    const points = chaikin(
-      path.map((cid) => [cells[cid].x, cells[cid].y]),
-      cells.length > 18000 ? 1 : 2,
+    const points = meander(
+      chaikin(
+        path.map((cid) => [cells[cid].x, cells[cid].y]),
+        cells.length > 18000 ? 1 : 2,
+      ),
+      cells,
+      path,
     );
     let mouth = 0;
     let mouthId = path[0];
@@ -247,6 +278,35 @@ export function extractRivers(cells, threshold = 14) {
     rivers.push({ id: rid, cellIds: path, points, width, name: "", order: order[mouthId] || 1 });
   }
   return rivers;
+}
+
+/**
+ * Low-gradient reaches wander; steep ones stay in the thalweg.
+ * Endpoints stay put so the mouth still meets the sea.
+ * @param {number[][]} points
+ * @param {import("../types.js").Cell[]} cells
+ * @param {number[]} path
+ */
+function meander(points, cells, path) {
+  if (points.length < 5) return points;
+  const out = points.map((p) => [p[0], p[1]]);
+  for (let i = 1; i < out.length - 1; i++) {
+    const prev = out[i - 1];
+    const next = out[i + 1];
+    const dx = next[0] - prev[0];
+    const dy = next[1] - prev[1];
+    const len = Math.hypot(dx, dy) || 1;
+    const t = i / (out.length - 1);
+    const ci = Math.min(path.length - 1, Math.round(t * (path.length - 1)));
+    const c = cells[path[ci]];
+    const ds = c?.downslope >= 0 ? cells[c.downslope] : null;
+    const slope = ds ? Math.abs(c.height - ds.height) : 0.2;
+    const amp = Math.max(0, 0.55 - slope * 4) * 3.2;
+    const wave = Math.sin(i * 0.9 + path[0] * 0.17) * amp;
+    out[i][0] += (-dy / len) * wave;
+    out[i][1] += (dx / len) * wave;
+  }
+  return out;
 }
 
 /**

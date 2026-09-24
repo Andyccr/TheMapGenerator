@@ -78,9 +78,9 @@ test("editing height then recomputing keeps drainage valid", () => {
 
 test("default shell is a wide atlas and stays under the cell cap", () => {
   const shell = createWorldShell({ seed: "defaults" });
-  assert.equal(shell.meta.width, 2560);
-  assert.equal(shell.meta.height, 1600);
-  assert.ok(shell.meta.cellSize <= 7);
+  assert.equal(shell.meta.width, 3840);
+  assert.equal(shell.meta.height, 2400);
+  assert.ok(shell.meta.cellSize <= 5);
   assert.ok(estimateCellCount(shell.meta.width, shell.meta.height, shell.meta.cellSize) <= MAX_CELLS);
 });
 

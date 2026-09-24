@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { latitudeBand, climateBeltLabel } from "../../data/climate.js";
+import { latitudeBand, climateBeltLabel, circulationWind } from "../../data/climate.js";
 import { assignClimate, spreadMoisture } from "../climate.js";
 import { clearForeignProvinces } from "../provinces.js";
-import { assignStreamOrder, riverWidth } from "../hydrology.js";
+import { assignStreamOrder, riverWidth, assignBasins } from "../hydrology.js";
 import { slumpSlopes } from "../relief.js";
 
 /** @param {number} id @param {number} x @param {number} y @param {number[]} neighbors @param {Partial<import("../../types.js").Cell>} extra */
@@ -62,6 +62,17 @@ test("stream order rises where two tributaries meet, and width follows the mouth
   assert.equal(order[1], 1);
   assert.equal(order[2], 2);
   assert.ok(riverWidth(80, 3) > riverWidth(4, 1));
+  assignBasins(cells);
+  assert.equal(cells[0].basinId, cells[1].basinId);
+  assert.ok(cells[0].basinId >= 0);
+  assert.equal(cells[3].basinId, -1);
+});
+
+test("trades blow toward the west and the storm track blows toward the east", () => {
+  const trades = circulationWind(0.16, { x: 0, y: 0 });
+  const storm = circulationWind(0.55, { x: 0, y: 0 });
+  assert.ok(trades.x < 0);
+  assert.ok(storm.x > 0);
 });
 
 test("river moisture is applied before it diffuses to the banks", () => {
