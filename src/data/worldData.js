@@ -7,7 +7,7 @@
 /** @typedef {import("../types.js").GenerateConfig} GenerateConfig */
 
 /** Keep generation and frame time in a comfortable band on typical laptops. */
-export const MAX_CELLS = 110000;
+export const MAX_CELLS = 200000;
 
 /** Baseline hypot(1600, 1000) used by the original default atlas. */
 const BASE_SPAN = 1887;
@@ -61,9 +61,9 @@ export function worldScale(width, height) {
  * @returns {WorldData}
  */
 export function createWorldShell(config) {
-  const width = config.width ?? 2560;
-  const height = config.height ?? 1600;
-  const cellSize = clampGrid(width, height, config.cellSize ?? 7);
+  const width = config.width ?? 3840;
+  const height = config.height ?? 2400;
+  const cellSize = clampGrid(width, height, config.cellSize ?? 5);
   return {
     version: 1,
     meta: {
@@ -178,6 +178,7 @@ export function hydrateWorld(w) {
     if (c.provinceId == null) c.provinceId = -1;
     if (c.religionId == null) c.religionId = -1;
     if (c.featureId == null) c.featureId = -1;
+    if (c.basinId == null) c.basinId = -1;
   }
   for (const f of w.features) {
     if (f.cx == null || f.cy == null) {

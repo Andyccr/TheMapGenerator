@@ -28,8 +28,8 @@ test("serializeShare omits defaults and round-trips", () => {
   const q = serializeShare({
     seed: "abc",
     landform: "island",
-    extent: "2560,1600",
-    detail: "7",
+    extent: "3840,2400",
+    detail: "5",
     style: "atlas",
     plates: "12",
     sea: "0",
