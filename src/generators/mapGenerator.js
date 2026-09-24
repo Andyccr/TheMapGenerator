@@ -12,7 +12,7 @@ import { createWorldShell, bumpSurface } from "../data/worldData.js";
 import { makeRng } from "./rng.js";
 import { createMesh } from "./mesh.js";
 import { assignPlates, assignElevation } from "./tectonics.js";
-import { gradeCoastsAndShelf, erodeFluvial, slumpSlopes } from "./relief.js";
+import { gradeCoastsAndShelf, erodeFluvial, slumpSlopes, glaciateColdHighlands } from "./relief.js";
 import {
   classifyOceanAndCoast,
   fillDepressions,
@@ -80,6 +80,7 @@ export class MapGenerator {
       parseRecipe(world.meta.landformSteps),
     );
     slumpSlopes(world.cells);
+    glaciateColdHighlands(world.cells, world.meta.height);
 
     onProgress?.("hydrology");
     this.#hydrology(world);
