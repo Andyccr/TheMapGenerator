@@ -22,9 +22,12 @@ Jitter stays small (~0.22 spacing) so the hex dual remains a valid triangulation
 
 Plates are Voronoi seeds with a velocity and a continental/oceanic flag. Strain on a shared edge is the closing speed of relative velocity along the edge normal:
 
-- both continental, closing → folded mountain chain
-- mixed, closing → coastal range on the continental side (subduction cartoon)
+- both continental, closing → folded mountain chain, with a shallow foreland dip just off the belt
+- mixed, closing → coastal range on the continental side, trench on the oceanic side, occasional island arc
 - opening → rift, lower elevation
+- far from every boundary → a few hotspot swells (seamounts or volcanic islands)
+
+Land heights then pass through a hypsometric curve: low country is flattened, a short tail keeps the ranges. After the landform recipe, one glacial pass carves cold highlands (latitude plus elevation) and leaves a moraine downhill. Warm lowlands are skipped.
 
 Simplex **fbm is only ±0.09 of relief**, plus a cell-scale wrinkle so finer grids show more micro-relief. Continents come from plates, not from a noise threshold, so you do not get Swiss-cheese landmasses.
 

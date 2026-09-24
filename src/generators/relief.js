@@ -103,7 +103,38 @@ export function slumpSlopes(cells) {
 }
 
 /**
- * Wear high-flux steep cells and deposit a little downstream (O'Leary cartoon erosion).
+ * Cold highlands lose a capped slice into the lower neighbor (cirque / trough).
+ * Warm lowlands are left alone. One O(n) pass at generation.
+ * @param {import("../types.js").Cell[]} cells
+ * @param {number} mapHeight
+ */
+export function glaciateColdHighlands(cells, mapHeight) {
+  const span = mapHeight || 1;
+  const delta = new Float64Array(cells.length);
+  for (const c of cells) {
+    if (c.ocean || c.border || c.height < 0.28) continue;
+    const lat = 1 - c.y / span;
+    const cold = lat * 0.62 + Math.max(0, c.height) * 0.7;
+    if (cold < 0.8) continue;
+    let low = null;
+    let lowH = c.height;
+    for (const nid of c.neighbors) {
+      const n = cells[nid];
+      if (n.height < lowH) {
+        lowH = n.height;
+        low = n;
+      }
+    }
+    if (!low || low.ocean) continue;
+    const carve = Math.min(0.04, (cold - 0.8) * 0.1 + Math.max(0, c.height - low.height) * 0.12);
+    delta[c.id] -= carve;
+    if (!low.border && low.height > 0.02) delta[low.id] += carve * 0.35;
+  }
+  for (const c of cells) c.height += delta[c.id];
+}
+
+/**
+ * Wear high-flux steep cells and deposit a little downstream (stream power).
  * @param {import("../types.js").Cell[]} cells
  */
 export function erodeFluvial(cells) {
