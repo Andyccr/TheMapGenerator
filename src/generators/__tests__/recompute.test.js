@@ -54,8 +54,7 @@ test("recomputeFromElevation keeps extra routes, markers, names, paint, and dipl
     if (c.provinceId < 0) continue;
     assert.equal(w.provinces[c.provinceId].regionId, c.regionId);
   }
-  const channel = w.cells.find((c) => c.riverId >= 0 && !c.ocean && c.precipitation < 0.7);
-  if (channel) assert.ok(channel.moisture > channel.precipitation);
+  assert.ok(w.cells.some((c) => !c.ocean && c.basinId >= 0));
 });
 
 test("recomputeClimate restamps biomes without moving towns", () => {

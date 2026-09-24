@@ -8,7 +8,7 @@
  */
 
 import { BIOMES } from "../data/catalogs.js";
-import { latitudeBand } from "../data/climate.js";
+import { latitudeBand, circulationWind } from "../data/climate.js";
 
 /**
  * Graph hops from the nearest ocean cell. -1 when the map has no ocean.
@@ -45,9 +45,7 @@ function distanceFromOcean(cells) {
  * @param {number} [width]
  */
 export function assignClimate(cells, height, wind, width) {
-  const len = Math.hypot(wind.x, wind.y) || 1;
-  const wx = wind.x / len;
-  const wy = wind.y / len;
+  const userWind = wind || { x: 1, y: 0 };
   const span = Math.hypot(width || height * 1.6, height);
   const stepLen = Math.max(16, span * 0.016);
   const nSteps = Math.min(12, Math.max(7, Math.round(span / 260)));
@@ -73,14 +71,15 @@ export function assignClimate(cells, height, wind, width) {
       continue;
     }
 
+    const flow = circulationWind(lat, userWind);
     let shadow = 0;
     let x = cell.x;
     let y = cell.y;
     let id = cell.id;
     for (let step = 0; step < nSteps; step++) {
       if (shadow > 1.35) break;
-      x -= wx * stepLen;
-      y -= wy * stepLen;
+      x -= flow.x * stepLen;
+      y -= flow.y * stepLen;
       let next = -1;
       let best = 1e9;
       for (const nid of cells[id].neighbors) {

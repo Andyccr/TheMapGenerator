@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.5.0
+
+- Default atlas is the continental sheet at fine spacing (3840×2400, cell size 5), with a 200k cell budget. Fine meshes subdivide coast polygons.
+- Surface wind follows a three-cell circulation (trades, westerlies, polar easterlies). The wind control is a bias on that field. Rain shadows walk upwind along the local wind.
+- Fluvial wear uses a capped stream-power law and leaves the lowest coastal cells alone. Low-gradient rivers meander. Each land cell records a drainage basin, and the inspector names the watershed.
+
 ## 2.4.1
 
 - River moisture is applied after the channels exist, so a dry-belt river still freshens its banks before biomes are chosen. A province id is dropped when a height edit moves that cell into another realm.

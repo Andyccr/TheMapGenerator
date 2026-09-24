@@ -18,6 +18,7 @@ import {
   fillDepressions,
   markLakesFromFill,
   assignDownslope,
+  assignBasins,
   accumulateFlux,
   extractRivers,
   markMountains,
@@ -288,6 +289,7 @@ export class MapGenerator {
     fillDepressions(cells);
     markLakesFromFill(cells);
     assignDownslope(cells);
+    assignBasins(cells);
     markMountains(cells);
   }
 

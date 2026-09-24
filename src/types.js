@@ -45,6 +45,7 @@
  * @property {boolean} coast
  * @property {boolean} mountain
  * @property {number} downslope  neighbor id or -1
+ * @property {number} [basinId]  drainage basin, -1 on ocean
  * @property {number} riverId    -1 if none
  * @property {number} regionId   -1 if none
  * @property {number} cultureId  -1 if none

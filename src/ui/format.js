@@ -100,6 +100,7 @@ export function cellInspectHtml(world, cellId) {
       <dt>湿度</dt><dd>${c.moisture.toFixed(2)}</dd>
       <dt>温度</dt><dd>${escapeHtml(tempText)}</dd>
       <dt>径流量</dt><dd>${c.flux.toFixed(1)}</dd>
+      <dt>流域</dt><dd>${escapeHtml(drainageLabel(world, c))}</dd>
       <dt>河流</dt><dd>${escapeHtml(riverText)}</dd>
       <dt>标记</dt><dd>${[
         c.ocean && "海洋",
@@ -119,6 +120,31 @@ export function cellInspectHtml(world, cellId) {
       <dt>地标</dt><dd>${marker ? escapeHtml(marker.name) : "—"}</dd>
       <dt>过路</dt><dd>${escapeHtml(roadHint)}</dd>
       <dt>行程</dt><dd>${escapeHtml(tripHint)}</dd>`;
+}
+
+/**
+ * Follow the thalweg to the outlet. Named rivers label the basin.
+ * @param {import("../types.js").WorldData} world
+ * @param {import("../types.js").Cell} cell
+ */
+function drainageLabel(world, cell) {
+  if (cell.ocean) return "—";
+  let id = cell.id;
+  let lake = cell.lake;
+  let guard = 0;
+  while (guard++ < 4000) {
+    const c = world.cells[id];
+    if (!c) break;
+    if (c.lake) lake = true;
+    const n = c.downslope >= 0 ? world.cells[c.downslope] : null;
+    if (!n || n.ocean || c.downslope < 0) break;
+    id = n.id;
+  }
+  const outlet = world.cells[id];
+  const river = outlet?.riverId >= 0 ? world.rivers?.[outlet.riverId] : null;
+  if (river?.name) return `${river.name}流域`;
+  if (lake) return "内流盆地";
+  return "入海流域";
 }
 
 /**

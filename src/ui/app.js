@@ -168,7 +168,7 @@ export class App {
       const [ew, eh] = extentRaw.split(",").map(Number);
       const width = Number.isFinite(ew) && ew > 200 ? ew : 2560;
       const height = Number.isFinite(eh) && eh > 200 ? eh : 1600;
-      const cellSize = Number(detailEl instanceof HTMLSelectElement ? detailEl.value : 7);
+      const cellSize = Number(detailEl instanceof HTMLSelectElement ? detailEl.value : 5);
       const plateCount = Number(platesEl instanceof HTMLInputElement ? platesEl.value : 12);
       const seaLevel = Number(seaEl instanceof HTMLInputElement ? seaEl.value : 0);
       const windRaw = windEl instanceof HTMLSelectElement ? windEl.value : "1,0";
