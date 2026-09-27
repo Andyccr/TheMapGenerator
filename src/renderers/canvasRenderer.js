@@ -9,10 +9,10 @@ import { pointInPolygon, simplifyPolyline } from "../util/geometry.js";
 import { buildSpatialIndex, visitCellsInRect } from "../util/spatialIndex.js";
 import { fillFor, inkFor, ATLAS_BIOME } from "./styles.js";
 import { lodConfig, lodFromZoom, LOD_LABELS } from "./lod.js";
-import { buildContours } from "./contours.js";
+import { buildContours, buildElevationContours } from "./contours.js";
 import { BIOME_LABELS, markerGlyph } from "../data/catalogs.js";
 import { layoutAtlasChrome, paintAtlasChrome } from "./atlasExport.js";
-import { drawGrid, drawMeasure, drawDraft, drawHighlight, drawCompass, drawScaleBar } from "./hud.js";
+import { drawGrid, drawMeasure, drawDraft, drawHighlight, drawCompass, drawScaleBar, drawVignette } from "./hud.js";
 
 export class CanvasRenderer {
   /** @param {HTMLCanvasElement} canvas */
@@ -30,6 +30,9 @@ export class CanvasRenderer {
     /** @type {{ coasts: number[][][], shores: number[][][], borders: number[][][], cultures: number[][][], provinces: number[][][], religions: number[][][] } | null} */
     this._contours = null;
     this._contourKey = "";
+    /** @type {number[][][][] | null} */
+    this._elev = null;
+    this._elevKey = "";
     this._lod = "overview";
   }
 
@@ -107,12 +110,19 @@ export class CanvasRenderer {
       const forced = lodConfig(options.lod === "overview" ? 1 : 1.8, world.cells.length, visibleEst);
       Object.assign(lod, forced);
     }
+    const shade = options.shade !== false;
+    if (options.mesh && visibleEst < 12000) {
+      lod.useRaster = false;
+      lod.cellEdges = true;
+    }
+    lod.shadeCells = shade && !lod.useRaster && (lod.hillshade || visibleEst < 14000);
     this._lod = lod.level;
 
     this.#ensureContours(world);
-    this.#drawTerrain(world, style, bounds, lod);
+    this.#drawTerrain(world, style, bounds, lod, shade && lod.useRaster);
     const px = (n) => this.#px(n);
     if (options.grid) drawGrid(ctx, world, ink, px);
+    if (options.contours) this.#drawElevation(world, style, bounds, px);
     this.#drawCoast(world, ink, style, bounds, lod);
     if (options.rivers !== false) this.#drawRivers(world, ink, style, bounds, lod);
     if (options.routes !== false) this.#drawRoutes(world, ink, style, bounds, lod);
@@ -134,7 +144,8 @@ export class CanvasRenderer {
     if (options.highlightCell >= 0) drawHighlight(ctx, world, options.highlightCell, px);
 
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    drawCompass(ctx, this.canvas, ink, style);
+    if (options.vignette) drawVignette(ctx, this.canvas, style);
+    drawCompass(ctx, this.canvas, ink);
     drawScaleBar(ctx, this.canvas, world, ink);
   }
 
@@ -154,7 +165,21 @@ export class CanvasRenderer {
     world.view.x = 0;
     world.view.y = 0;
     world.view.scale = exportScale;
-    tmp.draw(world, { labels: true, borders: true, grid: false, rivers: true, routes: true, markers: true, relief: true, lod: "local" });
+    tmp.draw(world, {
+      labels: true,
+      borders: opts.borders !== false,
+      grid: false,
+      rivers: opts.rivers !== false,
+      routes: opts.routes !== false,
+      markers: opts.markers !== false,
+      relief: opts.relief !== false,
+      journeys: opts.journeys !== false,
+      shade: opts.shade !== false,
+      contours: Boolean(opts.contours),
+      vignette: Boolean(opts.vignette),
+      mesh: false,
+      lod: "local",
+    });
     world.view.x = saved.x;
     world.view.y = saved.y;
     world.view.scale = saved.scale;
@@ -351,6 +376,76 @@ export class CanvasRenderer {
         { key: "city", label: "稠密", color: "#7a1820" },
       ];
     }
+    if (style === "bathymetry") {
+      return [
+        { key: "trench", label: "海沟", color: "#061018" },
+        { key: "deep", label: "深海", color: "#0c3a5c" },
+        { key: "shelf", label: "陆架", color: "#1a8aa8" },
+        { key: "shoal", label: "浅滩", color: "#b7e3d2" },
+        { key: "land", label: "陆地", color: "#c9c3b6" },
+      ];
+    }
+    if (style === "basins" && world?.cells) {
+      const seen = new Set();
+      const items = [{ key: "sea", label: "海洋", color: "#16384c" }];
+      for (const cell of world.cells) {
+        if (cell.ocean || cell.basinId == null || cell.basinId < 0 || seen.has(cell.basinId)) continue;
+        seen.add(cell.basinId);
+        items.push({
+          key: `b${cell.basinId}`,
+          label: `流域 ${cell.basinId + 1}`,
+          color: fillFor(cell, world, "basins"),
+        });
+        if (items.length >= 8) break;
+      }
+      return items;
+    }
+    if (style === "belts") {
+      return [
+        { key: "eq", label: "赤道带", color: "#3f8f4a" },
+        { key: "sub", label: "副热带", color: "#d2b15a" },
+        { key: "storm", label: "西风带", color: "#5d8a4a" },
+        { key: "pole", label: "极地带", color: "#c5d0d4" },
+      ];
+    }
+    if (style === "runoff") {
+      return [
+        { key: "dry", label: "少水", color: "#e6d7a8" },
+        { key: "mid", label: "支流", color: "#7aaa62" },
+        { key: "trunk", label: "干流", color: "#143c6a" },
+      ];
+    }
+    if (style === "plates" && world?.cells) {
+      const seen = new Set();
+      const items = [];
+      for (const cell of world.cells) {
+        if (cell.ocean || seen.has(cell.plateId)) continue;
+        seen.add(cell.plateId);
+        items.push({
+          key: `p${cell.plateId}`,
+          label: `板块 ${cell.plateId + 1}`,
+          color: fillFor(cell, world, "plates"),
+        });
+        if (items.length >= 8) break;
+      }
+      return items.length ? items : [{ key: "p", label: "板块", color: "#c46a4a" }];
+    }
+    if (style === "copper") {
+      return [
+        { key: "deep", label: "深海", color: "#5e584e" },
+        { key: "low", label: "低地", color: "#f3eadc" },
+        { key: "high", label: "高地", color: "#3a342c" },
+      ];
+    }
+    if (style === "satellite") {
+      return [
+        { key: "sea", label: "海洋", color: "#0c3048" },
+        { key: "forest", label: "森林", color: "#1e4a32" },
+        { key: "grass", label: "草原", color: "#8ea24a" },
+        { key: "desert", label: "荒漠", color: "#c6a86a" },
+        { key: "snow", label: "冰雪", color: "#e7eef2" },
+      ];
+    }
     if (style === "physical" || style === "height") {
       return [
         { key: "deep", label: "深海", color: "#0b2a3c" },
@@ -408,16 +503,16 @@ export class CanvasRenderer {
    * @param {string} style
    * @param {"overview"|"regional"|"local"} level
    */
-  #ensureRaster(world, style, level) {
+  #ensureRaster(world, style, level, bakeShade) {
     const worldKey = this.#paintKey(world, style);
     if (this._rasterWorld !== worldKey) {
       this._rasters.clear();
       this._rasterWorld = worldKey;
     }
-    const slot = level === "overview" ? "overview" : "regional";
+    const slot = `${level === "overview" ? "overview" : "regional"}:${bakeShade ? 1 : 0}`;
     const hit = this._rasters.get(slot);
     if (hit) return hit;
-    const maxDim = slot === "overview" ? 1280 : 2048;
+    const maxDim = level === "overview" ? 1280 : 2048;
     const sx = Math.min(1, maxDim / world.meta.width);
     const sy = Math.min(1, maxDim / world.meta.height);
     const bakeScale = Math.max(0.12, Math.min(sx, sy));
@@ -439,6 +534,11 @@ export class CanvasRenderer {
       ctx.closePath();
       ctx.fillStyle = fillFor(cell, world, style, lodPaint);
       ctx.fill();
+      if (!bakeShade) continue;
+      const shade = hillshadeAmount(cell, world.cells);
+      if (!shade) continue;
+      ctx.fillStyle = shade > 0 ? `rgba(255,246,220,${shade})` : `rgba(12,16,28,${-shade * 1.15})`;
+      ctx.fill();
     }
     const rec = { canvas, scale: bakeScale };
     this._rasters.set(slot, rec);
@@ -451,11 +551,11 @@ export class CanvasRenderer {
    * @param {{ x0: number, y0: number, x1: number, y1: number }} bounds
    * @param {ReturnType<typeof lodConfig>} lod
    */
-  #drawTerrain(world, style, bounds, lod) {
+  #drawTerrain(world, style, bounds, lod, bakeShade) {
     const ctx = this.ctx;
     if (!ctx) return;
     if (lod.useRaster) {
-      const rec = this.#ensureRaster(world, style, lod.level);
+      const rec = this.#ensureRaster(world, style, lod.level, bakeShade);
       if (rec) {
         ctx.imageSmoothingEnabled = true;
         if ("imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality = lod.level === "overview" ? "high" : "medium";
@@ -487,25 +587,53 @@ export class CanvasRenderer {
       ctx.fillStyle = fillFor(cell, world, style, lod.level);
       ctx.fill();
       if (lod.cellEdges) {
-        ctx.strokeStyle = "rgba(36,26,16,0.16)";
+        ctx.strokeStyle = style === "night" || style === "satellite" ? "rgba(220,230,220,0.28)" : "rgba(36,26,16,0.2)";
         ctx.lineWidth = this.#px(0.45);
         ctx.stroke();
       }
-      if (!lod.hillshade || cell.ocean || cell.lake) return;
-      let shade = 0;
-      let w = 0;
-      for (const nid of cell.neighbors) {
-        const n = world.cells[nid];
-        if (cell.x - n.x + (cell.y - n.y) <= 0) continue;
-        shade += (cell.height - n.height) * 2.4;
-        w += 1;
-      }
-      if (!w) return;
-      shade = Math.max(-0.28, Math.min(0.22, shade / w));
-      if (Math.abs(shade) < 0.02) return;
+      if (!lod.shadeCells) return;
+      const shade = hillshadeAmount(cell, world.cells);
+      if (!shade) return;
       ctx.fillStyle = shade > 0 ? `rgba(255,246,220,${shade})` : `rgba(12,16,28,${-shade * 1.15})`;
       ctx.fill();
     });
+  }
+
+  /**
+   * @param {import("../types.js").WorldData} world
+   * @param {string} style
+   * @param {{ x0: number, y0: number, x1: number, y1: number }} bounds
+   * @param {(n: number) => number} px
+   */
+  #drawElevation(world, style, bounds, px) {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const lines = this.#ensureElevation(world);
+    const light = style === "night" || style === "satellite";
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    for (let i = 0; i < lines.length; i++) {
+      const level = i < 2 ? i : i - 2;
+      ctx.beginPath();
+      for (const line of lines[i]) {
+        if (!polylineHits(line, bounds)) continue;
+        ctx.moveTo(line[0][0], line[0][1]);
+        for (let k = 1; k < line.length; k++) ctx.lineTo(line[k][0], line[k][1]);
+      }
+      const alpha = i < 2 ? 0.28 : 0.22 + level * 0.06;
+      ctx.strokeStyle = light ? `rgba(210,224,220,${alpha})` : `rgba(42,32,22,${alpha})`;
+      ctx.lineWidth = px(i < 2 ? 0.7 : 0.65 + level * 0.12);
+      ctx.stroke();
+    }
+  }
+
+  /** @param {import("../types.js").WorldData} world */
+  #ensureElevation(world) {
+    const key = this.#paintKey(world, "elev");
+    if (this._elevKey === key && this._elev) return this._elev;
+    this._elev = buildElevationContours(world);
+    this._elevKey = key;
+    return this._elev;
   }
 
   /**
@@ -721,21 +849,22 @@ export class CanvasRenderer {
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     const minLen = lod.level === "overview" ? 8 : 2;
+    const light = style === "night" || style === "satellite";
     for (const route of world.routes) {
       if (!route.points || route.points.length < minLen) continue;
       if (!this.#lineInView(route.points, bounds)) continue;
       if (route.kind === "sea") {
-        ctx.strokeStyle = style === "night" ? "#6ec8ff" : ink.river;
+        ctx.strokeStyle = light ? "#6ec8ff" : ink.river;
         ctx.globalAlpha = 0.55;
         ctx.setLineDash([this.#px(7), this.#px(5)]);
         ctx.lineWidth = this.#px(lod.level === "overview" ? 1.4 : 1.15);
       } else if (route.kind === "trail") {
-        ctx.strokeStyle = style === "night" ? "#c4b090" : "#6a4a28";
+        ctx.strokeStyle = light ? "#c4b090" : "#6a4a28";
         ctx.globalAlpha = 0.55;
         ctx.setLineDash([this.#px(3), this.#px(4)]);
         ctx.lineWidth = this.#px(0.9);
       } else {
-        ctx.strokeStyle = style === "night" ? "#d4b07a" : "#5a3418";
+        ctx.strokeStyle = light ? "#d4b07a" : "#5a3418";
         ctx.globalAlpha = 0.7;
         ctx.setLineDash([]);
         ctx.lineWidth = this.#px(lod.level === "overview" ? 1.6 : 1.25);
@@ -760,7 +889,7 @@ export class CanvasRenderer {
     const ctx = this.ctx;
     const journeys = world.journeys;
     if (!ctx || !journeys?.length) return;
-    const night = style === "night";
+    const night = style === "night" || style === "satellite";
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.font = `${this.#px(11)}px Palatino, Georgia, serif`;
@@ -843,13 +972,13 @@ export class CanvasRenderer {
     if (!ctx) return;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    const night = style === "night";
+    const light = ink.marks === "light";
     if (lod.level === "overview") {
       const geo = (world.features || [])
         .filter((f) => f.type === "continent" || f.type === "sea")
         .sort((a, b) => b.size - a.size)
         .slice(0, 7);
-      ctx.fillStyle = night ? "rgba(232, 214, 176, 0.72)" : "rgba(26, 18, 12, 0.55)";
+      ctx.fillStyle = light ? "rgba(236, 232, 220, 0.78)" : "rgba(26, 18, 12, 0.55)";
       for (const f of geo) {
         const x = f.cx ?? world.cells[f.originId]?.x;
         const y = f.cy ?? world.cells[f.originId]?.y;
@@ -903,8 +1032,8 @@ export class CanvasRenderer {
       if (!c || !this.#inView(c, bounds)) continue;
       const r = this.#px(s.type === "capital" ? 4.4 : s.type === "city" ? 3.5 : 2.7);
       ctx.beginPath();
-      ctx.fillStyle = style === "night" ? "#f0d78c" : "#1a120c";
-      ctx.strokeStyle = style === "night" ? "#1a120c" : "#f4ead4";
+      ctx.fillStyle = ink.marks === "light" ? "#f0d78c" : "#1a120c";
+      ctx.strokeStyle = ink.marks === "light" ? "#1a120c" : "#f4ead4";
       ctx.lineWidth = this.#px(1);
       if (s.type === "capital") {
         ctx.rect(c.x - r, c.y - r, r * 2, r * 2);
@@ -953,14 +1082,14 @@ export class CanvasRenderer {
     for (const m of world.markers) {
       const c = world.cells[m.cellId];
       if (!c || !this.#inView(c, bounds)) continue;
-      ctx.fillStyle = style === "night" ? "#f0d78c" : "#3a1c10";
-      ctx.strokeStyle = style === "night" ? "#1a120c" : "#f4ead4";
+      ctx.fillStyle = ink.marks === "light" ? "#f0d78c" : "#3a1c10";
+      ctx.strokeStyle = ink.marks === "light" ? "#1a120c" : "#f4ead4";
       ctx.lineWidth = this.#px(0.8);
       ctx.beginPath();
       ctx.arc(c.x, c.y, this.#px(4.2), 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
-      ctx.fillStyle = style === "night" ? "#1a120c" : "#f4ead4";
+      ctx.fillStyle = ink.marks === "light" ? "#1a120c" : "#f4ead4";
       ctx.fillText(markerGlyph(m.type), c.x, c.y + this.#px(0.5));
       if (lod.level === "local" || (lod.level === "regional" && scale / (this._fitScale || scale) > 1.6)) {
         ctx.fillStyle = ink.text;
@@ -969,4 +1098,43 @@ export class CanvasRenderer {
     }
     ctx.textAlign = "left";
   }
+}
+
+/**
+ * Northwest light. Ocean and lakes stay flat so bathymetry keeps its own ramp.
+ * @param {import("../types.js").Cell} cell
+ * @param {import("../types.js").Cell[]} cells
+ */
+function hillshadeAmount(cell, cells) {
+  if (cell.ocean || cell.lake) return 0;
+  let shade = 0;
+  let w = 0;
+  for (const nid of cell.neighbors) {
+    const n = cells[nid];
+    if (!n || cell.x - n.x + (cell.y - n.y) <= 0) continue;
+    shade += (cell.height - n.height) * 2.4;
+    w += 1;
+  }
+  if (!w) return 0;
+  shade = Math.max(-0.28, Math.min(0.22, shade / w));
+  if (Math.abs(shade) < 0.02) return 0;
+  return shade;
+}
+
+/**
+ * @param {number[][]} line
+ * @param {{ x0: number, y0: number, x1: number, y1: number }} bounds
+ */
+function polylineHits(line, bounds) {
+  let minx = Infinity;
+  let maxx = -Infinity;
+  let miny = Infinity;
+  let maxy = -Infinity;
+  for (const p of line) {
+    if (p[0] < minx) minx = p[0];
+    if (p[0] > maxx) maxx = p[0];
+    if (p[1] < miny) miny = p[1];
+    if (p[1] > maxy) maxy = p[1];
+  }
+  return maxx >= bounds.x0 && minx <= bounds.x1 && maxy >= bounds.y0 && miny <= bounds.y1;
 }

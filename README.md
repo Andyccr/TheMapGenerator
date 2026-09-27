@@ -50,11 +50,11 @@ npm run dev
 ### 怎么用地图
 
 1. 第一次打开会先出现欢迎层：**快速开始**（中幅粗略，大约一两秒）、**看范例**，或按左侧设置生成。刷新页面会**恢复自动存档**。地址栏带 `?seed=` 时按链接生成。默认画幅 **3840×2400**、精细（格距 5，约 14 万格）；也可改回宽幅或放到超大陆。超过约 20 万格时会自动略微放粗格距。生成在后台线程跑，可随时 **取消** 或按 Esc。阶段：格网 → 板块 → 水文 → 气候 → 文明 → 商路。
-2. 滚轮平滑缩放（对准光标），双击放大，Shift+双击缩小；右下角 **+ / − / 适应**。缩放只改**绘制**：全图合并色块与干流，近景才画晕渲、细河和村落。格子数据不变。侧栏可用 **[** / **]** 或页头 **左栏 / 右栏** 折叠，**H** 全屏看图。
+2. 滚轮平滑缩放（对准光标），双击放大，Shift+双击缩小；右下角 **+ / − / 适应**。缩放只改**绘制**：全图合并色块与干流，晕渲可开在全图上，近景才画细河、格界和村落。格子数据不变。侧栏可用 **[** / **]** 或页头 **左栏 / 右栏** 折叠，**H** 全屏看图。
 3. **陆形** 决定海岸轮廓：诸大陆、盘古、群岛、大岛、半岛、地峡、内海、湖区。每个模板是一串可编辑步骤（丘、洼、岭、海峡），叠在板块造山之上。
 4. **抬升 / 降低** 是主要编辑工具：在陆地上涂抹，松手后河流会按重力重算，手绘商路、地标与外交会留下。**印戳** 点击放下丘、洼或岭；**涂色** 改群系、文化、信仰、国度、行省（空颜料点击吸取）；**连路** 点两座城画出商路。右侧检视可以直接改这些层，也能改名称、颜色与外交，并新建文化 / 信仰 / 国度。
 5. **河流** 从高地拖向大海；**建城 / 擦除 / 地标** 种城镇和兴趣点，擦除也可以点掉商路格子（不会整网重掷）；**移动** 把城镇拖到陆地上；**命名** 点击改名；**测距** 量直线里格。**行程** 逐站点选，沿商路走更省时，两岸可航且海路更快时改走海路；回车封存后天数、里格和途经停靠写进存档。改风向后点 **应用风向** 只重算气候。
-6. **图层** 在图集、地势、政治、文化、行省、信仰、气温、降水、人口之间切换；商路与地标可单独关掉。底部状态栏显示当前格子。
+6. **图层** 在图集、地势、卫星、水深、板块、铜版、羊皮纸、夜航，以及气温、降水、径流、流域、气候带、政治、文化、行省、信仰、人口之间切换。地名、国境、河流、商路、行程、地标、山纹、经纬网、晕渲、等高线、暗角、格界可单独开关。底部状态栏显示当前格子。
 7. **重掷文明** 只重做人名与国家，地形不动。名册与检索用来跳转到聚落、国度、行省、文化、信仰、地貌、河流、商路、地标。检视里可以写战役笔记。
 8. **F1** 打开说明。**范例** 打开几张现成陆形。**链接** 复制可分享地址。**导出 JSON** 保存完整世界；**槽位** 把最多六张图存在本机 IndexedDB；**导出图集 PNG** 出带图名与图例的战役图。陆形步骤可「应用到当前图」。
 
@@ -76,13 +76,13 @@ npm run dev
 - 近海是平原与陆架，远海更深。高纬高山会做一次有上限的冰蚀，把冰斗刻进山体，冰碛堆在下方。河流按河流功率下切后从高地汇入海洋，缓坡河段会蜿蜒，**不会翻山**。
 - 气候看纬度带和海拔：赤道湿、副热带干、西风带再转湿，北方冷，山上更冷；离海越远季节差越大。湿气在迎风坡增加，在背风面形成雨影沙漠。干流按河口流量和河级变粗。
 - 城镇优先靠近河流与海岸，名称来自当地文化；国度再分成行省；民俗信仰跟文化走，建制宗教从大城市扩出去；大陆、岛屿与海域有名字；都城之间有商路，荒原上有废墟与龙巢一类地标。
-- 放大后可见坡向晕渲；缩小后隐藏次要地名。图层预设对照 Azgaar FMG 的玩法层，但绘制仍是 Canvas 2D。
+- 晕渲可画在全图缓存上，近景仍按坡向叠光。等高线、暗角、格界只改绘制。缩小后隐藏次要地名。图层预设对照 Azgaar FMG 的玩法层，但绘制仍是 Canvas 2D。
 
 算法参考 Martin O’Leary、Amit Patel、Scott Turner。详见 [docs/ALGORITHMS.md](docs/ALGORITHMS.md)。
 
 ### 渲染为什么用 Canvas 2D
 
-中等地图有数万个多边形，还要边画边改、平移缩放。Canvas 一次变换再填色即可；SVG 会制造成千上万个 DOM 节点，刷子一动就卡。点选用空间哈希。缩小到适应窗口时跳过晕渲；PNG 导出用 `canvas.toBlob`。说明见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+中等地图有数万个多边形，还要边画边改、平移缩放。Canvas 一次变换再填色即可；SVG 会制造成千上万个 DOM 节点，刷子一动就卡。点选用空间哈希。全图晕渲画进缓存，等高线只在打开时按高程交点串起来。PNG 导出用 `canvas.toBlob`。说明见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
 
 ### 四层目录
 
@@ -147,11 +147,11 @@ Open http://localhost:8080/ . For hot reload: `npm install`, `npm test`, `npm ru
 ### How to use the map
 
 1. The first visit opens a welcome: **quick start** (medium, coarse, about a second or two), **examples**, or generate with the left-hand settings. Refresh restores the autosave. A `?seed=` link generates that world. The default sheet is **3840×2400** at fine spacing (cell size 5, about 140k cells). Wider and smaller sheets are in the same menu. Past about 200k cells the grid coarsens slightly. Generation runs in a worker and can be **cancelled** or stopped with Esc. Stages: mesh → plates → water → climate → society → roads.
-2. Scroll to zoom toward the cursor. Double-click zooms in; Shift+double-click zooms out. **+ / − / fit** sit at the lower right. Zoom changes drawing only: the overview uses baked color and trunk rivers; hillshade, minor rivers, and villages appear up close. **[** / **]** or the header buttons fold the side panels. **H** hides both.
+2. Scroll to zoom toward the cursor. Double-click zooms in; Shift+double-click zooms out. **+ / − / fit** sit at the lower right. Zoom changes drawing only: the overview uses baked color and trunk rivers; hillshade can stay on that bitmap, while minor rivers, cell edges, and villages appear up close. **[** / **]** or the header buttons fold the side panels. **H** hides both.
 3. **Landform** sets the coastline: several continents, Pangaea, archipelago, island, peninsula, isthmus, inland sea, lakes. Each preset is an editable stack of hills, pits, ranges, and straits on top of the plates.
 4. **Raise / lower** is the main brush. Release the pointer and rivers recompute from gravity. Hand-drawn roads, markers, and diplomacy stay. **Stamp** drops a hill, pit, or range. **Paint** edits biome, culture, faith, realm, or province (an empty pigment eyedrops). **Road** links two towns. The inspector edits those layers, plus names, colors, diplomacy, and new cultures, faiths, and realms.
 5. **River** drags a channel downhill. **Town / erase / marker** place or remove places; erase can cut one road cell without rerolling the network. **Move** drags a town onto land. **Rename** and **measure** do what they say. **Journey** clicks waypoints, prefers roads, and takes a sea lane when both ends are coastal and the voyage is faster. Enter stores days, leagues, and stops. **Apply wind** restamps climate only.
-6. **Layers** switch atlas, relief, political, culture, provinces, faith, temperature, precipitation, and population. Roads and markers can be hidden. The status bar describes the cell under the cursor.
+6. **Layers** switch atlas, relief, satellite, bathymetry, plates, copperplate, parchment, and night, plus temperature, precipitation, runoff, drainage basins, climate belts, politics, culture, provinces, faith, and population. Names, borders, rivers, roads, journeys, markers, hachures, the graticule, hillshade, contours, vignette, and cell edges each have their own toggle. The status bar describes the cell under the cursor.
 7. **Reroll society** rebuilds peoples and states and leaves the terrain. The roster and search jump to towns, realms, provinces, cultures, faiths, features, rivers, roads, and markers. The inspector holds campaign notes.
 8. **F1** opens help. **Examples** opens ready-made coastlines. **Link** copies a share URL. **Export JSON** saves the world. **Slots** keep up to six worlds in IndexedDB. **Export atlas PNG** writes a titled sheet with a legend. Landform steps can be applied to the current map.
 
@@ -179,7 +179,7 @@ The algorithms follow Martin O’Leary, Amit Patel, and Scott Turner. See [docs/
 
 ### Why Canvas 2D
 
-A medium map is tens of thousands of polygons, edited while you pan and zoom. One canvas transform and a fill is enough. SVG would create a DOM node per cell and stall on every brush stroke. Hit tests use a spatial hash. The fit view skips hillshade. PNG export uses `canvas.toBlob`. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+A medium map is tens of thousands of polygons, edited while you pan and zoom. One canvas transform and a fill is enough. SVG would create a DOM node per cell and stall on every brush stroke. Hit tests use a spatial hash. Hillshade on the fit view is baked into the overview bitmap. Contours are built once from elevation crossings. PNG export uses `canvas.toBlob`. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ### Layout
 

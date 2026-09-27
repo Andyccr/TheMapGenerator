@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.6.0
+
+- Style presets now include satellite, bathymetry, tectonic plates, copperplate, runoff, drainage basins, and latitude climate belts. Each one only recolors cells; the mesh, rivers, and society stay as they are.
+- View toggles for hillshade, elevation contours, a screen vignette, and cell edges. Hillshade is baked into the overview bitmap. Contours are chained from elevation crossings and drawn only while the toggle is on. Cell edges appear when the cells in view stay sparse.
+
 ## 2.5.1
 
 - Terrain adds subduction trenches, foreland basins, and a few intraplate hotspots. Land heights follow a hypsometric curve (broad lowlands, a short high tail). Cold highlands take one capped glacial carve.

@@ -18,13 +18,23 @@ export function latitudeBand(lat) {
 }
 
 /**
+ * 0 equator, 1 subtropics, 2 storm track, 3 pole.
+ * @param {number} lat
+ */
+export function climateBeltIndex(lat) {
+  if (lat < 0.2) return 0;
+  if (lat < 0.46) return 1;
+  if (lat < 0.74) return 2;
+  return 3;
+}
+
+const BELT_LABELS = ["赤道带", "副热带", "西风带", "极地带"];
+
+/**
  * @param {number} lat
  */
 export function climateBeltLabel(lat) {
-  if (lat < 0.2) return "赤道带";
-  if (lat < 0.46) return "副热带";
-  if (lat < 0.74) return "西风带";
-  return "极地带";
+  return BELT_LABELS[climateBeltIndex(lat)];
 }
 
 /**
