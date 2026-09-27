@@ -112,6 +112,22 @@ export function bindWorkshop(app) {
     app.grid = /** @type {HTMLInputElement} */ (e.target).checked;
     app.redraw();
   });
+  el("opt-shade")?.addEventListener("change", (e) => {
+    app.showShade = /** @type {HTMLInputElement} */ (e.target).checked;
+    app.redraw();
+  });
+  el("opt-contours")?.addEventListener("change", (e) => {
+    app.showContours = /** @type {HTMLInputElement} */ (e.target).checked;
+    app.redraw();
+  });
+  el("opt-vignette")?.addEventListener("change", (e) => {
+    app.showVignette = /** @type {HTMLInputElement} */ (e.target).checked;
+    app.redraw();
+  });
+  el("opt-mesh")?.addEventListener("change", (e) => {
+    app.showMesh = /** @type {HTMLInputElement} */ (e.target).checked;
+    app.redraw();
+  });
 
   app.doc.querySelectorAll(".tool").forEach((btn) => {
     btn.addEventListener("click", () => app.setTool(String(btn.getAttribute("data-tool") || "pan")));
@@ -211,6 +227,7 @@ export function bindWorkshop(app) {
         folio: true,
         title: app.world.meta.mapName || app.world.meta.seed,
         subtitle: `种子 ${app.world.meta.seed} · ${land} · ${app.world.meta.width}×${app.world.meta.height}`,
+        ...app.viewOptions(),
       });
       await downloadPng(off, `world-${app.world.meta.seed}.png`);
     } catch (err) {
