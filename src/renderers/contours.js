@@ -190,3 +190,55 @@ export function buildContours(world) {
     religions: polish(religionSeg, cs * 0.5),
   };
 }
+
+/** Land form-lines and two bathymetric lines. Paint-only. */
+export const ELEVATION_LEVELS = [-0.55, -0.22, 0.34, 0.52, 0.7, 0.88];
+
+/**
+ * Chord contours: each cell that a level crosses emits the segment between
+ * the two edge intersections. Shared vertices chain into polylines.
+ * @param {import("../types.js").WorldData} world
+ * @returns {number[][][][]}
+ */
+export function buildElevationContours(world) {
+  const cells = world.cells;
+  const cs = world.meta.cellSize || 10;
+  /** @type {number[][][][]} */
+  const buckets = ELEVATION_LEVELS.map(() => []);
+  for (const cell of cells) {
+    if (!cell || cell.lake || !cell.neighbors?.length) continue;
+    for (let li = 0; li < ELEVATION_LEVELS.length; li++) {
+      const level = ELEVATION_LEVELS[li];
+      if (level < 0 ? !cell.ocean : cell.ocean || cell.height <= 0) continue;
+      /** @type {number[][]} */
+      const hits = [];
+      for (const nid of cell.neighbors) {
+        const n = cells[nid];
+        if (!n || n.lake) continue;
+        if (level < 0 ? !n.ocean : n.ocean) continue;
+        const p = crossHeight(cell, n, level);
+        if (p) hits.push(p);
+      }
+      if (hits.length < 2) continue;
+      const cx = cell.x;
+      const cy = cell.y;
+      hits.sort((p, q) => Math.atan2(p[1] - cy, p[0] - cx) - Math.atan2(q[1] - cy, q[0] - cx));
+      for (let i = 0; i + 1 < hits.length; i += 2) buckets[li].push([hits[i], hits[i + 1]]);
+    }
+  }
+  return buckets.map((segs) => chainPolylines(segs).map((line) => simplifyPolyline(line, cs * 0.35)));
+}
+
+/**
+ * @param {{ x: number, y: number, height: number }} a
+ * @param {{ x: number, y: number, height: number }} b
+ * @param {number} level
+ * @returns {number[] | null}
+ */
+function crossHeight(a, b, level) {
+  const d = b.height - a.height;
+  if (Math.abs(d) < 1e-8) return null;
+  const t = (level - a.height) / d;
+  if (t < 0 || t > 1) return null;
+  return [a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t];
+}

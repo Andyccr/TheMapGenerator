@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { lodFromZoom, lodConfig, macroBiome, LOD_LABELS } from "../lod.js";
-import { chainPolylines, edgeBetween, buildContours } from "../contours.js";
+import { chainPolylines, edgeBetween, buildContours, buildElevationContours } from "../contours.js";
 import { simplifyPolyline } from "../../util/geometry.js";
 import { MapGenerator } from "../../generators/mapGenerator.js";
 
@@ -65,6 +65,20 @@ test("chainPolylines joins touching segments", () => {
   ]);
   assert.equal(lines.length, 1);
   assert.ok(lines[0].length >= 3);
+});
+
+test("elevation contours follow a straddled land edge and leave cells unchanged", () => {
+  const cells = [
+    { id: 0, x: 0, y: 0, height: 0.2, ocean: false, lake: false, neighbors: [1, 2] },
+    { id: 1, x: 10, y: 0, height: 0.8, ocean: false, lake: false, neighbors: [0] },
+    { id: 2, x: 0, y: 10, height: 0.8, ocean: false, lake: false, neighbors: [0] },
+  ];
+  const before = cells[0].height;
+  const lines = buildElevationContours({ cells, meta: { cellSize: 8 } });
+  const count = lines.reduce((n, bucket) => n + bucket.length, 0);
+  assert.ok(count >= 1);
+  assert.equal(cells[0].height, before);
+  assert.equal(lines.length, 6);
 });
 
 test("coast contours do not mutate cell data", () => {

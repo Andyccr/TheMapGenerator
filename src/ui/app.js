@@ -73,6 +73,10 @@ export class App {
     this.showMarkers = true;
     this.showRelief = true;
     this.showJourneys = true;
+    this.showShade = true;
+    this.showContours = false;
+    this.showVignette = false;
+    this.showMesh = false;
     this.rosterKind = "settlements";
     /** @type {{ x0: number, y0: number, x1: number, y1: number } | null} */
     this.measure = null;
@@ -255,6 +259,16 @@ export class App {
     const tool = /** @type {{ path?: number[] }} */ (this.tools[this.toolId]);
     const draft = this.toolId === "river" || this.toolId === "journey" ? tool?.path || [] : [];
     this.renderer.draw(this.world, {
+      ...this.viewOptions(),
+      highlightCell: this.highlightCell(),
+      draftPath: draft,
+      measure: this.measure,
+    });
+  }
+
+  /** Draw toggles. They never rewrite cells. */
+  viewOptions() {
+    return {
       labels: this.labels,
       borders: this.borders,
       grid: this.grid,
@@ -263,10 +277,11 @@ export class App {
       markers: this.showMarkers,
       relief: this.showRelief,
       journeys: this.showJourneys,
-      highlightCell: this.highlightCell(),
-      draftPath: draft,
-      measure: this.measure,
-    });
+      shade: this.showShade,
+      contours: this.showContours,
+      vignette: this.showVignette,
+      mesh: this.showMesh,
+    };
   }
 
   bind() {

@@ -322,6 +322,10 @@
  * @property {boolean} [markers]
  * @property {boolean} [relief]
  * @property {boolean} [journeys]
+ * @property {boolean} [shade] hillshade; default on
+ * @property {boolean} [contours] elevation form lines
+ * @property {boolean} [vignette]
+ * @property {boolean} [mesh] cell edges when the view is not too dense
  * @property {number} [highlightCell]
  * @property {number[]} [draftPath]
  * @property {{ x0: number, y0: number, x1: number, y1: number } | null} [measure]

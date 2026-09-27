@@ -97,15 +97,14 @@ export function drawHighlight(ctx, world, id, px) {
 /**
  * @param {CanvasRenderingContext2D} ctx
  * @param {HTMLCanvasElement} canvas
- * @param {{ text: string }} ink
- * @param {string} style
+ * @param {{ text: string, marks?: string }} ink
  */
-export function drawCompass(ctx, canvas, ink, style) {
+export function drawCompass(ctx, canvas, ink) {
   const x = 36;
   const y = canvas.clientHeight - 36;
   ctx.save();
   ctx.translate(x, y);
-  ctx.strokeStyle = style === "night" ? "#d4c4a0" : "#3a2a18";
+  ctx.strokeStyle = ink.marks === "light" ? "#d4c4a0" : "#3a2a18";
   ctx.fillStyle = ink.text;
   ctx.lineWidth = 1.2;
   ctx.beginPath();
@@ -161,4 +160,22 @@ export function drawScaleBar(ctx, canvas, world, ink) {
   ctx.font = "10px Palatino, Georgia, serif";
   ctx.textAlign = "center";
   ctx.fillText(`${worldLen} 里格`, x + px / 2, y - 8);
+}
+
+/**
+ * Screen-space edge darkening. Does not change the map.
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {HTMLCanvasElement} canvas
+ * @param {string} style
+ */
+export function drawVignette(ctx, canvas, style) {
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  if (w < 8 || h < 8) return;
+  const g = ctx.createRadialGradient(w * 0.5, h * 0.5, Math.min(w, h) * 0.2, w * 0.5, h * 0.5, Math.max(w, h) * 0.62);
+  const edge = style === "night" || style === "satellite" ? "rgba(0,0,0,0.72)" : "rgba(28,16,8,0.62)";
+  g.addColorStop(0, "rgba(0,0,0,0)");
+  g.addColorStop(1, edge);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
 }

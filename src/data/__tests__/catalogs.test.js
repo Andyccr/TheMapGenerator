@@ -32,5 +32,12 @@ test("landform, stance, route, and recipe labels live in catalogs", () => {
   assert.equal(journeyLegLabel("ford"), "渡河");
   assert.ok(GENERATION_STAGE_LABELS.mesh);
   assert.ok(STYLE_IDS.includes("population"));
+  assert.ok(STYLE_IDS.includes("bathymetry"));
+  assert.ok(STYLE_IDS.includes("basins"));
+  assert.ok(STYLE_IDS.includes("belts"));
+  assert.ok(STYLE_IDS.includes("runoff"));
+  assert.ok(STYLE_IDS.includes("satellite"));
+  assert.ok(STYLE_IDS.includes("plates"));
+  assert.ok(STYLE_IDS.includes("copper"));
   assert.ok(Object.keys(LANDFORM_LABELS).includes("archipelago"));
 });
