@@ -111,7 +111,7 @@ export class CanvasRenderer {
       Object.assign(lod, forced);
     }
     const shade = options.shade !== false;
-    if (options.mesh && visibleEst < 12000) {
+    if (options.mesh && visibleEst < 22000) {
       lod.useRaster = false;
       lod.cellEdges = true;
     }
@@ -587,8 +587,8 @@ export class CanvasRenderer {
       ctx.fillStyle = fillFor(cell, world, style, lod.level);
       ctx.fill();
       if (lod.cellEdges) {
-        ctx.strokeStyle = style === "night" || style === "satellite" ? "rgba(220,230,220,0.28)" : "rgba(36,26,16,0.2)";
-        ctx.lineWidth = this.#px(0.45);
+        ctx.strokeStyle = style === "night" || style === "satellite" ? "rgba(220,230,220,0.55)" : "rgba(36,26,16,0.5)";
+        ctx.lineWidth = this.#px(1.15);
         ctx.stroke();
       }
       if (!lod.shadeCells) return;
@@ -620,9 +620,9 @@ export class CanvasRenderer {
         ctx.moveTo(line[0][0], line[0][1]);
         for (let k = 1; k < line.length; k++) ctx.lineTo(line[k][0], line[k][1]);
       }
-      const alpha = i < 2 ? 0.28 : 0.22 + level * 0.06;
+      const alpha = i < 2 ? 0.55 : 0.42 + level * 0.08;
       ctx.strokeStyle = light ? `rgba(210,224,220,${alpha})` : `rgba(42,32,22,${alpha})`;
-      ctx.lineWidth = px(i < 2 ? 0.7 : 0.65 + level * 0.12);
+      ctx.lineWidth = px(i < 2 ? 1.35 : 1.15 + level * 0.22);
       ctx.stroke();
     }
   }

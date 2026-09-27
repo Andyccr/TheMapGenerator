@@ -172,8 +172,8 @@ export function drawVignette(ctx, canvas, style) {
   const w = canvas.clientWidth;
   const h = canvas.clientHeight;
   if (w < 8 || h < 8) return;
-  const g = ctx.createRadialGradient(w * 0.5, h * 0.5, Math.min(w, h) * 0.32, w * 0.5, h * 0.5, Math.max(w, h) * 0.72);
-  const edge = style === "night" || style === "satellite" ? "rgba(0,0,0,0.55)" : "rgba(36,24,12,0.4)";
+  const g = ctx.createRadialGradient(w * 0.5, h * 0.5, Math.min(w, h) * 0.2, w * 0.5, h * 0.5, Math.max(w, h) * 0.62);
+  const edge = style === "night" || style === "satellite" ? "rgba(0,0,0,0.72)" : "rgba(28,16,8,0.62)";
   g.addColorStop(0, "rgba(0,0,0,0)");
   g.addColorStop(1, edge);
   ctx.fillStyle = g;
