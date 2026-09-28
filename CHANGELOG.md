@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.6.1
+
+- The same style and view choices sit on the map itself, above the canvas, and stay in step with the sidebar.
+
 ## 2.6.0
 
 - Style presets now include satellite, bathymetry, tectonic plates, copperplate, runoff, drainage basins, and latitude climate belts. Each one only recolors cells; the mesh, rivers, and society stay as they are.

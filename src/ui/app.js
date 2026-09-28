@@ -26,6 +26,7 @@ import { renderRecipeList } from "./recipePanel.js";
 import { EditHistory } from "./history.js";
 import { setLoadingOverlay, setBusyChrome } from "./jobChrome.js";
 import { bindWorkshop } from "./bindings.js";
+import { syncViewDock } from "./viewDock.js";
 
 const SETTLEMENT_TYPE = SETTLEMENT_TYPE_LABELS;
 
@@ -227,6 +228,7 @@ export class App {
     if (name instanceof HTMLInputElement) name.value = world.meta.mapName || "";
     const styleEl = this.el("opt-style");
     if (styleEl instanceof HTMLSelectElement && world.meta.style) styleEl.value = world.meta.style;
+    syncViewDock(this);
     const landEl = this.el("opt-landform");
     if (landEl instanceof HTMLSelectElement && world.meta.landform) landEl.value = world.meta.landform;
     const windEl = this.el("opt-wind");
@@ -1187,6 +1189,7 @@ export class App {
     if (!spec) return;
     styleEl.value = spec.style;
     this.world.meta.style = spec.style;
+    syncViewDock(this);
     this.fillLegend();
     this.redraw();
   }

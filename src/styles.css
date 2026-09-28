@@ -484,6 +484,46 @@ button:hover {
   flex-wrap: wrap;
 }
 
+.view-dock {
+  position: absolute;
+  left: 3.1rem;
+  right: 3.1rem;
+  top: 0.45rem;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+  pointer-events: none;
+}
+
+.view-dock-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.18rem;
+  align-items: center;
+  pointer-events: auto;
+}
+
+.pick-group {
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  color: var(--ink-dim);
+  margin: 0 0.15rem 0 0.35rem;
+}
+
+.view-dock .pick {
+  padding: 0.12rem 0.38rem;
+  font-size: 0.74rem;
+  background: rgba(20, 15, 12, 0.82);
+  border: 1px solid var(--line);
+}
+
+.view-dock .pick.on {
+  color: #1a120c;
+  background: var(--brass);
+  border-color: var(--brass);
+}
+
 .zoom-hud {
   position: absolute;
   right: 0.7rem;
@@ -923,6 +963,7 @@ kbd {
   .panel,
   .fold,
   .zoom-hud,
+  .view-dock,
   .toast,
   .loading,
   .map-status,
