@@ -1,10 +1,13 @@
 # Changelog
 
+## 2.6.1
+
+- The same style and view choices sit on the map itself, above the canvas, and stay in step with the sidebar.
+
 ## 2.6.0
 
 - Style presets now include satellite, bathymetry, tectonic plates, copperplate, runoff, drainage basins, and latitude climate belts. Each one only recolors cells; the mesh, rivers, and society stay as they are.
 - View toggles for hillshade, elevation contours, a screen vignette, and cell edges. Hillshade is baked into the overview bitmap. Contours are chained from elevation crossings and drawn only while the toggle is on. Cell edges appear when the cells in view stay sparse.
-- The same style and view choices sit on the map itself, above the canvas, and stay in step with the sidebar.
 
 ## 2.5.1
 
