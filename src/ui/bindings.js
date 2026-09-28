@@ -3,6 +3,7 @@
  * only attaches listeners. Must not import generators.
  */
 import { recipeFor } from "../data/landforms.js";
+import { mountViewDock, syncViewDock } from "./viewDock.js";
 import { parseWorld } from "../data/worldData.js";
 import { landformLabel } from "../data/catalogs.js";
 import { estimatePopulation } from "../data/population.js";
@@ -299,6 +300,8 @@ export function bindWorkshop(app) {
     app.redraw();
     app.inspect(app._burgTarget.cellId);
   });
+
+  mountViewDock(app);
 
   window.addEventListener("keydown", (ev) => app.onKey(ev));
   window.addEventListener("beforeunload", (ev) => {

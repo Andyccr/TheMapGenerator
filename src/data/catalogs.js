@@ -230,28 +230,35 @@ export const GENERATION_STAGE_LABELS = {
   routes: "正在连商路、放地标…",
 };
 
-/** Paint / share style ids. Renderer palettes live in styles.js. */
-export const STYLE_IDS = [
-  "atlas",
-  "physical",
-  "height",
-  "satellite",
-  "bathymetry",
-  "copper",
-  "political",
-  "cultural",
-  "provinces",
-  "religions",
-  "population",
-  "plates",
-  "temperature",
-  "precipitation",
-  "runoff",
-  "basins",
-  "belts",
-  "parchment",
-  "night",
+/**
+ * In-app style choices. The sidebar select and the on-map dock both use this list.
+ * Renderer palettes live in styles.js.
+ * @type {{ group: string, id: string, label: string }[]}
+ */
+export const STYLE_CHOICES = [
+  { group: "地表", id: "atlas", label: "图集" },
+  { group: "地表", id: "physical", label: "地势" },
+  { group: "地表", id: "height", label: "高程" },
+  { group: "地表", id: "satellite", label: "卫星" },
+  { group: "地表", id: "bathymetry", label: "水深" },
+  { group: "地表", id: "plates", label: "板块" },
+  { group: "地表", id: "copper", label: "铜版" },
+  { group: "地表", id: "parchment", label: "羊皮" },
+  { group: "地表", id: "night", label: "夜航" },
+  { group: "水文与气候", id: "temperature", label: "气温" },
+  { group: "水文与气候", id: "precipitation", label: "降水" },
+  { group: "水文与气候", id: "runoff", label: "径流" },
+  { group: "水文与气候", id: "basins", label: "流域" },
+  { group: "水文与气候", id: "belts", label: "气候带" },
+  { group: "人文", id: "political", label: "政治" },
+  { group: "人文", id: "cultural", label: "文化" },
+  { group: "人文", id: "provinces", label: "行省" },
+  { group: "人文", id: "religions", label: "信仰" },
+  { group: "人文", id: "population", label: "人口" },
 ];
+
+/** Paint / share style ids. */
+export const STYLE_IDS = STYLE_CHOICES.map((s) => s.id);
 
 export const MAP_EXTENTS = ["1920,1200", "2560,1600", "3840,2400", "5120,3200"];
 export const MAP_DETAILS = ["10", "7", "5", "4"];
