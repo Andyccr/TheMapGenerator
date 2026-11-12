@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { fillFor, inkFor } from "../styles.js";
+import { fillFor, inkFor, routePaint } from "../styles.js";
 
 /** @param {Partial<import("../../types.js").Cell>} over */
 function cell(over) {
@@ -64,6 +64,17 @@ test("new styles recolor from cell fields and stay distinct", () => {
   const b = Number(copper[3]);
   assert.ok(Math.abs(r - g) < 28 && Math.abs(g - b) < 28);
   assert.notEqual(fillFor(land, world, "satellite"), fillFor(cell({ biome: "SUBTROPICAL_DESERT" }), world, "satellite"));
+  const atlasLand = fillFor(land, world, "atlas", "overview");
+  const atlasSea = fillFor(cell({ ocean: true, height: -0.3, biome: "OCEAN" }), world, "atlas", "overview");
+  assert.ok(lum(atlasLand) > 180, atlasLand);
+  assert.ok(lum(atlasSea) > 150, atlasSea);
+  assert.ok(lum(atlasLand) > lum(atlasSea));
+  assert.equal(inkFor("atlas").paper, "#f2efe9");
+  const trunk = routePaint("trunk", "atlas", "overview");
+  assert.equal(trunk.show, true);
+  assert.ok(trunk.casingWidth > trunk.width);
+  assert.equal(routePaint("trail", "atlas", "overview").show, true);
+  assert.ok(routePaint("trail", "atlas", "overview").width < trunk.width);
   assert.equal(inkFor("satellite").marks, "light");
   assert.equal(inkFor("night").marks, "light");
   assert.equal(inkFor("copper").paper, "#e4dcc8");

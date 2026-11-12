@@ -64,7 +64,13 @@ Folk religions follow culture; a few **organized** creeds expand from the larges
 
 ## 6. Routes and markers
 
-Roads are A* on the cell graph: mountains cost extra, rivers are cheap corridors, ocean is impassable. Sea lanes only run between coastal towns when the overland path is long. Trails link villages.
+Roads are a two-level network, the same generalization a low-zoom reference map uses. Capitals link by **trunk** roads, cities by **primary** roads, towns by ordinary roads, and nearby villages by trails. Search does **not** run A* across the whole mesh for every pair:
+
+1. A coarse land graph keeps one node per stride (a few thousand on a continental sheet) plus every settlement. An edge exists only when samples along the segment stay on land, so a chord cannot skip a channel. Edge cost is distance, higher over ridges and lower along rivers.
+2. A* on that graph returns the hops. Each hop is then refined with A* on the cell mesh, reusing one scratch distance field, and the limit is a small multiple of the hop length.
+3. If the coarse route cannot be refined, one bounded cell search is the fallback. Sea lanes are tried only for a coastal trunk or primary whose land corridor is much longer than the straight-line distance.
+
+The cell path is neighbor-connected and stays off the ocean, so later marches can still prefer the corridor. Mountains cost extra, rivers are cheap, ocean is impassable for roads.
 
 Markers are the GM pins: volcanoes on peaks, ruins in the wild, lights on capes, mines near towns, shrines in forest, dragon lairs on remote high peaks. They live in `WorldData.markers` and can be placed or erased by tools.
 
@@ -98,7 +104,7 @@ Zoom does **not** resample the mesh. `WorldData.cells` stay put. The renderer sw
 
 | Band | Zoom | Paint |
 | --- | --- | --- |
-| 全图 overview | fit | baked raster, merged biomes, thick coasts, major rivers, capitals |
+| 全图 overview | fit | batched landcover raster (light land, flat water), trunk / primary / road casings, major rivers, city dots |
 | 地区 regional | ~1.3–2.5× | sharper raster or vectors, full biomes, more rivers, mountain marks |
 | 近景 local | closer | live polygons, hillshade, tributaries, villages, optional cell grain |
 

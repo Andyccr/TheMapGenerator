@@ -34,7 +34,7 @@ const DRY_BIOMES = new Set(["SUBTROPICAL_DESERT", "TEMPERATE_DESERT"]);
 export function corridorMask(world) {
   const mask = new Uint8Array(world.cells.length);
   for (const route of world.routes || []) {
-    const rank = route.kind === "road" ? 2 : route.kind === "trail" ? 1 : 0;
+    const rank = route.kind === "sea" ? 0 : route.kind === "trail" ? 1 : 2;
     if (!rank) continue;
     for (const id of route.cellIds) {
       if (rank > mask[id]) mask[id] = rank;

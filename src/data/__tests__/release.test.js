@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { APP_VERSION } from "../../core/version.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -18,7 +19,7 @@ test("shell HTML has a first-run welcome and a cancel control", () => {
   assert.match(html, /id="welcome-dialog"/);
   assert.match(html, /id="btn-cancel-job"/);
   assert.match(html, /id="stage-empty"/);
-  assert.match(html, /\?v=2\.6\.1/);
+  assert.match(html, new RegExp(`\\?v=${APP_VERSION.replaceAll(".", "\\.")}`));
   assert.match(html, /data-tool="journey"/);
   assert.match(html, /id="btn-journey-seal"/);
 });

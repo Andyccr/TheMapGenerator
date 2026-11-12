@@ -102,7 +102,7 @@
 /**
  * @typedef {Object} Route
  * @property {number} id
- * @property {"road"|"trail"|"sea"} kind
+ * @property {"trunk"|"primary"|"road"|"trail"|"sea"} kind
  * @property {number} fromId
  * @property {number} toId
  * @property {number[]} cellIds

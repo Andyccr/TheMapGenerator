@@ -186,6 +186,8 @@ export const ROUTE_KIND_LABELS = {
   sea: "海路",
   trail: "小径",
   road: "商路",
+  primary: "大路",
+  trunk: "干道",
 };
 
 /** @param {string} [kind] */

@@ -28,6 +28,8 @@ test("landform, stance, route, and recipe labels live in catalogs", () => {
   assert.equal(routeKindLabel("sea"), "海路");
   assert.equal(routeKindLabel("trail"), "小径");
   assert.equal(routeKindLabel("road"), "商路");
+  assert.equal(routeKindLabel("trunk"), "干道");
+  assert.equal(routeKindLabel("primary"), "大路");
   assert.equal(journeyModeLabel("voyage"), "海路");
   assert.equal(journeyLegLabel("ford"), "渡河");
   assert.ok(GENERATION_STAGE_LABELS.mesh);

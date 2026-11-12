@@ -7,9 +7,10 @@
  */
 import { pointInPolygon, simplifyPolyline } from "../util/geometry.js";
 import { buildSpatialIndex, visitCellsInRect } from "../util/spatialIndex.js";
-import { fillFor, inkFor, ATLAS_BIOME } from "./styles.js";
+import { fillFor, inkFor, routePaint, ATLAS_BIOME } from "./styles.js";
 import { lodConfig, lodFromZoom, LOD_LABELS } from "./lod.js";
 import { buildContours, buildElevationContours } from "./contours.js";
+import { bakeCellRaster, hillshadeAmount } from "./raster.js";
 import { BIOME_LABELS, markerGlyph } from "../data/catalogs.js";
 import { layoutAtlasChrome, paintAtlasChrome } from "./atlasExport.js";
 import { drawGrid, drawMeasure, drawDraft, drawHighlight, drawCompass, drawScaleBar, drawVignette } from "./hud.js";
@@ -33,6 +34,9 @@ export class CanvasRenderer {
     /** @type {number[][][][] | null} */
     this._elev = null;
     this._elevKey = "";
+    /** @type {{ width: number, points: number[][], name?: string }[] | null} */
+    this._riverLines = null;
+    this._riverKey = "";
     this._lod = "overview";
   }
 
@@ -512,35 +516,8 @@ export class CanvasRenderer {
     const slot = `${level === "overview" ? "overview" : "regional"}:${bakeShade ? 1 : 0}`;
     const hit = this._rasters.get(slot);
     if (hit) return hit;
-    const maxDim = level === "overview" ? 1280 : 2048;
-    const sx = Math.min(1, maxDim / world.meta.width);
-    const sy = Math.min(1, maxDim / world.meta.height);
-    const bakeScale = Math.max(0.12, Math.min(sx, sy));
-    const w = Math.max(1, Math.round(world.meta.width * bakeScale));
-    const h = Math.max(1, Math.round(world.meta.height * bakeScale));
-    const canvas = document.createElement("canvas");
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-    ctx.setTransform(bakeScale, 0, 0, bakeScale, 0, 0);
-    const lodPaint = slot === "overview" ? "overview" : "regional";
-    for (const cell of world.cells) {
-      if (cell.polygon.length < 3) continue;
-      ctx.beginPath();
-      const p = cell.polygon;
-      ctx.moveTo(p[0][0], p[0][1]);
-      for (let i = 1; i < p.length; i++) ctx.lineTo(p[i][0], p[i][1]);
-      ctx.closePath();
-      ctx.fillStyle = fillFor(cell, world, style, lodPaint);
-      ctx.fill();
-      if (!bakeShade) continue;
-      const shade = hillshadeAmount(cell, world.cells);
-      if (!shade) continue;
-      ctx.fillStyle = shade > 0 ? `rgba(255,246,220,${shade})` : `rgba(12,16,28,${-shade * 1.15})`;
-      ctx.fill();
-    }
-    const rec = { canvas, scale: bakeScale };
+    const rec = bakeCellRaster(world, style, level === "overview" ? "overview" : "regional", bakeShade);
+    if (!rec) return null;
     this._rasters.set(slot, rec);
     return rec;
   }
@@ -701,39 +678,58 @@ export class CanvasRenderer {
   #drawRivers(world, ink, style, bounds, lod) {
     const ctx = this.ctx;
     if (!ctx) return;
-    ctx.strokeStyle = ink.river;
+    const lines = this.#riverGeometry(world, lod);
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.globalAlpha = style === "night" ? 0.9 : 0.88;
-    const minW = lod.riverMinWidth;
-    const simp = lod.riverSimplify;
-    for (const river of world.rivers) {
-      if (river.points.length < 2 || river.width < minW) continue;
-      const last = river.points[river.points.length - 1];
-      const first = river.points[0];
-      if (
-        (first[0] < bounds.x0 && last[0] < bounds.x0) ||
-        (first[0] > bounds.x1 && last[0] > bounds.x1) ||
-        (first[1] < bounds.y0 && last[1] < bounds.y0) ||
-        (first[1] > bounds.y1 && last[1] > bounds.y1)
-      ) {
-        continue;
+    const night = style === "night" || style === "satellite";
+    const draw = (widthOf, color, alpha) => {
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = alpha;
+      for (const river of lines) {
+        const pts = river.points;
+        if (pts.length < 2 || !polylineHits(pts, bounds)) continue;
+        ctx.lineWidth = widthOf(river.width);
+        ctx.beginPath();
+        ctx.moveTo(pts[0][0], pts[0][1]);
+        for (let i = 1; i < pts.length; i++) {
+          const prev = pts[i - 1];
+          const cur = pts[i];
+          ctx.quadraticCurveTo(prev[0], prev[1], (prev[0] + cur[0]) / 2, (prev[1] + cur[1]) / 2);
+        }
+        ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
+        ctx.stroke();
       }
-      const pts = simp > 0 ? simplifyPolyline(river.points, simp) : river.points;
-      const widthScale = lod.level === "overview" ? 1.35 : 1;
-      ctx.lineWidth = Math.max(this.#px(lod.level === "overview" ? 1.6 : 1.05), river.width * widthScale);
-      ctx.beginPath();
-      ctx.moveTo(pts[0][0], pts[0][1]);
-      for (let i = 1; i < pts.length; i++) {
-        const prev = pts[i - 1];
-        const cur = pts[i];
-        ctx.quadraticCurveTo(prev[0], prev[1], (prev[0] + cur[0]) / 2, (prev[1] + cur[1]) / 2);
-      }
-      ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
-      ctx.stroke();
-    }
+    };
+    const core = (width) => Math.max(this.#px(lod.level === "overview" ? 1.15 : 0.95), width);
+    draw((width) => core(width) + this.#px(1.05), night ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.72)", 1);
+    draw(core, ink.river, night ? 0.92 : 0.95);
     ctx.globalAlpha = 1;
     if (lod.level !== "overview") this.#drawRiverNames(world, ink, bounds, lod);
+  }
+
+  /**
+   * Simplified river polylines, cached per lod so a pan does not rebuild them.
+   * @param {import("../types.js").WorldData} world
+   * @param {ReturnType<typeof lodConfig>} lod
+   */
+  #riverGeometry(world, lod) {
+    const key = `${this._contourKey}:${lod.level}`;
+    if (this._riverKey === key && this._riverLines) return this._riverLines;
+    const simp = lod.riverSimplify;
+    const minW = lod.riverMinWidth;
+    /** @type {{ width: number, points: number[][], name?: string }[]} */
+    const lines = [];
+    for (const river of world.rivers) {
+      if (river.points.length < 2 || river.width < minW) continue;
+      lines.push({
+        width: river.width,
+        name: river.name,
+        points: simp > 0 ? simplifyPolyline(river.points, simp) : river.points,
+      });
+    }
+    this._riverKey = key;
+    this._riverLines = lines;
+    return lines;
   }
 
   /**
@@ -843,37 +839,40 @@ export class CanvasRenderer {
    * @param {{ x0: number, y0: number, x1: number, y1: number }} bounds
    * @param {ReturnType<typeof lodConfig>} lod
    */
-  #drawRoutes(world, ink, style, bounds, lod) {
+  #drawRoutes(world, _ink, style, bounds, lod) {
     const ctx = this.ctx;
     if (!ctx || !world.routes?.length) return;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    const minLen = lod.level === "overview" ? 8 : 2;
-    const light = style === "night" || style === "satellite";
+    const rank = { trail: 0, road: 1, primary: 2, trunk: 3, sea: 4 };
+    /** @type {{ route: import("../types.js").Route, paint: ReturnType<typeof routePaint> }[]} */
+    const visible = [];
     for (const route of world.routes) {
-      if (!route.points || route.points.length < minLen) continue;
+      if (!route.points || route.points.length < 2) continue;
       if (!this.#lineInView(route.points, bounds)) continue;
-      if (route.kind === "sea") {
-        ctx.strokeStyle = light ? "#6ec8ff" : ink.river;
-        ctx.globalAlpha = 0.55;
-        ctx.setLineDash([this.#px(7), this.#px(5)]);
-        ctx.lineWidth = this.#px(lod.level === "overview" ? 1.4 : 1.15);
-      } else if (route.kind === "trail") {
-        ctx.strokeStyle = light ? "#c4b090" : "#6a4a28";
-        ctx.globalAlpha = 0.55;
-        ctx.setLineDash([this.#px(3), this.#px(4)]);
-        ctx.lineWidth = this.#px(0.9);
-      } else {
-        ctx.strokeStyle = light ? "#d4b07a" : "#5a3418";
-        ctx.globalAlpha = 0.7;
-        ctx.setLineDash([]);
-        ctx.lineWidth = this.#px(lod.level === "overview" ? 1.6 : 1.25);
-      }
-      ctx.beginPath();
-      ctx.moveTo(route.points[0][0], route.points[0][1]);
-      for (let i = 1; i < route.points.length; i++) ctx.lineTo(route.points[i][0], route.points[i][1]);
-      ctx.stroke();
+      const paint = routePaint(route.kind, style, lod.level);
+      if (!paint.show) continue;
+      visible.push({ route, paint });
     }
+    visible.sort((a, b) => (rank[a.route.kind] ?? 1) - (rank[b.route.kind] ?? 1));
+    const stroke = (casing) => {
+      for (const { route, paint } of visible) {
+        const width = casing ? paint.casingWidth : paint.width;
+        const color = casing ? paint.casing : paint.stroke;
+        if (!width || !color) continue;
+        ctx.globalAlpha = paint.alpha;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = this.#px(width);
+        ctx.setLineDash(paint.dash ? paint.dash.map((n) => this.#px(n)) : []);
+        const pts = route.points;
+        ctx.beginPath();
+        ctx.moveTo(pts[0][0], pts[0][1]);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+        ctx.stroke();
+      }
+    };
+    stroke(true);
+    stroke(false);
     ctx.setLineDash([]);
     ctx.globalAlpha = 1;
   }
@@ -978,25 +977,24 @@ export class CanvasRenderer {
         .filter((f) => f.type === "continent" || f.type === "sea")
         .sort((a, b) => b.size - a.size)
         .slice(0, 7);
-      ctx.fillStyle = light ? "rgba(236, 232, 220, 0.78)" : "rgba(26, 18, 12, 0.55)";
       for (const f of geo) {
         const x = f.cx ?? world.cells[f.originId]?.x;
         const y = f.cy ?? world.cells[f.originId]?.y;
         if (x == null || y == null || x < bounds.x0 || x > bounds.x1 || y < bounds.y0 || y > bounds.y1) continue;
-        const fs = this.#px(f.type === "sea" ? 13 : 16);
+        const fs = this.#px(f.type === "sea" ? 13 : 15);
         ctx.font = `italic ${fs}px Palatino, Georgia, serif`;
-        ctx.fillText(f.name, x, y);
+        const fill = f.type === "sea" ? (light ? "rgba(214, 232, 240, 0.8)" : "rgba(47, 92, 120, 0.72)") : ink.text;
+        this.#haloText(ctx, f.name, x, y, fill, ink.halo || "#fff");
       }
     }
     if (lod.level === "overview" || lod.level === "regional") {
-      ctx.fillStyle = ink.text;
-      const fs = this.#px(lod.level === "overview" ? 13.5 : 11);
+      const fs = this.#px(lod.level === "overview" ? 12.5 : 11);
       ctx.font = `${fs}px Palatino, Georgia, serif`;
       for (const r of world.regions || []) {
         const cap = world.settlements.find((s) => s.id === r.capitalId);
         const c = cap ? world.cells[cap.cellId] : null;
         if (!c || !this.#inView(c, bounds)) continue;
-        ctx.fillText(r.name, c.x, c.y - this.#px(lod.level === "overview" ? 14 : 11));
+        this.#haloText(ctx, r.name, c.x, c.y - this.#px(lod.level === "overview" ? 14 : 11), ink.text, ink.halo || "#fff");
       }
     }
     ctx.textAlign = "left";
@@ -1030,16 +1028,13 @@ export class CanvasRenderer {
       if (s.type === "town" && !show.town) continue;
       const c = world.cells[s.cellId];
       if (!c || !this.#inView(c, bounds)) continue;
-      const r = this.#px(s.type === "capital" ? 4.4 : s.type === "city" ? 3.5 : 2.7);
+      const r = this.#px(s.type === "capital" ? 4.6 : s.type === "city" ? 3.6 : s.type === "town" ? 2.5 : 2);
+      const light = ink.marks === "light";
       ctx.beginPath();
-      ctx.fillStyle = ink.marks === "light" ? "#f0d78c" : "#1a120c";
-      ctx.strokeStyle = ink.marks === "light" ? "#1a120c" : "#f4ead4";
-      ctx.lineWidth = this.#px(1);
-      if (s.type === "capital") {
-        ctx.rect(c.x - r, c.y - r, r * 2, r * 2);
-      } else {
-        ctx.arc(c.x, c.y, r, 0, Math.PI * 2);
-      }
+      ctx.fillStyle = light ? "#f0d78c" : "#2c2c2c";
+      ctx.strokeStyle = light ? "#1a120c" : ink.halo || "#ffffff";
+      ctx.lineWidth = this.#px(s.type === "capital" ? 1.7 : 1.2);
+      ctx.arc(c.x, c.y, r, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
       if (!show.name[s.type]) continue;
@@ -1056,9 +1051,27 @@ export class CanvasRenderer {
       }
       if (hit && s.type !== "capital") continue;
       boxes.push({ x: lx - pad, y: ly - pad, w: tw + pad * 2, h: th + pad * 2 });
-      ctx.fillStyle = ink.text;
-      ctx.fillText(s.name, c.x + r + this.#px(4), c.y);
+      this.#haloText(ctx, s.name, c.x + r + this.#px(4), c.y, ink.text, ink.halo || "#fff");
     }
+    ctx.textAlign = "left";
+  }
+
+  /**
+   * @param {CanvasRenderingContext2D} ctx
+   * @param {string} text
+   * @param {number} x
+   * @param {number} y
+   * @param {string} fill
+   * @param {string} halo
+   */
+  #haloText(ctx, text, x, y, fill, halo) {
+    ctx.lineJoin = "round";
+    ctx.miterLimit = 2;
+    ctx.lineWidth = this.#px(3.1);
+    ctx.strokeStyle = halo;
+    ctx.strokeText(text, x, y);
+    ctx.fillStyle = fill;
+    ctx.fillText(text, x, y);
   }
 
   /**
@@ -1098,27 +1111,6 @@ export class CanvasRenderer {
     }
     ctx.textAlign = "left";
   }
-}
-
-/**
- * Northwest light. Ocean and lakes stay flat so bathymetry keeps its own ramp.
- * @param {import("../types.js").Cell} cell
- * @param {import("../types.js").Cell[]} cells
- */
-function hillshadeAmount(cell, cells) {
-  if (cell.ocean || cell.lake) return 0;
-  let shade = 0;
-  let w = 0;
-  for (const nid of cell.neighbors) {
-    const n = cells[nid];
-    if (!n || cell.x - n.x + (cell.y - n.y) <= 0) continue;
-    shade += (cell.height - n.height) * 2.4;
-    w += 1;
-  }
-  if (!w) return 0;
-  shade = Math.max(-0.28, Math.min(0.22, shade / w));
-  if (Math.abs(shade) < 0.02) return 0;
-  return shade;
 }
 
 /**
