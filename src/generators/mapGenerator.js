@@ -10,7 +10,7 @@
 
 import { createWorldShell, bumpSurface } from "../data/worldData.js";
 import { makeRng } from "./rng.js";
-import { createMesh } from "./mesh.js";
+import { createMesh, embellishCoasts } from "./mesh.js";
 import { assignPlates, assignElevation } from "./tectonics.js";
 import { gradeCoastsAndShelf, erodeFluvial, slumpSlopes, glaciateColdHighlands } from "./relief.js";
 import {
@@ -292,6 +292,7 @@ export class MapGenerator {
     assignDownslope(cells);
     assignBasins(cells);
     markMountains(cells);
+    embellishCoasts(cells, world.meta.width, world.meta.height, world.meta.cellSize);
   }
 
   /**

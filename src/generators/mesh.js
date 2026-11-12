@@ -133,7 +133,9 @@ export function createMesh(opts) {
   }
 
   const amp = size <= 6 ? 0.2 * size : 0.16 * size;
-  const subdivide = size <= 8 || cells.length < 20000;
+  // Large sheets keep six-sided cells. Coast cells gain midpoints later,
+  // after the ocean is known, so inland fill stays cheap.
+  const subdivide = cells.length < 50000;
   for (const cell of cells) {
     if (cell.polygon.length >= 3) {
       cell.polygon = clipPolygon(organicPolygon(cell.polygon, amp, subdivide), 0, 0, width, height);
@@ -151,4 +153,25 @@ export function createMesh(opts) {
   }
 
   return { cells, width, height, spacing: size };
+}
+
+/**
+ * Midpoint insertion on the shoreline only. Inland cells keep the hex dual.
+ * A second hydrology pass sees the longer outline and leaves it alone.
+ * @param {import("../types.js").Cell[]} cells
+ * @param {number} width
+ * @param {number} height
+ * @param {number} cellSize
+ */
+export function embellishCoasts(cells, width, height, cellSize) {
+  const amp = (cellSize <= 6 ? 0.22 : 0.16) * Math.max(3.5, cellSize);
+  for (const cell of cells) {
+    if (cell.polygon.length < 3 || cell.polygon.length > 8) continue;
+    const shore =
+      cell.coast ||
+      (cell.ocean && cell.neighbors.some((id) => !cells[id].ocean)) ||
+      (cell.lake && cell.neighbors.some((id) => !cells[id].lake && !cells[id].ocean));
+    if (!shore) continue;
+    cell.polygon = clipPolygon(organicPolygon(cell.polygon, amp * 0.55, true), 0, 0, width, height);
+  }
 }

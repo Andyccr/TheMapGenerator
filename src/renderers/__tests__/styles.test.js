@@ -79,3 +79,27 @@ test("new styles recolor from cell fields and stay distinct", () => {
   assert.equal(inkFor("night").marks, "light");
   assert.equal(inkFor("copper").paper, "#e4dcc8");
 });
+
+test("street, chart, survey, and dusk fills stay distinct", () => {
+  const town = cell({ id: 0, x: 10, y: 10, biome: "GRASSLAND" });
+  const wood = cell({ id: 1, x: 800, y: 800, biome: "TEMPERATE_DECIDUOUS" });
+  const sea = cell({ id: 2, x: 40, y: 40, ocean: true, height: -0.55, biome: "OCEAN" });
+  const sheet = {
+    ...world,
+    meta: { ...world.meta, cellSize: 8, surfaceRev: 1 },
+    cells: [town, wood, sea],
+    settlements: [{ id: 0, cellId: 0, type: "capital", population: 4000 }],
+    generatedAt: "street-test",
+  };
+  assert.equal(fillFor(town, sheet, "osm"), "#e0dfdf");
+  assert.equal(fillFor(wood, sheet, "osm"), "#add19e");
+  assert.notEqual(fillFor(sea, sheet, "osm"), fillFor(wood, sheet, "osm"));
+  assert.ok(lum(fillFor(town, sheet, "dusk")) > lum(fillFor(wood, sheet, "dusk")));
+  assert.notEqual(fillFor(cell({ height: 0.05 }), world, "survey"), fillFor(cell({ height: 0.6 }), world, "survey"));
+  assert.equal(routePaint("trunk", "osm", "overview").stroke, "#e892a2");
+  assert.ok(routePaint("trunk", "osm", "overview").casingWidth > routePaint("trunk", "osm", "overview").width);
+  assert.equal(routePaint("trail", "osm", "overview").show, false);
+  assert.equal(routePaint("trail", "osm", "local").show, true);
+  assert.equal(inkFor("dusk").marks, "light");
+  assert.equal(inkFor("osm").paper, "#f2efe9");
+});

@@ -5,7 +5,6 @@
  * 3. Route flow downhill; accumulate flux; rivers never climb and therefore never cross ridges.
  * 4. Remaining filled basins become lakes.
  */
-import { MinHeap } from "../util/heap.js";
 import { chaikin } from "../util/geometry.js";
 
 /**
@@ -72,25 +71,69 @@ export function markLakesFromFill(cells) {
  * @param {import("../types.js").Cell[]} cells
  */
 export function fillDepressions(cells) {
-  const heap = new MinHeap();
-  const closed = new Uint8Array(cells.length);
+  const n = cells.length;
+  const ids = new Int32Array(n + 1);
+  const keys = new Float64Array(n + 1);
+  let size = 0;
+  const push = (id, key) => {
+    let i = ++size;
+    ids[i] = id;
+    keys[i] = key;
+    while (i > 1) {
+      const parent = i >> 1;
+      if (keys[parent] <= keys[i]) break;
+      const swapId = ids[parent];
+      ids[parent] = ids[i];
+      ids[i] = swapId;
+      const swapKey = keys[parent];
+      keys[parent] = keys[i];
+      keys[i] = swapKey;
+      i = parent;
+    }
+  };
+  const pop = () => {
+    const id = ids[1];
+    size -= 1;
+    if (size > 0) {
+      ids[1] = ids[size + 1];
+      keys[1] = keys[size + 1];
+      let i = 1;
+      for (;;) {
+        const left = i << 1;
+        const right = left + 1;
+        let smallest = i;
+        if (left <= size && keys[left] < keys[smallest]) smallest = left;
+        if (right <= size && keys[right] < keys[smallest]) smallest = right;
+        if (smallest === i) break;
+        const swapId = ids[smallest];
+        ids[smallest] = ids[i];
+        ids[i] = swapId;
+        const swapKey = keys[smallest];
+        keys[smallest] = keys[i];
+        keys[i] = swapKey;
+        i = smallest;
+      }
+    }
+    return id;
+  };
+
+  const closed = new Uint8Array(n);
   for (const c of cells) {
     c.filledHeight = c.height;
     if (c.ocean || c.border) {
-      heap.push(c.id, c.height);
+      push(c.id, c.height);
       closed[c.id] = 1;
     }
   }
-  while (heap.size) {
-    const popped = heap.pop();
-    if (!popped) break;
-    const cell = cells[popped.item];
+  while (size) {
+    const id = pop();
+    const cell = cells[id];
     for (const nid of cell.neighbors) {
       if (closed[nid]) continue;
       closed[nid] = 1;
-      const n = cells[nid];
-      n.filledHeight = Math.max(n.height, cell.filledHeight + 1e-4);
-      heap.push(nid, n.filledHeight);
+      const next = cells[nid];
+      next.filledHeight = Math.max(next.height, cell.filledHeight + 1e-4);
+      push(nid, next.filledHeight);
     }
   }
 }

@@ -72,6 +72,10 @@ Roads are a two-level network, the same generalization a low-zoom reference map 
 
 The cell path is neighbor-connected and stays off the ocean, so later marches can still prefer the corridor. Mountains cost extra, rivers are cheap, ocean is impassable for roads.
 
+Simplex sampling does not allocate per octave. Depression fill keeps its priority queue in typed arrays. On a large sheet the dual stays six-sided inland; after the ocean is known, shore cells gain one midpoint pass so the coastline is finer than the interior. A fine grid also adds a small grain octave on top of the tectonic relief.
+
+Street, nautical, survey, and dusk colors are paint-only. The street style classifies woods, fields, and a town halo from the biome and the settlements already on the map. It does not write a new field onto the cell.
+
 Markers are the GM pins: volcanoes on peaks, ruins in the wild, lights on capes, mines near towns, shrines in forest, dragon lairs on remote high peaks. They live in `WorldData.markers` and can be placed or erased by tools.
 
 Rivers pick names from the culture at mid-course.

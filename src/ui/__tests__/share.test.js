@@ -23,11 +23,15 @@ test("parseShare accepts the added surface and climate styles", () => {
   assert.equal(parseShare("?style=satellite").style, "satellite");
   assert.equal(parseShare("?style=plates").style, "plates");
   assert.equal(parseShare("?style=copper").style, "copper");
+  assert.equal(parseShare("?style=osm").style, "osm");
+  assert.equal(parseShare("?style=nautical").style, "nautical");
+  assert.equal(parseShare("?style=survey").style, "survey");
+  assert.equal(parseShare("?style=dusk").style, "dusk");
   assert.equal(parseShare("?style=sonar").style, undefined);
 });
 
 test("parseShare drops unknown keys and out-of-range numbers", () => {
-  const s = parseShare("seed=ok&landform=mars&plates=99&sea=-40&detail=3");
+  const s = parseShare("seed=ok&landform=mars&plates=99&sea=-40&detail=1");
   assert.equal(s.seed, "ok");
   assert.equal(s.landform, undefined);
   assert.equal(s.plates, undefined);

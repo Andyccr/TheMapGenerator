@@ -42,5 +42,9 @@ test("landform, stance, route, and recipe labels live in catalogs", () => {
   assert.ok(STYLE_IDS.includes("satellite"));
   assert.ok(STYLE_IDS.includes("plates"));
   assert.ok(STYLE_IDS.includes("copper"));
+  assert.ok(STYLE_IDS.includes("osm"));
+  assert.ok(STYLE_IDS.includes("nautical"));
+  assert.ok(STYLE_IDS.includes("survey"));
+  assert.ok(STYLE_IDS.includes("dusk"));
   assert.ok(Object.keys(LANDFORM_LABELS).includes("archipelago"));
 });

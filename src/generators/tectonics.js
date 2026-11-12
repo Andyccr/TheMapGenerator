@@ -180,13 +180,15 @@ export function assignElevation(cells, plates, rng, width, height, seaLevel, cel
     const detail = simplex.fbm(nx * 4.4, ny * 4.4, 5) * 0.055;
     const wrinkle = simplex.fbm(nx * 11 + 20, ny * 11, 3) * 0.02;
     const micro = simplex.fbm(cell.x * microFreq, cell.y * microFreq, 3) * 0.016;
+    const grain =
+      cellSize <= 6 ? simplex.fbm(cell.x * microFreq * 2.6 + 8, cell.y * microFreq * 2.6, 2) * 0.012 : 0;
     const slope = (nx * tx + ny * ty - 0.5) * (p.continental ? 0.07 : 0.03);
     const continental = p.continental ? 0.2 : -0.44;
     const d = boundDist[cell.id];
     const belt = Math.exp(-d / beltLength);
     const mountains = Math.max(0, field[cell.id]) * (0.42 + 0.95 * belt);
     const rift = Math.min(0, field[cell.id]) * (0.35 + 0.25 * belt);
-    let h = continental + mountains + rift + rolling + detail + wrinkle + micro + slope;
+    let h = continental + mountains + rift + rolling + detail + wrinkle + micro + grain + slope;
     if (!p.continental && trench[cell.id] > 0) h -= 0.16 * trench[cell.id];
     if (p.continental && belt > 0.18 && belt < 0.62 && mountains < 0.22) h -= 0.07 * belt;
     if (d > beltLength * 1.5) {

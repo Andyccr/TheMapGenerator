@@ -239,6 +239,10 @@ export const GENERATION_STAGE_LABELS = {
  */
 export const STYLE_CHOICES = [
   { group: "地表", id: "atlas", label: "图集" },
+  { group: "地表", id: "osm", label: "街道" },
+  { group: "地表", id: "nautical", label: "海图" },
+  { group: "地表", id: "survey", label: "测绘" },
+  { group: "地表", id: "dusk", label: "暮色" },
   { group: "地表", id: "physical", label: "地势" },
   { group: "地表", id: "height", label: "高程" },
   { group: "地表", id: "satellite", label: "卫星" },
@@ -263,4 +267,4 @@ export const STYLE_CHOICES = [
 export const STYLE_IDS = STYLE_CHOICES.map((s) => s.id);
 
 export const MAP_EXTENTS = ["1920,1200", "2560,1600", "3840,2400", "5120,3200"];
-export const MAP_DETAILS = ["10", "7", "5", "4"];
+export const MAP_DETAILS = ["10", "7", "5", "4", "3"];

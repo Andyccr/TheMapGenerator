@@ -135,7 +135,7 @@ export function hash2(x, y) {
  */
 export function organicPolygon(poly, amp, subdivide = true) {
   if (poly.length < 3) return poly;
-  const minLen = subdivide ? Math.max(6, amp * 4.5) : Infinity;
+  const minLen = subdivide ? Math.max(1.5, amp * 2.4) : Infinity;
   /** @type {number[][]} */
   const mid = [];
   for (let i = 0; i < poly.length; i++) {

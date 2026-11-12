@@ -27,6 +27,20 @@ export function createSimplex(rng) {
   ];
 
   /**
+   * One contribution. Hoisted so a fractal sample does not allocate a closure.
+   * @param {number} n
+   * @param {number} gx
+   * @param {number} gy
+   */
+  function contrib(n, gx, gy) {
+    const t0 = 0.5 - gx * gx - gy * gy;
+    if (t0 < 0) return 0;
+    const g = grad[n & 7];
+    const t2 = t0 * t0;
+    return t2 * t2 * (g[0] * gx + g[1] * gy);
+  }
+
+  /**
    * @param {number} x
    * @param {number} y
    */
@@ -45,16 +59,6 @@ export function createSimplex(rng) {
     const y2 = y0 - 1 + 2 * G2;
     const ii = i & 255;
     const jj = j & 255;
-
-    /** @param {number} n @param {number} gx @param {number} gy */
-    const contrib = (n, gx, gy) => {
-      const t0 = 0.5 - gx * gx - gy * gy;
-      if (t0 < 0) return 0;
-      const g = grad[n % 8];
-      const t2 = t0 * t0;
-      return t2 * t2 * (g[0] * gx + g[1] * gy);
-    };
-
     const n0 = contrib(perm[ii + perm[jj]], x0, y0);
     const n1 = contrib(perm[ii + i1 + perm[jj + j1]], x1, y1);
     const n2 = contrib(perm[ii + 1 + perm[jj + 1]], x2, y2);
