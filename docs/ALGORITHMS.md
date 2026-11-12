@@ -110,6 +110,6 @@ Zoom does **not** resample the mesh. `WorldData.cells` stay put. The renderer sw
 | --- | --- | --- |
 | 全图 overview | fit | batched landcover raster (light land, flat water), trunk / primary / road casings, major rivers, city dots |
 | 地区 regional | ~1.3–2.5× | sharper raster or vectors, full biomes, more rivers, mountain marks |
-| 近景 local | closer | live polygons, hillshade, tributaries, villages, optional cell grain |
+| 近景 local | closer | welded polygons once the view is sparse, hillshade, tributaries, villages. Cell edges only if that toggle is on |
 
 Coasts and realm borders are chained polylines cached beside the raster. Editing height invalidates the cache via a cheap height checksum; it never rewrites cell ids or biomes for decoration.

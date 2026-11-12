@@ -26,15 +26,17 @@ export function lodFromZoom(relZoom) {
  */
 export function lodConfig(relZoom, cellCount, visibleEst) {
   const level = lodFromZoom(relZoom);
-  const many = visibleEst > 9000 || (level !== "local" && cellCount > 8000);
   return {
     level,
-    /** Paint a baked bitmap instead of tens of thousands of polygons. */
-    useRaster: many && level !== "local",
+    /**
+     * Paint a baked bitmap while the view still holds thousands of cells.
+     * Close-up draws welded polygons. Cell edges stay off until the mesh toggle.
+     */
+    useRaster: visibleEst > 5200 || (level !== "local" && cellCount > 8000),
     /** Overview merges biomes; local keeps Whittaker classes. */
     generalize: level === "overview",
     hillshade: level === "local" && visibleEst < 14000,
-    cellEdges: level === "local" && relZoom >= 3.1 && visibleEst < 9000,
+    cellEdges: false,
     mountainMarks: level !== "overview",
     mountainStep: level === "regional" ? 3 : 1,
     riverMinWidth: level === "overview" ? 1.25 : level === "regional" ? 0.7 : 0,

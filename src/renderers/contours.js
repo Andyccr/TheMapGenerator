@@ -178,16 +178,19 @@ export function buildContours(world) {
     }
   }
 
-  const polish = (segs, simplify) =>
-    chainPolylines(segs).map((line) => chaikin(simplifyPolyline(line, simplify), 1));
+  const polish = (segs, simplify, rounds) =>
+    chainPolylines(segs).map((line) => {
+      const simple = simplifyPolyline(line, simplify);
+      return simple.length >= 4 ? chaikin(simple, rounds) : simple;
+    });
 
   return {
-    coasts: polish(coastSeg, cs * 0.35),
-    shores: polish(shoreSeg, cs * 0.4),
-    borders: polish(borderSeg, cs * 0.45),
-    cultures: polish(cultureSeg, cs * 0.5),
-    provinces: polish(provinceSeg, cs * 0.48),
-    religions: polish(religionSeg, cs * 0.5),
+    coasts: polish(coastSeg, cs * 0.22, 2),
+    shores: polish(shoreSeg, cs * 0.28, 2),
+    borders: polish(borderSeg, cs * 0.32, 2),
+    cultures: polish(cultureSeg, cs * 0.5, 1),
+    provinces: polish(provinceSeg, cs * 0.48, 1),
+    religions: polish(religionSeg, cs * 0.5, 1),
   };
 }
 
