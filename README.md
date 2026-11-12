@@ -49,7 +49,7 @@ npm run dev
 
 ### 怎么用地图
 
-1. 第一次打开会先出现欢迎层：**快速开始**（中幅粗略，大约一两秒）、**看范例**，或按左侧设置生成。刷新页面会**恢复自动存档**。地址栏带 `?seed=` 时按链接生成。默认画幅 **3840×2400**、精细（格距 5，约 14 万格）；也可改回宽幅或放到超大陆。超过约 20 万格时会自动略微放粗格距。生成在后台线程跑，可随时 **取消** 或按 Esc。阶段：格网 → 板块 → 水文 → 气候 → 文明 → 商路。
+1. 第一次打开会先出现欢迎层：**快速开始**（中幅粗略，大约一两秒）、**看范例**，或按左侧设置生成。刷新页面会**恢复自动存档**。地址栏带 `?seed=` 时按链接生成。默认画幅 **3840×2400**、精细（格距 5，约 14 万格）；也可改回宽幅或放到超大陆。超过约 36 万格时会自动略微放粗格距。图层里可以换成街道图、海图、测绘或暮色。生成在后台线程跑，可随时 **取消** 或按 Esc。阶段：格网 → 板块 → 水文 → 气候 → 文明 → 商路。
 2. 滚轮平滑缩放（对准光标），双击放大，Shift+双击缩小；右下角 **+ / − / 适应**。缩放只改**绘制**：全图是浅色参考底图（陆地、水域、海岸、干流、干道与城镇点），近景才画小路、格界和村落。格子数据不变。侧栏可用 **[** / **]** 或页头 **左栏 / 右栏** 折叠，**H** 全屏看图。
 3. **陆形** 决定海岸轮廓：诸大陆、盘古、群岛、大岛、半岛、地峡、内海、湖区。每个模板是一串可编辑步骤（丘、洼、岭、海峡），叠在板块造山之上。
 4. **抬升 / 降低** 是主要编辑工具：在陆地上涂抹，松手后河流会按重力重算，手绘商路、地标与外交会留下。**印戳** 点击放下丘、洼或岭；**涂色** 改群系、文化、信仰、国度、行省（空颜料点击吸取）；**连路** 点两座城画出商路。右侧检视可以直接改这些层，也能改名称、颜色与外交，并新建文化 / 信仰 / 国度。
@@ -146,7 +146,7 @@ Open http://localhost:8080/ . For hot reload: `npm install`, `npm test`, `npm ru
 
 ### How to use the map
 
-1. The first visit opens a welcome: **quick start** (medium, coarse, about a second or two), **examples**, or generate with the left-hand settings. Refresh restores the autosave. A `?seed=` link generates that world. The default sheet is **3840×2400** at fine spacing (cell size 5, about 140k cells). Wider and smaller sheets are in the same menu. Past about 200k cells the grid coarsens slightly. Generation runs in a worker and can be **cancelled** or stopped with Esc. Stages: mesh → plates → water → climate → society → roads.
+1. The first visit opens a welcome: **quick start** (medium, coarse, about a second or two), **examples**, or generate with the left-hand settings. Refresh restores the autosave. A `?seed=` link generates that world. The default sheet is **3840×2400** at fine spacing (cell size 5, about 140k cells). Wider and smaller sheets are in the same menu. Past about 360k cells the grid coarsens slightly. Street, nautical, survey, and dusk are additional paint styles. Generation runs in a worker and can be **cancelled** or stopped with Esc. Stages: mesh → plates → water → climate → society → roads.
 2. Scroll to zoom toward the cursor. Double-click zooms in; Shift+double-click zooms out. **+ / − / fit** sit at the lower right. Zoom changes drawing only: the fit view is a light basemap (land, water, coasts, trunk rivers, cased highways, and city dots). Trails, cell edges, and villages appear up close. **[** / **]** or the header buttons fold the side panels. **H** hides both.
 3. **Landform** sets the coastline: several continents, Pangaea, archipelago, island, peninsula, isthmus, inland sea, lakes. Each preset is an editable stack of hills, pits, ranges, and straits on top of the plates.
 4. **Raise / lower** is the main brush. Release the pointer and rivers recompute from gravity. Hand-drawn roads, markers, and diplomacy stay. **Stamp** drops a hill, pit, or range. **Paint** edits biome, culture, faith, realm, or province (an empty pigment eyedrops). **Road** links two towns. The inspector edits those layers, plus names, colors, diplomacy, and new cultures, faiths, and realms.

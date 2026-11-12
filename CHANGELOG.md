@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.8.0
+
+- Four paint styles: street map (OpenStreetMap-like land, woods, fields, and town blocks), nautical chart, survey sheet, and dusk. Street-map roads use motorway, primary, and local casings. Blocks appear when you zoom in.
+- Fine coastlines gain a midpoint pass after the ocean is known. Inland cells stay six-sided. Simplex sampling no longer allocates a closure per octave, and depression fill uses a typed heap.
+- The cell cap is 360k. A continental sheet can be generated at cell size 4, and the detail menu adds an extra-fine step.
+
 ## 2.7.0
 
 - The fit view is a light reference basemap: paper-colored land, flat blue water, cased trunk and primary roads, and city dots with haloed names. Trails and villages wait until you zoom in.

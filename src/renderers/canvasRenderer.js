@@ -129,6 +129,7 @@ export class CanvasRenderer {
     if (options.contours) this.#drawElevation(world, style, bounds, px);
     this.#drawCoast(world, ink, style, bounds, lod);
     if (options.rivers !== false) this.#drawRivers(world, ink, style, bounds, lod);
+    if (style === "osm") this.#drawBlocks(world, bounds, lod);
     if (options.routes !== false) this.#drawRoutes(world, ink, style, bounds, lod);
     if (options.journeys !== false) this.#drawJourneys(world, style, bounds, lod);
     if (options.borders !== false) {
@@ -344,6 +345,39 @@ export class CanvasRenderer {
    */
   legendItems(world) {
     const style = world?.meta.style || "atlas";
+    if (style === "osm") {
+      return [
+        { key: "water", label: "水域", color: "#aad3df" },
+        { key: "wood", label: "林地", color: "#add19e" },
+        { key: "farm", label: "农田", color: "#eef0d5" },
+        { key: "urban", label: "城区", color: "#e0dfdf" },
+        { key: "sand", label: "沙地", color: "#f4e4b5" },
+      ];
+    }
+    if (style === "nautical") {
+      return [
+        { key: "deep", label: "深水", color: "#123a66" },
+        { key: "shelf", label: "浅滩", color: "#7eb6d6" },
+        { key: "land", label: "陆地", color: "#efe6c8" },
+        { key: "wood", label: "林地", color: "#b7c48a" },
+      ];
+    }
+    if (style === "survey") {
+      return [
+        { key: "low", label: "低地", color: "#d5ebc0" },
+        { key: "mid", label: "丘陵", color: "#e7e3b4" },
+        { key: "high", label: "高地", color: "#e6c896" },
+        { key: "water", label: "水域", color: "#c5dff0" },
+      ];
+    }
+    if (style === "dusk") {
+      return [
+        { key: "land", label: "夜陆", color: "#243044" },
+        { key: "urban", label: "灯火", color: "#e0a04a" },
+        { key: "wood", label: "林影", color: "#1c3328" },
+        { key: "water", label: "水域", color: "#123044" },
+      ];
+    }
     if (style === "political" && world?.regions?.length) {
       return world.regions.map((r) => ({ key: `r${r.id}`, label: r.name, color: r.color }));
     }
@@ -839,6 +873,40 @@ export class CanvasRenderer {
    * @param {{ x0: number, y0: number, x1: number, y1: number }} bounds
    * @param {ReturnType<typeof lodConfig>} lod
    */
+  /**
+   * Small blocks around towns. Street-map only, and only once the cells
+   * are large enough on screen to read as buildings.
+   * @param {import("../types.js").WorldData} world
+   * @param {{ x0: number, y0: number, x1: number, y1: number }} bounds
+   * @param {ReturnType<typeof lodConfig>} lod
+   */
+  #drawBlocks(world, bounds, lod) {
+    const ctx = this.ctx;
+    if (!ctx || lod.level === "overview") return;
+    ctx.fillStyle = "#d5d0c8";
+    ctx.strokeStyle = "#b7b1a8";
+    ctx.lineWidth = this.#px(0.4);
+    const rank = { capital: 9, city: 6, town: 4, village: 2 };
+    for (const place of world.settlements || []) {
+      const count = rank[place.type] || 0;
+      if (!count) continue;
+      if (place.type === "village" && lod.level !== "local") continue;
+      const cell = world.cells[place.cellId];
+      if (!cell || !this.#inView(cell, bounds)) continue;
+      const span = (world.meta.cellSize || 8) * (place.type === "capital" ? 2.4 : place.type === "city" ? 1.8 : 1.2);
+      for (let i = 0; i < count; i++) {
+        const hx = fract(place.id * 17.13 + i * 3.7);
+        const hy = fract(place.id * 9.31 + i * 5.1);
+        const w = span * (0.22 + fract(i * 2.2 + place.cellId) * 0.18);
+        const h = span * (0.18 + fract(i * 4.4 + 2) * 0.16);
+        const x = cell.x + (hx - 0.5) * span * 2.1;
+        const y = cell.y + (hy - 0.5) * span * 2.1;
+        ctx.fillRect(x, y, w, h);
+        ctx.strokeRect(x, y, w, h);
+      }
+    }
+  }
+
   #drawRoutes(world, _ink, style, bounds, lod) {
     const ctx = this.ctx;
     if (!ctx || !world.routes?.length) return;
@@ -1111,6 +1179,12 @@ export class CanvasRenderer {
     }
     ctx.textAlign = "left";
   }
+}
+
+/** @param {number} n */
+function fract(n) {
+  const x = Math.sin(n * 127.1) * 43758.5453;
+  return x - Math.floor(x);
 }
 
 /**

@@ -7,6 +7,7 @@ import { macroBiome } from "./lod.js";
 import { hinterlandPressure } from "../data/population.js";
 import { BIOME_LABELS } from "../data/catalogs.js";
 import { climateBeltIndex } from "../data/climate.js";
+import { COVER, landcoverOf } from "./landcover.js";
 
 /**
  * Low-zoom reference palette. Land stays a light paper, water a flat blue,
@@ -50,6 +51,10 @@ export const ATLAS_BIOME = {
  * @param {"overview"|"regional"|"local"} [lod]
  */
 export function fillFor(cell, world, style, lod = "local") {
+  if (style === "osm") return osmFill(cell, world);
+  if (style === "nautical") return nauticalFill(cell, world);
+  if (style === "survey") return surveyFill(cell);
+  if (style === "dusk") return duskFill(cell, world);
   if (style === "physical" || style === "height") {
     return lod === "overview" ? physicalOverview(cell) : physicalFill(cell);
   }
@@ -111,6 +116,91 @@ function fillOverview(cell, world, style) {
   if (cell.lake) return ATLAS_MACRO.LAKE;
   if (cell.mountain) return mix(ATLAS_MACRO[macroBiome(cell.biome)] || "#efe9d6", "#e4e0d8", 0.55);
   return ATLAS_MACRO[macroBiome(cell.biome)] || ATLAS_BIOME[cell.biome] || "#efe9d6";
+}
+
+const OSM_COVER = {
+  [COVER.DEEP]: "#8fbed4",
+  [COVER.SHELF]: "#aad3df",
+  [COVER.LAKE]: "#99c6dc",
+  [COVER.BEACH]: "#fff1ba",
+  [COVER.URBAN]: "#e0dfdf",
+  [COVER.FARM]: "#eef0d5",
+  [COVER.WOOD]: "#add19e",
+  [COVER.SCRUB]: "#d1d8b0",
+  [COVER.ROCK]: "#e0dcd4",
+  [COVER.SNOW]: "#f7f7f7",
+  [COVER.SAND]: "#f4e4b5",
+  [COVER.MARSH]: "#c5d4b0",
+  [COVER.GRASS]: "#f2efe9",
+};
+
+const NAUTICAL_COVER = {
+  [COVER.DEEP]: "#123a66",
+  [COVER.SHELF]: "#7eb6d6",
+  [COVER.LAKE]: "#6aa4c4",
+  [COVER.BEACH]: "#f6e2a8",
+  [COVER.URBAN]: "#d9c7a2",
+  [COVER.FARM]: "#efe6c8",
+  [COVER.WOOD]: "#b7c48a",
+  [COVER.SCRUB]: "#ddd2a4",
+  [COVER.ROCK]: "#cabb9a",
+  [COVER.SNOW]: "#f4f7f8",
+  [COVER.SAND]: "#f3d48a",
+  [COVER.MARSH]: "#c5c99a",
+  [COVER.GRASS]: "#efe6c8",
+};
+
+const DUSK_COVER = {
+  [COVER.DEEP]: "#071422",
+  [COVER.SHELF]: "#123044",
+  [COVER.LAKE]: "#16385a",
+  [COVER.BEACH]: "#3a3428",
+  [COVER.URBAN]: "#e0a04a",
+  [COVER.FARM]: "#243044",
+  [COVER.WOOD]: "#1c3328",
+  [COVER.SCRUB]: "#2a3030",
+  [COVER.ROCK]: "#3a3848",
+  [COVER.SNOW]: "#d5dde8",
+  [COVER.SAND]: "#3a3428",
+  [COVER.MARSH]: "#1a3330",
+  [COVER.GRASS]: "#243044",
+};
+
+/**
+ * @param {import("../types.js").Cell} cell
+ * @param {import("../types.js").WorldData} world
+ * @param {Record<number, string>} palette
+ */
+function coverFill(cell, world, palette) {
+  const use = landcoverOf(world);
+  return palette[use[cell.id]] || palette[COVER.GRASS];
+}
+
+/** @param {import("../types.js").Cell} cell @param {import("../types.js").WorldData} world */
+function osmFill(cell, world) {
+  return coverFill(cell, world, OSM_COVER);
+}
+
+/** @param {import("../types.js").Cell} cell @param {import("../types.js").WorldData} world */
+function nauticalFill(cell, world) {
+  return coverFill(cell, world, NAUTICAL_COVER);
+}
+
+/** @param {import("../types.js").Cell} cell @param {import("../types.js").WorldData} world */
+function duskFill(cell, world) {
+  return coverFill(cell, world, DUSK_COVER);
+}
+
+/** Printed topographic sheet: a few elevation bands, not a smooth ramp. */
+function surveyFill(cell) {
+  if (cell.ocean) return cell.height < -0.35 ? "#8eb4d0" : "#c5dff0";
+  if (cell.lake) return "#b7d4ea";
+  if (cell.biome === "SNOW" || cell.biome === "ICE" || cell.height > 0.72) return "#f7f7f7";
+  const h = Math.max(0, cell.height);
+  if (h < 0.12) return "#d5ebc0";
+  if (h < 0.28) return "#e7e3b4";
+  if (h < 0.48) return "#e6c896";
+  return "#d2b48c";
 }
 
 /** @param {import("../types.js").Cell} cell */
@@ -386,6 +476,18 @@ function hslHex(h, s, l) {
 
 /** @param {string} style */
 export function inkFor(style) {
+  if (style === "osm") {
+    return { coast: "#7fafc6", river: "#6aa4c8", border: "#9e73b8", text: "#333333", paper: "#f2efe9", halo: "#ffffff" };
+  }
+  if (style === "nautical") {
+    return { coast: "#1a1a1a", river: "#1d4e89", border: "#8a3030", text: "#1a1a1a", paper: "#e7eef2", halo: "#f4f7f4" };
+  }
+  if (style === "survey") {
+    return { coast: "#3d6f99", river: "#3d7ea8", border: "#6a3030", text: "#222222", paper: "#f7f6f2", halo: "#ffffff" };
+  }
+  if (style === "dusk") {
+    return { coast: "#7eb8e0", river: "#6aa4d4", border: "#e0b060", text: "#f4efe4", paper: "#0c121c", halo: "#101820", marks: "light" };
+  }
   if (style === "night") {
     return { coast: "#6ec8ff", river: "#4aa7d8", border: "#d4a857", text: "#f0e6d2", paper: "#07080f", halo: "#07080f", marks: "light" };
   }
@@ -405,13 +507,44 @@ export function inkFor(style) {
 }
 
 /**
- * Screen-pixel stroke for one highway class. Casing sits under the fill,
- * the same two-pass draw a reference basemap uses for motorways.
+ * Reference-map highway inks. Null means the fantasy atlas palette.
  * @param {string} kind
  * @param {string} style
  * @param {"overview"|"regional"|"local"} level
  */
+function themedRoute(kind, style, level) {
+  if (style !== "osm" && style !== "nautical" && style !== "survey" && style !== "dusk") return null;
+  if (kind === "sea") {
+    const stroke = style === "dusk" ? "#8fd4ff" : style === "nautical" ? "#1d4e89" : "#7eb8d4";
+    return { show: true, casing: "", casingWidth: 0, stroke, width: 1.2, dash: [7, 5], alpha: 0.8 };
+  }
+  if (kind === "trail") {
+    const show = style === "osm" ? level !== "overview" : level === "local";
+    return { show, casing: "", casingWidth: 0, stroke: style === "dusk" ? "#c8b48a" : "#b0aaa2", width: 0.9, dash: [2, 3], alpha: 0.85 };
+  }
+  if (style === "osm") {
+    if (kind === "trunk") {
+      return { show: true, casing: "#dc2a67", stroke: "#e892a2", width: 2.55, casingWidth: 4.35, dash: null, alpha: 1 };
+    }
+    if (kind === "primary") {
+      return { show: true, casing: "#a06b00", stroke: "#fcd6a4", width: 2, casingWidth: 3.45, dash: null, alpha: 1 };
+    }
+    return { show: true, casing: "#8f8f8f", stroke: "#ffffff", width: level === "overview" ? 1.15 : 1.45, casingWidth: level === "overview" ? 2.15 : 2.55, dash: null, alpha: 1 };
+  }
+  if (style === "nautical") {
+    return { show: kind !== "trail", casing: "", casingWidth: 0, stroke: "#2a241c", width: kind === "trunk" ? 1.35 : 0.9, dash: null, alpha: 0.85 };
+  }
+  if (style === "survey") {
+    const stroke = kind === "trunk" ? "#c23b22" : "#2a2a2a";
+    return { show: true, casing: "", casingWidth: 0, stroke, width: kind === "trunk" ? 1.7 : kind === "primary" ? 1.25 : 0.9, dash: null, alpha: 0.9 };
+  }
+  const stroke = kind === "trunk" ? "#ffd27a" : kind === "primary" ? "#f0b85a" : "#e8d7b0";
+  return { show: true, casing: "#5a3a18", stroke, width: kind === "trunk" ? 2.1 : 1.35, casingWidth: kind === "trunk" ? 3.4 : 2.2, dash: null, alpha: 0.95 };
+}
+
 export function routePaint(kind, style, level) {
+  const themed = themedRoute(kind, style, level);
+  if (themed) return themed;
   const night = style === "night" || style === "satellite";
   if (kind === "sea") {
     return { show: true, casing: "", casingWidth: 0, stroke: night ? "#8fd4ff" : "#5b92b0", width: 1.25, dash: [7, 5], alpha: 0.75 };
