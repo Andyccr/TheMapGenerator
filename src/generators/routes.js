@@ -314,7 +314,7 @@ export function placeRoutes(cells, settlements, rng) {
       cellIds: path,
       points: chaikin(
         path.map((cid) => [cells[cid].x, cells[cid].y]),
-        1,
+        2,
       ),
     });
   }

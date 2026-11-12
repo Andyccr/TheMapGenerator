@@ -40,6 +40,18 @@ export class CanvasRenderer {
     this._lod = "overview";
   }
 
+  /**
+   * Street and survey sheets use a sans; the atlas keeps a serif.
+   * @param {string} style
+   * @param {number} px
+   * @param {boolean} [italic]
+   */
+  #face(style, px, italic = false) {
+    const sans = style === "osm" || style === "survey" || style === "nautical" || style === "dusk";
+    const family = sans ? "Helvetica, Arial, sans-serif" : "Palatino, Georgia, serif";
+    return `${italic ? "italic " : ""}${px}px ${family}`;
+  }
+
   /** Convert CSS pixels into world units at the current zoom. @param {number} n */
   #px(n) {
     const scale = this._view?.scale || 1;
@@ -138,7 +150,8 @@ export class CanvasRenderer {
       else if (style === "religions") this.#drawReligionBorders(world, ink, bounds, lod);
       else this.#drawBorders(world, ink, bounds, lod);
     }
-    if (options.relief !== false) this.#drawMountains(world, style, bounds, scale, lod);
+    const flatSheet = style === "osm" || style === "nautical" || style === "survey";
+    if (options.relief !== false && !flatSheet) this.#drawMountains(world, style, bounds, scale, lod);
     if (options.draftPath?.length) drawDraft(ctx, world, options.draftPath, px);
     if (options.measure) drawMeasure(ctx, options.measure, ink, px);
     if (options.labels !== false) {
@@ -569,8 +582,13 @@ export class CanvasRenderer {
       const rec = this.#ensureRaster(world, style, lod.level, bakeShade);
       if (rec) {
         ctx.imageSmoothingEnabled = true;
-        if ("imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality = lod.level === "overview" ? "high" : "medium";
+        if ("imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality = "high";
+        const soft =
+          style === "osm" || style === "atlas" || style === "nautical" || style === "survey" || style === "dusk";
+        const blur = !soft ? 0 : lod.level === "overview" ? 0.45 : lod.level === "regional" ? 1.35 : 2.4;
+        if (blur) ctx.filter = `blur(${blur}px)`;
         ctx.drawImage(rec.canvas, 0, 0, world.meta.width, world.meta.height);
+        ctx.filter = "none";
         ctx.imageSmoothingEnabled = false;
         return;
       }
@@ -597,6 +615,12 @@ export class CanvasRenderer {
       ctx.closePath();
       ctx.fillStyle = fillFor(cell, world, style, lod.level);
       ctx.fill();
+      if (!lod.cellEdges) {
+        ctx.strokeStyle = ctx.fillStyle;
+        ctx.lineJoin = "round";
+        ctx.lineWidth = (world.meta.cellSize || 8) * 0.36;
+        ctx.stroke();
+      }
       if (lod.cellEdges) {
         ctx.strokeStyle = style === "night" || style === "satellite" ? "rgba(220,230,220,0.55)" : "rgba(36,26,16,0.5)";
         ctx.lineWidth = this.#px(1.15);
@@ -777,7 +801,7 @@ export class CanvasRenderer {
     if (!ctx) return;
     const ranked = world.rivers.slice().sort((a, b) => b.width - a.width).slice(0, lod.level === "local" ? 12 : 6);
     ctx.fillStyle = ink.river;
-    ctx.font = `${this.#px(9)}px Palatino, Georgia, serif`;
+    ctx.font = this.#face(world.meta.style || "atlas", this.#px(9));
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.globalAlpha = 0.85;
@@ -801,10 +825,15 @@ export class CanvasRenderer {
     const ctx = this.ctx;
     if (!ctx || !this._contours) return;
     ctx.strokeStyle = ink.border;
-    ctx.lineWidth = this.#px(lod.level === "overview" ? 1.55 : 1);
+    ctx.lineWidth = this.#px(lod.level === "overview" ? 1.35 : 1);
     ctx.lineJoin = "round";
     ctx.globalAlpha = lod.borderAlpha;
+    const sheet = world.meta.style;
+    if (sheet === "osm" || sheet === "survey" || sheet === "nautical") {
+      ctx.setLineDash([this.#px(7), this.#px(4.5), this.#px(1.5), this.#px(4.5)]);
+    }
     this.#strokeLines(this._contours.borders, bounds);
+    ctx.setLineDash([]);
     ctx.globalAlpha = 1;
   }
 
@@ -959,7 +988,7 @@ export class CanvasRenderer {
     const night = style === "night" || style === "satellite";
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.font = `${this.#px(11)}px Palatino, Georgia, serif`;
+    ctx.font = this.#face(style, this.#px(11));
     ctx.textAlign = "center";
     for (const journey of journeys) {
       const pts = journey.points;
@@ -1050,14 +1079,14 @@ export class CanvasRenderer {
         const y = f.cy ?? world.cells[f.originId]?.y;
         if (x == null || y == null || x < bounds.x0 || x > bounds.x1 || y < bounds.y0 || y > bounds.y1) continue;
         const fs = this.#px(f.type === "sea" ? 13 : 15);
-        ctx.font = `italic ${fs}px Palatino, Georgia, serif`;
+        ctx.font = this.#face(style, fs, true);
         const fill = f.type === "sea" ? (light ? "rgba(214, 232, 240, 0.8)" : "rgba(47, 92, 120, 0.72)") : ink.text;
         this.#haloText(ctx, f.name, x, y, fill, ink.halo || "#fff");
       }
     }
     if (lod.level === "overview" || lod.level === "regional") {
       const fs = this.#px(lod.level === "overview" ? 12.5 : 11);
-      ctx.font = `${fs}px Palatino, Georgia, serif`;
+      ctx.font = this.#face(style, fs);
       for (const r of world.regions || []) {
         const cap = world.settlements.find((s) => s.id === r.capitalId);
         const c = cap ? world.cells[cap.cellId] : null;
@@ -1082,7 +1111,7 @@ export class CanvasRenderer {
     const fit = this._fitScale || scale;
     const zoom = scale / fit;
     const fs = this.#px(lod.level === "overview" ? 11.5 : zoom < 1.15 ? 10 : 11.5);
-    ctx.font = `${fs}px Palatino, Georgia, serif`;
+    ctx.font = this.#face(style, fs);
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     const show = lod.labels;
@@ -1157,7 +1186,7 @@ export class CanvasRenderer {
       /* still draw, just skip names */
     }
     const fs = this.#px(lod.level === "overview" ? 9 : 11);
-    ctx.font = `${fs}px Palatino, Georgia, serif`;
+    ctx.font = this.#face(style, fs);
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     for (const m of world.markers) {

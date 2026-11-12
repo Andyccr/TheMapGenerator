@@ -33,6 +33,7 @@ test("local paint keeps cell biomes and can hillshade", () => {
   const cfg = lodConfig(3.4, 30000, 4000);
   assert.equal(cfg.level, "local");
   assert.equal(cfg.useRaster, false);
+  assert.equal(cfg.cellEdges, false);
   assert.equal(cfg.hillshade, true);
   assert.equal(cfg.riverMinWidth, 0);
   assert.equal(cfg.labels.village, true);

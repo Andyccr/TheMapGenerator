@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.9.0
+
+- The basemap no longer draws a hex grid as you zoom in. Cell edges appear only when that toggle is on. Neighboring cells are stroked in their own fill so the gaps between them close, and the baked sheet does the same.
+- Coastlines and realm borders are smoothed a second time. Roads take one more corner-cutting pass. Street, chart, and survey sheets use a sans and a dashed boundary, and they leave the mountain ticks off the paint.
+
 ## 2.8.0
 
 - Four paint styles: street map (OpenStreetMap-like land, woods, fields, and town blocks), nautical chart, survey sheet, and dusk. Street-map roads use motorway, primary, and local casings. Blocks appear when you zoom in.

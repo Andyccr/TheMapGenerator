@@ -49,8 +49,11 @@ function bucketColor(color) {
  * @param {import("../types.js").Cell[]} list
  * @param {string} color
  */
-function fillPolys(ctx, list, color) {
+function fillPolys(ctx, list, color, weld) {
   ctx.fillStyle = color;
+  ctx.strokeStyle = color;
+  ctx.lineJoin = "round";
+  if (weld) ctx.lineWidth = weld;
   for (let i = 0; i < list.length; i += CHUNK) {
     const end = Math.min(list.length, i + CHUNK);
     ctx.beginPath();
@@ -61,6 +64,7 @@ function fillPolys(ctx, list, color) {
       ctx.closePath();
     }
     ctx.fill();
+    if (weld) ctx.stroke();
   }
 }
 
@@ -72,7 +76,7 @@ function fillPolys(ctx, list, color) {
  * @returns {{ canvas: HTMLCanvasElement, scale: number } | null}
  */
 export function bakeCellRaster(world, style, level, withShade) {
-  const maxDim = level === "overview" ? 2000 : 2400;
+  const maxDim = level === "overview" ? 2400 : 2800;
   const sx = Math.min(1, maxDim / world.meta.width);
   const sy = Math.min(1, maxDim / world.meta.height);
   const bakeScale = Math.max(0.18, Math.min(sx, sy));
@@ -105,9 +109,11 @@ export function bakeCellRaster(world, style, level, withShade) {
     if (!shade) shadeGroups.set(bucket, (shade = []));
     shade.push(cell);
   }
-  for (const [color, list] of groups) fillPolys(ctx, list, color);
+  const weld = Math.max(0.8, (world.meta.cellSize || 8) * 0.34);
+  for (const [color, list] of groups) fillPolys(ctx, list, color, weld);
+  const gentle = style === "osm" || style === "nautical" || style === "survey" || style === "dusk";
   for (const [bucket, list] of shadeGroups) {
-    const alpha = Math.min(0.2, Math.abs(bucket) * 0.045);
+    const alpha = Math.min(0.2, Math.abs(bucket) * (gentle ? 0.016 : 0.045));
     const color = bucket > 0 ? `rgba(255,248,230,${alpha})` : `rgba(24,28,36,${alpha})`;
     fillPolys(ctx, list, color);
   }
