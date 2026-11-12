@@ -47,16 +47,40 @@ export function placeCivilizations(cells, rng, namesFor, extent = {}) {
     .sort((a, b) => b.s - a.s);
 
   const scale = worldScale(extent.width ?? 1600, extent.height ?? 1000);
-  const minDist = 48 * scale;
-  const maxTowns = Math.min(90, Math.max(12, Math.round(28 * scale * scale)));
-  const nCity = Math.max(3, Math.round(4 * scale));
-  const nTown = Math.max(10, Math.round(12 * scale));
-  const taken = [];
+  const minDist = 32 * scale;
+  const maxTowns = Math.min(280, Math.max(14, Math.round(46 * scale * scale)));
+  const nCity = Math.max(4, Math.round(6.5 * scale));
+  const nTown = Math.max(nCity + 6, Math.round(18 * scale));
+  const min2 = minDist * minDist;
+  /** @type {Map<string, { x: number, y: number }[]>} */
+  const occupied = new Map();
+  const tooClose = (x, y) => {
+    const gx = Math.floor(x / minDist);
+    const gy = Math.floor(y / minDist);
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const bucket = occupied.get(`${gx + dx},${gy + dy}`);
+        if (!bucket) continue;
+        for (const point of bucket) {
+          const ex = point.x - x;
+          const ey = point.y - y;
+          if (ex * ex + ey * ey < min2) return true;
+        }
+      }
+    }
+    return false;
+  };
+  const occupy = (x, y) => {
+    const key = `${Math.floor(x / minDist)},${Math.floor(y / minDist)}`;
+    let bucket = occupied.get(key);
+    if (!bucket) occupied.set(key, (bucket = []));
+    bucket.push({ x, y });
+  };
   for (const cand of candidates) {
     if (settlements.length >= maxTowns) break;
     const cell = cells[cand.id];
-    if (taken.some((t) => (t.x - cell.x) ** 2 + (t.y - cell.y) ** 2 < minDist * minDist)) continue;
-    taken.push(cell);
+    if (tooClose(cell.x, cell.y)) continue;
+    occupy(cell.x, cell.y);
     const n = settlements.length;
     const type = n < nCity ? "city" : n < nTown ? "town" : "village";
     const cultureId = cell.cultureId ?? -1;

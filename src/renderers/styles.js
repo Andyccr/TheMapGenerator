@@ -8,36 +8,39 @@ import { hinterlandPressure } from "../data/population.js";
 import { BIOME_LABELS } from "../data/catalogs.js";
 import { climateBeltIndex } from "../data/climate.js";
 
-/** Posterized atlas colors used only at overview zoom. */
+/**
+ * Low-zoom reference palette. Land stays a light paper, water a flat blue,
+ * and landcover is a wash — the same generalization a z5–z8 basemap uses.
+ */
 const ATLAS_MACRO = {
-  OCEAN: "#1a4860",
-  LAKE: "#3a7a92",
-  FOREST: "#3a6b44",
-  GRASS: "#9eaf58",
-  DESERT: "#dcc56e",
-  COLD: "#d4dce4",
+  OCEAN: "#aad3df",
+  LAKE: "#9ecae0",
+  FOREST: "#c5d7a4",
+  GRASS: "#efe9d6",
+  DESERT: "#f3e6c4",
+  COLD: "#eef2f2",
 };
 
 /** @type {Record<string, string>} */
 export const ATLAS_BIOME = {
-  OCEAN: "#1f4f68",
-  LAKE: "#3d7f96",
-  ICE: "#d9e6ee",
-  MARSH: "#6d7f55",
-  BEACH: "#e6d5a2",
-  SNOW: "#eef2f4",
-  TUNDRA: "#c4c6b0",
-  BARE: "#c3b09a",
-  SCORCHED: "#a89070",
-  TAIGA: "#4f7356",
-  SHRUBLAND: "#9aa15c",
-  TEMPERATE_DESERT: "#d2c07e",
-  TEMPERATE_RAIN_FOREST: "#2f6844",
-  TEMPERATE_DECIDUOUS: "#5a8a48",
-  GRASSLAND: "#a4b45a",
-  TROPICAL_RAIN_FOREST: "#245c36",
-  TROPICAL_SEASONAL: "#4e9444",
-  SUBTROPICAL_DESERT: "#e0c36a",
+  OCEAN: "#aad3df",
+  LAKE: "#99c6dc",
+  ICE: "#f7fbfd",
+  MARSH: "#c5d4b0",
+  BEACH: "#f5e9c8",
+  SNOW: "#f7f7f7",
+  TUNDRA: "#e4e8dc",
+  BARE: "#ddd6cc",
+  SCORCHED: "#d9cfc0",
+  TAIGA: "#b7c99a",
+  SHRUBLAND: "#e3e6c4",
+  TEMPERATE_DESERT: "#f0e2b8",
+  TEMPERATE_RAIN_FOREST: "#a9c892",
+  TEMPERATE_DECIDUOUS: "#b7d09a",
+  GRASSLAND: "#e7efc8",
+  TROPICAL_RAIN_FOREST: "#8fbf86",
+  TROPICAL_SEASONAL: "#b5d48a",
+  SUBTROPICAL_DESERT: "#f2dd9e",
 };
 
 /**
@@ -67,10 +70,7 @@ export function fillFor(cell, world, style, lod = "local") {
   if (style === "population") return populationFill(cell, world);
   if (style === "parchment") return parchmentFill(cell);
   if (style === "night") return nightFill(cell);
-  if (cell.ocean) {
-    const t = Math.max(0, Math.min(1, (cell.height + 0.75) / 0.75));
-    return lerpColor("#123344", "#3d7a94", t);
-  }
+  if (cell.ocean) return cell.height < -0.42 ? "#8fbed2" : cell.height < -0.16 ? "#aad3df" : "#c5e4ee";
   return ATLAS_BIOME[cell.biome] || "#666";
 }
 
@@ -107,10 +107,10 @@ function fillOverview(cell, world, style) {
     if (m === "COLD") return "#243040";
     return "#1a2620";
   }
-  if (cell.ocean) return cell.height < -0.32 ? "#123044" : "#2c6a86";
+  if (cell.ocean) return cell.height < -0.42 ? "#8fbed2" : "#aad3df";
   if (cell.lake) return ATLAS_MACRO.LAKE;
-  if (cell.mountain) return mix(ATLAS_MACRO[macroBiome(cell.biome)] || "#888", "#8a7a68", 0.45);
-  return ATLAS_MACRO[macroBiome(cell.biome)] || ATLAS_BIOME[cell.biome] || "#666";
+  if (cell.mountain) return mix(ATLAS_MACRO[macroBiome(cell.biome)] || "#efe9d6", "#e4e0d8", 0.55);
+  return ATLAS_MACRO[macroBiome(cell.biome)] || ATLAS_BIOME[cell.biome] || "#efe9d6";
 }
 
 /** @param {import("../types.js").Cell} cell */
@@ -387,21 +387,77 @@ function hslHex(h, s, l) {
 /** @param {string} style */
 export function inkFor(style) {
   if (style === "night") {
-    return { coast: "#6ec8ff", river: "#4aa7d8", border: "#d4a857", text: "#f0e6d2", paper: "#07080f", marks: "light" };
+    return { coast: "#6ec8ff", river: "#4aa7d8", border: "#d4a857", text: "#f0e6d2", paper: "#07080f", halo: "#07080f", marks: "light" };
   }
   if (style === "satellite") {
-    return { coast: "#e7f2ea", river: "#d5eaf6", border: "#f0ddb0", text: "#f4f1e8", paper: "#101610", marks: "light" };
+    return { coast: "#e7f2ea", river: "#d5eaf6", border: "#f0ddb0", text: "#f4f1e8", paper: "#101610", halo: "#101610", marks: "light" };
   }
   if (style === "copper") {
-    return { coast: "#2a241c", river: "#3a4a58", border: "#4a2420", text: "#1c1610", paper: "#e4dcc8" };
+    return { coast: "#2a241c", river: "#3a4a58", border: "#4a2420", text: "#1c1610", paper: "#e4dcc8", halo: "#f4ecdf" };
   }
   if (style === "parchment") {
-    return { coast: "#3a2a18", river: "#3d5c74", border: "#6a2a22", text: "#2a1c10", paper: "#e8d7b0" };
+    return { coast: "#3a2a18", river: "#3d5c74", border: "#6a2a22", text: "#2a1c10", paper: "#e8d7b0", halo: "#f3e6c8" };
   }
   if (style === "bathymetry") {
-    return { coast: "#102028", river: "#1a5a78", border: "#4a1c1c", text: "#1a120c", paper: "#d5d0c6" };
+    return { coast: "#102028", river: "#1a5a78", border: "#4a1c1c", text: "#1a120c", paper: "#d5d0c6", halo: "#f4f1ea" };
   }
-  return { coast: "#102028", river: "#1c5a78", border: "#4a1c1c", text: "#1a120c", paper: "#d8c7a0" };
+  return { coast: "#4f7f99", river: "#6aa4c4", border: "#8d6b96", text: "#222222", paper: "#f2efe9", halo: "#f8f6f1" };
+}
+
+/**
+ * Screen-pixel stroke for one highway class. Casing sits under the fill,
+ * the same two-pass draw a reference basemap uses for motorways.
+ * @param {string} kind
+ * @param {string} style
+ * @param {"overview"|"regional"|"local"} level
+ */
+export function routePaint(kind, style, level) {
+  const night = style === "night" || style === "satellite";
+  if (kind === "sea") {
+    return { show: true, casing: "", casingWidth: 0, stroke: night ? "#8fd4ff" : "#5b92b0", width: 1.25, dash: [7, 5], alpha: 0.75 };
+  }
+  if (kind === "trail") {
+    return {
+      show: true,
+      casing: "",
+      casingWidth: 0,
+      stroke: night ? "#d2c4a4" : "#9a9488",
+      width: level === "overview" ? 0.85 : 1.15,
+      dash: level === "overview" ? null : [2.2, 3.2],
+      alpha: level === "overview" ? 0.55 : 0.9,
+    };
+  }
+  if (kind === "trunk") {
+    return {
+      show: true,
+      casing: night ? "#6a5030" : "#c24e3c",
+      stroke: night ? "#ffd98a" : "#e8894a",
+      width: 2.35,
+      casingWidth: 4.15,
+      dash: null,
+      alpha: 1,
+    };
+  }
+  if (kind === "primary") {
+    return {
+      show: true,
+      casing: night ? "#5c5038" : "#c4a04a",
+      stroke: night ? "#ffe7a8" : "#f6d56a",
+      width: 1.85,
+      casingWidth: 3.25,
+      dash: null,
+      alpha: 1,
+    };
+  }
+  return {
+    show: true,
+    casing: night ? "#3a3a3a" : "#b7b1a6",
+    stroke: night ? "#f4f4f4" : "#ffffff",
+    width: level === "overview" ? 1.2 : 1.45,
+    casingWidth: level === "overview" ? 2.2 : 2.6,
+    dash: null,
+    alpha: 1,
+  };
 }
 
 /** @param {string} a @param {string} b @param {number} t */

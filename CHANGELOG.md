@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.7.0
+
+- The fit view is a light reference basemap: paper-colored land, flat blue water, cased trunk and primary roads, and city dots with haloed names. Trails and villages wait until you zoom in.
+- Roads are planned on a coarse land graph, then refined along the cell mesh with one reused search buffer, so a denser settlement layer does not search the whole grid once per road.
+- The overview bitmap fills once per color, with hillshade in a few shade buckets, instead of one canvas call per cell.
+
 ## 2.6.1
 
 - The same style and view choices sit on the map itself, above the canvas, and stay in step with the sidebar.

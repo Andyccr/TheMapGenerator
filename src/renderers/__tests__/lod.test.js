@@ -21,6 +21,9 @@ test("overview paint generalizes biomes and hides hillshade", () => {
   assert.equal(cfg.useRaster, true);
   assert.ok(cfg.riverMinWidth > 1);
   assert.equal(cfg.labels.village, false);
+  assert.equal(cfg.labels.town, true);
+  assert.equal(cfg.labels.name.city, true);
+  assert.equal(cfg.labels.name.town, false);
   assert.equal(macroBiome("TROPICAL_RAIN_FOREST"), "FOREST");
   assert.equal(macroBiome("SUBTROPICAL_DESERT"), "DESERT");
   assert.equal(macroBiome("TUNDRA"), "COLD");

@@ -12,6 +12,10 @@ export class MinHeap {
     return this.a.length;
   }
 
+  clear() {
+    this.a.length = 0;
+  }
+
   /**
    * @param {T} item
    * @param {number} key
