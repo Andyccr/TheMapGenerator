@@ -38,11 +38,11 @@ After tectonics, an optional **landform recipe** (Azgaar-style template) reshape
 ## 3. Ocean, lakes, rivers
 
 1. Height `< 0` **and** connected to a map-border cell ⇒ ocean (Patel).
-2. Remaining height `< 0` ⇒ lake.
+2. Remaining height `< 0` ⇒ lake. Tiny puddles are dropped. Priority-flood leftovers that still sit above sea level stay land so a river can drain them. Lake components are named separately from continents.
 3. Barnes priority-flood fills depressions so every land cell has a downhill path to sea (O’Leary / Planchon–Darboux).
 4. Each cell’s `downslope` is the lowest-`filledHeight` neighbor. One thermal slump first sheds a capped slice off slopes steeper than 0.08. Flux then accumulates from high to low.
 5. A capped stream-power incision (`E ∝ A^0.45 S`) wears steep, high-flux cells and deposits a fraction downstream. Cells already near sea level are left alone.
-6. After climate, flux is weighted by precipitation, so wet belts feed larger rivers than the subtropical desert belt. Cells above a flux threshold become river polylines. Low-gradient reaches meander. A descending sweep assigns Strahler order; width uses mouth flux and that order. Each land cell is labeled with its drainage basin.
+6. After climate, flux is weighted by precipitation, so wet belts feed larger rivers than the subtropical desert belt. Cells above a flux threshold become river polylines. A tributary stops where it meets an already-claimed trunk. Low-gradient reaches meander. A descending sweep assigns Strahler order; width uses mouth flux and that order. Each land cell is labeled with its drainage basin.
 
 Because routing uses `filledHeight`, **a river cannot climb a ridge**. Editing tools that change height must call `recomputeFromElevation` so this invariant is restored.
 
@@ -56,7 +56,7 @@ Because routing uses `filledHeight`, **a river cannot climb a ridge**. Editing t
 
 ## 5. Civilizations
 
-Cultures expand first. A handful of hearths pick a type (河畔 / 沿海 / 山地 / 草原 / 林猎 / 沙海) and a phonology; cost-distance flood prefers matching biomes. Towns are still scored toward rivers and coasts (O'Leary), but their names come from the local culture so neighboring places sound related. Capitals seed political realms afterward — culture and state are not the same layer. Realms then split into **provinces** seated at secondary towns; the flood cannot cross a kingdom border.
+Cultures expand first. A handful of hearths pick a type from the local land (河畔 / 沿海 / 山地 / 草原 / 林猎 / 沙海) and a phonology; ocean is impassable, and large islands without a hearth get their own. Cost-distance flood prefers matching biomes. Towns score toward rivers, coasts, confluences, and estuaries (O'Leary), and their names come from the local culture so neighboring places sound related. Capitals pick from that ranking with spacing. Realms then split into **provinces** seated at secondary towns; the flood cannot cross a kingdom border.
 
 Population is a cartographic estimate from type, moisture, and water access. It is for the inspector and roster, not a simulation.
 

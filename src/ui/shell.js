@@ -64,6 +64,16 @@ export function syncToolChrome(doc, toolId) {
   if (!(ctx instanceof HTMLElement)) return;
   const visible = [...ctx.children].some((el) => el instanceof HTMLElement && !el.hidden && el.id !== "tool-hint");
   ctx.hidden = !visible;
+  const hint = doc.getElementById("tool-hint");
+  if (hint instanceof HTMLElement) hint.hidden = !visible;
+  const rail = doc.getElementById("tool-rail");
+  const active = rail instanceof HTMLElement ? rail.querySelector(`.tool[data-tool="${toolId}"]`) : null;
+  const horizontal = rail instanceof HTMLElement && rail.ownerDocument.defaultView?.getComputedStyle(rail).flexDirection === "row";
+  if (visible && active instanceof HTMLElement && rail instanceof HTMLElement && !horizontal) {
+    ctx.style.top = `${active.getBoundingClientRect().top - rail.getBoundingClientRect().top}px`;
+  } else {
+    ctx.style.top = "";
+  }
 }
 
 /**

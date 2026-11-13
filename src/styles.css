@@ -205,6 +205,10 @@ h1 {
   margin-left: auto;
 }
 
+.mast-actions .btn-ghost {
+  padding: 0.32rem 0.55rem;
+}
+
 input,
 select,
 button,
@@ -769,7 +773,15 @@ summary:focus-visible {
   font-size: 0.64rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--ink-dim);
+  color: var(--brass);
+}
+
+.inspect-edit {
+  margin-top: 0.55rem;
+}
+
+.inspect-edit[hidden] {
+  display: none !important;
 }
 
 .inspector {
@@ -1017,8 +1029,8 @@ summary:focus-visible {
 
 .save-state {
   position: absolute;
-  left: 5.4rem;
-  bottom: 2.15rem;
+  left: 5.6rem;
+  bottom: 2.55rem;
   z-index: 4;
   font-size: 0.72rem;
   color: var(--ink-dim);
@@ -1053,7 +1065,7 @@ summary:focus-visible {
   bottom: 0.55rem;
   transform: translateX(-50%);
   z-index: 4;
-  max-width: min(52rem, calc(100% - 8rem));
+  max-width: min(28rem, calc(100% - 18rem));
   padding: 0.28rem 0.7rem;
   background: rgba(20, 15, 12, 0.88);
   border: 1px solid var(--line);

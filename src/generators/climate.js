@@ -44,9 +44,11 @@ function distanceFromOcean(cells) {
  * @param {{ x: number, y: number }} wind
  * @param {number} [width]
  */
-export function assignClimate(cells, height, wind, width) {
+export function assignClimate(cells, height, wind, width, cellSize) {
   const userWind = wind || { x: 1, y: 0 };
   const span = Math.hypot(width || height * 1.6, height);
+  const spacing = cellSize || Math.max(4, span / Math.sqrt(Math.max(1, cells.length)));
+  const inlandReach = Math.max(80, span * 0.2);
   const stepLen = Math.max(16, span * 0.016);
   const nSteps = Math.min(12, Math.max(7, Math.round(span / 260)));
   const fromSea = distanceFromOcean(cells);
@@ -59,7 +61,7 @@ export function assignClimate(cells, height, wind, width) {
     let temperature = 1 - lat * 0.85 - lapse;
     if (cell.ocean) temperature += 0.04;
     const hops = fromSea[cell.id];
-    const inland = hops < 0 ? 0 : Math.min(1, hops / 16);
+    const inland = hops < 0 ? 0 : Math.min(1, (hops * spacing) / inlandReach);
     const maritime = 1 - inland;
     temperature = temperature * (1 - 0.16 * maritime) + 0.52 * 0.16 * maritime;
     cell.temperature = temperature;
@@ -100,8 +102,35 @@ export function assignClimate(cells, height, wind, width) {
       shadow += Math.max(0, n.height - cell.height) * (n.mountain ? 1.6 : 1);
     }
 
-    const orographic = Math.max(0, cell.height) * 0.35;
-    let precip = latitudeBand(lat) + orographic - shadow * 0.55 - inland * 0.2;
+    let windward = 0;
+    let dx = cell.x;
+    let dy = cell.y;
+    let did = cell.id;
+    for (let step = 0; step < 4; step++) {
+      dx += flow.x * stepLen;
+      dy += flow.y * stepLen;
+      let next = -1;
+      let best = 1e9;
+      for (const nid of cells[did].neighbors) {
+        const n = cells[nid];
+        const d = (n.x - dx) ** 2 + (n.y - dy) ** 2;
+        if (d < best) {
+          best = d;
+          next = nid;
+        }
+      }
+      if (next < 0 || next === did) break;
+      did = next;
+      const n = cells[did];
+      if (n.ocean) break;
+      if (n.height > cell.height + 0.04) {
+        windward += (n.height - cell.height) * 0.4;
+        break;
+      }
+    }
+
+    const orographic = Math.max(0, cell.height) * 0.18;
+    let precip = latitudeBand(lat) + orographic + windward - shadow * 0.55 - inland * 0.2;
     if (cell.coast) precip = Math.max(precip, 0.32);
     cell.precipitation = Math.max(0.04, Math.min(1, precip));
     cell.moisture = cell.precipitation;

@@ -3,6 +3,7 @@
  * Flood stays inside the parent region so borders never cross a kingdom.
  */
 import { MinHeap } from "../util/heap.js";
+import { mixHex } from "../data/color.js";
 
 const TINTS = ["#d9c4a0", "#a0b8c8", "#b8c8a0", "#c8a0b0", "#c8b890", "#90b8b0", "#b0a0c8"];
 
@@ -107,25 +108,4 @@ export function clearForeignProvinces(cells, provinces) {
     dropped += 1;
   }
   return dropped;
-}
-
-/** @param {string} a @param {string} b @param {number} t */
-function mixHex(a, b, t) {
-  const ha = hex(a);
-  const hb = hex(b);
-  const u = Math.max(0, Math.min(1, t));
-  const r = (ha[0] + (hb[0] - ha[0]) * u) | 0;
-  const g = (ha[1] + (hb[1] - ha[1]) * u) | 0;
-  const bl = (ha[2] + (hb[2] - ha[2]) * u) | 0;
-  return `rgb(${r},${g},${bl})`;
-}
-
-/** @param {string} c */
-function hex(c) {
-  const s = c.replace("#", "");
-  if (s.length === 3) {
-    return [parseInt(s[0] + s[0], 16), parseInt(s[1] + s[1], 16), parseInt(s[2] + s[2], 16)];
-  }
-  if (s.length < 6) return [128, 128, 128];
-  return [parseInt(s.slice(0, 2), 16), parseInt(s.slice(2, 4), 16), parseInt(s.slice(4, 6), 16)];
 }

@@ -26,7 +26,7 @@ const PALETTE = ["#8c3a3a", "#3a5f8c", "#6a7a38", "#7a4e8c", "#8c6a32", "#2f6d62
  * @param {string} type
  */
 export function cultureStep(n, type) {
-  if (n.ocean) return 7.2;
+  if (n.ocean) return Infinity;
   let step = 1;
   if (n.mountain) step = 2.6;
   else if (n.lake) step = 2.1;
@@ -51,6 +51,57 @@ export function cultureStep(n, type) {
     if (n.biome.includes("FOREST") || n.biome === "MARSH") step *= 1.9;
   }
   return step;
+}
+
+/**
+ * Pick a culture type from the hearth, not from a leftover palette slot.
+ * @param {import("../types.js").Cell} c
+ */
+export function cultureTypeFromCell(c) {
+  if (c.biome?.includes("DESERT") || c.biome === "SCORCHED") return "desert";
+  if (c.mountain || c.height > 0.36) return "highland";
+  if (c.coast) return "naval";
+  if (c.riverId >= 0) return "river";
+  if (c.biome?.includes("FOREST") || c.biome === "TAIGA") return "hunting";
+  if (c.biome === "GRASSLAND" || c.biome === "SHRUBLAND") return "nomad";
+  return "river";
+}
+
+/**
+ * Large islands without a hearth stay blank once ocean is impassable.
+ * @param {import("../types.js").Cell[]} cells
+ * @param {import("../types.js").Cell[]} origins
+ * @param {number} cap
+ */
+function islandHearths(cells, origins, cap) {
+  const extra = [];
+  const seen = new Uint8Array(cells.length);
+  const hasOrigin = new Set(origins.map((o) => o.id));
+  const minSize = Math.max(24, Math.round(cells.length * 0.004));
+  for (const start of cells) {
+    if (origins.length + extra.length >= cap) break;
+    if (seen[start.id] || start.ocean || start.lake) continue;
+    /** @type {number[]} */
+    const ids = [];
+    const stack = [start.id];
+    seen[start.id] = 1;
+    while (stack.length) {
+      const id = stack.pop();
+      ids.push(id);
+      for (const nid of cells[id].neighbors) {
+        if (seen[nid]) continue;
+        const n = cells[nid];
+        if (n.ocean || n.lake) continue;
+        seen[nid] = 1;
+        stack.push(nid);
+      }
+    }
+    if (ids.length < minSize) continue;
+    if (ids.some((id) => hasOrigin.has(id))) continue;
+    const pick = cells[ids[(ids.length / 2) | 0]];
+    if (pick && !pick.border && !pick.mountain) extra.push(pick);
+  }
+  return extra;
 }
 
 /**
@@ -80,11 +131,17 @@ export function placeCultures(cells, rng, extent = {}) {
   }
   if (!origins.length) origins.push(land[(rng() * land.length) | 0]);
 
+  const extras = islandHearths(cells, origins, count + 4);
+  for (const cell of extras) origins.push(cell);
+
   for (let i = 0; i < origins.length; i++) {
     const origin = origins[i];
-    let type = CULTURE_TYPES[(rng() * CULTURE_TYPES.length) | 0];
-    const unused = CULTURE_TYPES.filter((t) => !usedTypes.has(t.id));
-    if (unused.length) type = unused[(rng() * unused.length) | 0];
+    const inferred = cultureTypeFromCell(origin);
+    let type = CULTURE_TYPES.find((t) => t.id === inferred) || CULTURE_TYPES[0];
+    if (usedTypes.has(type.id)) {
+      const unused = CULTURE_TYPES.filter((t) => !usedTypes.has(t.id));
+      if (unused.length && inferred === "river") type = unused[(rng() * unused.length) | 0];
+    }
     usedTypes.add(type.id);
     const pack = pickPhonology(rng);
     const names = createNameFactory(rng, pack);
@@ -136,11 +193,13 @@ export function assignCultures(cells, cultures) {
     const type = cultures[culture]?.type || "river";
     for (const nid of cell.neighbors) {
       const n = cells[nid];
+      if (n.ocean) continue;
       const step = cultureStep(n, type);
+      if (!Number.isFinite(step)) continue;
       const next = cost[id] + step;
       if (next < cost[nid]) {
         cost[nid] = next;
-        if (!n.ocean) n.cultureId = culture;
+        n.cultureId = culture;
         heap.push({ id: nid, culture }, next);
       }
     }

@@ -308,7 +308,7 @@ export class MapGenerator {
 
   /** @param {WorldData} world */
   #temperatures(world) {
-    assignClimate(world.cells, world.meta.height, world.meta.wind, world.meta.width);
+    assignClimate(world.cells, world.meta.height, world.meta.wind, world.meta.width, world.meta.cellSize);
   }
 
   /** Moisture and biomes, after `riverId` is current. */

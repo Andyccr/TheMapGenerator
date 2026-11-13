@@ -27,6 +27,7 @@ import { EditHistory } from "./history.js";
 import { setLoadingOverlay, setBusyChrome } from "./jobChrome.js";
 import { bindWorkshop } from "./bindings.js";
 import { syncViewDock } from "./viewDock.js";
+import { toCssHex } from "../data/color.js";
 import { BRUSH_TOOLS, bindExclusiveSteps, bindToolRail, focusWorkshop, syncToolChrome } from "./shell.js";
 
 const SETTLEMENT_TYPE = SETTLEMENT_TYPE_LABELS;
@@ -303,7 +304,11 @@ export class App {
   /** @param {string} id */
   setTool(id) {
     this.toolId = id;
-    this.doc.querySelectorAll(".tool").forEach((b) => b.classList.toggle("active", b.getAttribute("data-tool") === id));
+    this.doc.querySelectorAll(".tool").forEach((b) => {
+      const on = b.getAttribute("data-tool") === id;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
     const show = (elId, on) => {
       const node = this.el(elId);
       if (node instanceof HTMLElement) node.hidden = !on;
@@ -711,7 +716,7 @@ export class App {
       this.hideInspect("note-wrap", true);
       this.hideInspect("name-wrap", true);
       this.hideInspect("burg-wrap", true);
-      this.hideInspect("cell-edit", true);
+      this.hideInspect("cell-edit-wrap", true);
       this.hideInspect("diplo-edit", true);
       this.hideInspect("color-wrap", true);
       this.hideInspect("create-edit", true);
@@ -747,8 +752,10 @@ export class App {
     const hasColor = Boolean(this._noteTarget?.color);
     const colorEl = this.el("entity-color");
     this.hideInspect("color-wrap", !hasColor);
-    if (hasColor && colorEl instanceof HTMLInputElement) colorEl.value = this._noteTarget.color;
+    if (hasColor && colorEl instanceof HTMLInputElement) colorEl.value = toCssHex(this._noteTarget.color);
     this.hideInspect("create-edit", Boolean(c.ocean || c.border));
+    const foundRealm = this.doc.querySelector('[data-create="realm"]');
+    if (foundRealm instanceof HTMLElement) foundRealm.hidden = !town;
     fillCellEdit(this.doc, this.world, c);
     fillDiploEdit(this.doc, this.world, realm, (other, stance) => {
       if (!this.world || !realm) return;
@@ -813,20 +820,18 @@ export class App {
       card.hidden = true;
       return;
     }
+    const c = this.world.cells[cellId];
+    const town = this.world.settlements.find((s) => s.cellId === cellId);
+    const marker = (this.world.markers || []).find((m) => m.cellId === cellId);
+    if (!town && !marker) {
+      card.hidden = true;
+      return;
+    }
     card.hidden = false;
     card.style.left = `${x + 14}px`;
     card.style.top = `${y + 14}px`;
     if (sameCell) return;
-    const c = this.world.cells[cellId];
-    const town = this.world.settlements.find((s) => s.cellId === cellId);
-    const marker = (this.world.markers || []).find((m) => m.cellId === cellId);
-    const cult = c.cultureId >= 0 ? this.world.cultures?.[c.cultureId] : null;
-    if (town) card.textContent = `${town.name} · ${SETTLEMENT_TYPE[town.type] || town.type}`;
-    else if (marker) card.textContent = marker.name;
-    else {
-      const trip = (this.world.journeys || []).find((j) => j.cellIds.includes(cellId));
-      card.textContent = [BIOME_LABELS[c.biome] || c.biome.replaceAll("_", " "), cult?.name, trip?.name].filter(Boolean).join(" · ");
-    }
+    card.textContent = town ? `${town.name} · ${SETTLEMENT_TYPE[town.type] || town.type}` : marker.name;
   }
 
   fillLegend() {

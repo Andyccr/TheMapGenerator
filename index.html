@@ -12,7 +12,7 @@
     <meta property="og:title" content="幻想世界地图生成器" />
     <meta property="og:description" content="用一个种子生成说得通的大陆，再当战役地图来改。" />
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="stylesheet" href="./src/styles.css?v=2.10.0" />
+    <link rel="stylesheet" href="./src/styles.css?v=2.11.0" />
     <link rel="icon" href="./icon.svg" />
     <link rel="apple-touch-icon" href="./icon.svg" />
   </head>
@@ -173,23 +173,23 @@
       <main class="stage">
         <canvas id="map" tabindex="0" aria-label="交互式幻想地图"></canvas>
         <nav class="tool-rail" id="tool-rail" aria-label="地图工具">
-          <button class="tool active" data-tool="pan" type="button" title="平移与查看（V）">平移</button>
-          <button class="tool" data-tool="raise" type="button" title="抬升陆地（R）">抬升</button>
-          <button class="tool" data-tool="lower" type="button" title="降低谷地（F）">降低</button>
-          <button class="tool" data-tool="paint" type="button" title="涂色（P）">涂色</button>
-          <button class="tool" data-tool="burg" type="button" title="建立聚落（B）">建城</button>
-          <button class="tool" data-tool="erase" type="button" title="擦除（X）">擦除</button>
+          <button class="tool active" data-tool="pan" type="button" title="平移与查看（V）" aria-pressed="true">平移</button>
+          <button class="tool" data-tool="raise" type="button" title="抬升陆地（R）" aria-pressed="false">抬升</button>
+          <button class="tool" data-tool="lower" type="button" title="降低谷地（F）" aria-pressed="false">降低</button>
+          <button class="tool" data-tool="paint" type="button" title="涂色（P）" aria-pressed="false">涂色</button>
+          <button class="tool" data-tool="burg" type="button" title="建立聚落（B）" aria-pressed="false">建城</button>
+          <button class="tool" data-tool="erase" type="button" title="擦除（X）" aria-pressed="false">擦除</button>
           <details class="tool-rail-more" id="tool-rail-more">
             <summary>更多</summary>
             <div class="tool-rail-overflow">
-              <button class="tool" data-tool="stamp" type="button" title="地形印戳（T）">印戳</button>
-              <button class="tool" data-tool="river" type="button" title="开凿河流（I）">河流</button>
-              <button class="tool" data-tool="road" type="button" title="连接商路（L）">连路</button>
-              <button class="tool" data-tool="marker" type="button" title="放置地标（K）">地标</button>
-              <button class="tool" data-tool="move" type="button" title="移动聚落（M）">移动</button>
-              <button class="tool" data-tool="rename" type="button" title="重命名（N）">命名</button>
-              <button class="tool" data-tool="measure" type="button" title="测量距离（G）">测距</button>
-              <button class="tool" data-tool="journey" type="button" title="战役行程（J）">行程</button>
+              <button class="tool" data-tool="stamp" type="button" title="地形印戳（T）" aria-pressed="false">印戳</button>
+              <button class="tool" data-tool="river" type="button" title="开凿河流（I）" aria-pressed="false">河流</button>
+              <button class="tool" data-tool="road" type="button" title="连接商路（L）" aria-pressed="false">连路</button>
+              <button class="tool" data-tool="marker" type="button" title="放置地标（K）" aria-pressed="false">地标</button>
+              <button class="tool" data-tool="move" type="button" title="移动聚落（M）" aria-pressed="false">移动</button>
+              <button class="tool" data-tool="rename" type="button" title="重命名（N）" aria-pressed="false">命名</button>
+              <button class="tool" data-tool="measure" type="button" title="测量距离（G）" aria-pressed="false">测距</button>
+              <button class="tool" data-tool="journey" type="button" title="战役行程（J）" aria-pressed="false">行程</button>
             </div>
           </details>
           <div id="tool-context" class="tool-context" hidden>
@@ -322,10 +322,10 @@
           </ol>
           <button type="button" id="btn-cancel-job" class="btn-ghost">取消</button>
         </div>
-        <div id="toast" class="toast" hidden></div>
+        <div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
         <button type="button" id="btn-fold-left" class="fold fold-left" title="折叠左侧（[）">‹</button>
         <button type="button" id="btn-fold-right" class="fold fold-right" title="折叠右侧（]）">›</button>
-        <div id="map-status" class="map-status">将指针移到地图上查看格子</div>
+        <div id="map-status" class="map-status" role="status" aria-live="polite">将指针移到地图上查看格子</div>
         <div id="save-state" class="save-state">尚未保存</div>
         <div class="zoom-hud" aria-label="缩放">
           <button type="button" id="btn-zoom-in" title="放大">+</button>
@@ -380,13 +380,16 @@
           </div>
           <ol id="route-edit" class="route-edit" hidden></ol>
           <ol id="journey-edit" class="route-edit journey-edit" hidden></ol>
-          <div id="cell-edit" class="cell-edit" hidden>
-            <label>生物群系 <select id="opt-cell-biome"></select></label>
-            <label>文化 <select id="opt-cell-culture"></select></label>
-            <label>国度 <select id="opt-cell-realm"></select></label>
-            <label>行省 <select id="opt-cell-province"></select></label>
-            <label>信仰 <select id="opt-cell-religion"></select></label>
-          </div>
+          <details class="substep inspect-edit" id="cell-edit-wrap" hidden>
+            <summary>编辑格子</summary>
+            <div id="cell-edit" class="cell-edit">
+              <label>生物群系 <select id="opt-cell-biome"></select></label>
+              <label>文化 <select id="opt-cell-culture"></select></label>
+              <label>国度 <select id="opt-cell-realm"></select></label>
+              <label>行省 <select id="opt-cell-province"></select></label>
+              <label>信仰 <select id="opt-cell-religion"></select></label>
+            </div>
+          </details>
           <ol id="diplo-edit" class="diplo-edit" hidden></ol>
         </section>
         <section class="inspect-block">
@@ -413,7 +416,7 @@
           <ol class="legend-list" id="biome-legend"></ol>
         </details>
         <footer class="colophon">
-          四层架构：数据 · 生成器 · 编辑器 · 渲染器。工坊：生成 → 查看 → 编辑 → 检视。无需后端。v<span id="app-version">2.10.0</span>
+          四层架构：数据 · 生成器 · 编辑器 · 渲染器。工坊：生成 → 查看 → 编辑 → 检视。无需后端。v<span id="app-version">2.11.0</span>
         </footer>
       </aside>
     </div>
@@ -429,7 +432,7 @@
     </dialog>
     <dialog id="help-dialog" class="folio-dialog help-dialog">
       <form method="dialog">
-        <h2>工坊说明 <span class="ver" id="help-version">v2.10.0</span></h2>
+        <h2>工坊说明 <span class="ver" id="help-version">v2.11.0</span></h2>
         <ol class="charter-flow" aria-label="工坊章程">
           <li>生成</li>
           <li>查看</li>
@@ -481,6 +484,6 @@
         <p class="hint">快速开始用中幅粗略图，通常一两秒。刷新会恢复自动存档。把 JSON 拖进窗口即可导入。</p>
       </form>
     </dialog>
-    <script type="module" src="./src/main.js?v=2.10.0"></script>
+    <script type="module" src="./src/main.js?v=2.11.0"></script>
   </body>
 </html>

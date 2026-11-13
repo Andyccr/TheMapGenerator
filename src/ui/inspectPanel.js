@@ -13,7 +13,7 @@ import { escapeHtml } from "./format.js";
  * @param {import("../types.js").Cell} cell
  */
 export function fillCellEdit(doc, world, cell) {
-  const wrap = doc.getElementById("cell-edit");
+  const wrap = doc.getElementById("cell-edit-wrap") || doc.getElementById("cell-edit");
   if (!(wrap instanceof HTMLElement)) return;
   if (cell.ocean) {
     wrap.hidden = true;

@@ -16,42 +16,26 @@ export function placeFeatures(cells, mills, extent = {}) {
   const landMin = Math.max(18, Math.round(cells.length * 0.002));
   const continentMin = Math.max(80, Math.round(cells.length * 0.045));
 
+  const lakeMin = Math.max(8, Math.round(cells.length * 0.001));
   for (const start of cells) {
-    if (seen[start.id] || start.ocean) continue;
-    const ids = flood(cells, start.id, seen, (c) => !c.ocean);
-    const allLake = ids.length > 0 && ids.every((id) => cells[id].lake);
-    const type = allLake ? "lake" : ids.length >= continentMin ? "continent" : "island";
+    if (seen[start.id] || start.ocean || !start.lake) continue;
+    const ids = flood(cells, start.id, seen, (c) => c.lake && !c.ocean);
+    if (ids.length < lakeMin) {
+      for (const id of ids) cells[id].featureId = -1;
+      continue;
+    }
+    pushFeature(cells, features, mills, ids, "lake");
+  }
+
+  for (const start of cells) {
+    if (seen[start.id] || start.ocean || start.lake) continue;
+    const ids = flood(cells, start.id, seen, (c) => !c.ocean && !c.lake);
+    const type = ids.length >= continentMin ? "continent" : "island";
     if (type === "island" && ids.length < landMin) {
       for (const id of ids) cells[id].featureId = -1;
       continue;
     }
-    if (type === "lake" && ids.length < 10) {
-      for (const id of ids) cells[id].featureId = -1;
-      continue;
-    }
-    const originId = ids[0];
-    const cid = cells[originId].cultureId ?? -1;
-    const mill = mills(cid);
-    const name =
-      type === "lake" ? `${mill.river()}湖` : type === "island" ? `${mill.feature()}岛` : mill.realm();
-    let sx = 0;
-    let sy = 0;
-    for (const id0 of ids) {
-      sx += cells[id0].x;
-      sy += cells[id0].y;
-    }
-    const id = features.length;
-    features.push({
-      id,
-      name,
-      type,
-      size: ids.length,
-      originId,
-      cx: sx / ids.length,
-      cy: sy / ids.length,
-      note: "",
-    });
-    for (const cid0 of ids) cells[cid0].featureId = id;
+    pushFeature(cells, features, mills, ids, type);
   }
 
   const seaMin = Math.max(40, Math.round(cells.length * 0.03));
@@ -87,6 +71,37 @@ export function placeFeatures(cells, mills, extent = {}) {
   }
 
   return features;
+}
+
+/**
+ * @param {import("../types.js").Cell[]} cells
+ * @param {import("../types.js").GeoFeature[]} features
+ * @param {(cultureId: number) => { realm: () => string, river: () => string, feature: () => string }} mills
+ * @param {number[]} ids
+ * @param {import("../types.js").GeoFeature["type"]} type
+ */
+function pushFeature(cells, features, mills, ids, type) {
+  const originId = ids[0];
+  const mill = mills(cells[originId].cultureId ?? -1);
+  const name = type === "lake" ? `${mill.river()}湖` : type === "island" ? `${mill.feature()}岛` : mill.realm();
+  let sx = 0;
+  let sy = 0;
+  for (const id0 of ids) {
+    sx += cells[id0].x;
+    sy += cells[id0].y;
+  }
+  const id = features.length;
+  features.push({
+    id,
+    name,
+    type,
+    size: ids.length,
+    originId,
+    cx: sx / ids.length,
+    cy: sy / ids.length,
+    note: "",
+  });
+  for (const cid0 of ids) cells[cid0].featureId = id;
 }
 
 /**

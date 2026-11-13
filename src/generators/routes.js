@@ -28,7 +28,7 @@ function stepCost(cell, kind) {
   if (cell.lake) return 2.4;
   if (cell.mountain) return 3.6;
   if (cell.height > 0.38) return 1.9;
-  if (cell.riverId >= 0) return 0.62;
+  if (cell.riverId >= 0) return 0.88;
   if (cell.coast) return 0.85;
   return 1;
 }
