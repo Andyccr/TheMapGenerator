@@ -31,4 +31,12 @@ test("roster and search include routes; inspect lists 过路", () => {
     assert.ok(Array.isArray(hits));
   }
   assert.match(overviewInspectHtml(w, "全图"), /陆形/);
+  assert.match(overviewInspectHtml(w, "全图"), /inspect-group/);
+  assert.match(overviewInspectHtml(w, "全图"), /<h3>世界<\/h3>/);
+  const ocean = w.cells.find((c) => c.ocean);
+  assert.ok(ocean, "need an ocean cell");
+  const oceanHtml = cellInspectHtml(w, ocean.id);
+  assert.match(oceanHtml, /<h3>地理<\/h3>/);
+  assert.doesNotMatch(oceanHtml, /<dt>过路<\/dt>/);
+  assert.doesNotMatch(oceanHtml, /<dd>—<\/dd>/);
 });

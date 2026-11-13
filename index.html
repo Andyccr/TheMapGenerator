@@ -57,21 +57,32 @@
         </div>
       </header>
 
-      <aside class="panel panel-left" aria-label="工坊：生成与编辑">
-        <p class="panel-charter">左侧做世界，中间看图，右侧查名册。</p>
-
+      <aside class="panel panel-left" aria-label="工坊：生成与存档">
         <details class="step" id="step-generate" open>
           <summary><span class="step-index">1</span> 生成</summary>
           <label class="field">
-            <span>范围</span>
-            <select id="opt-extent">
-              <option value="1920,1200">中幅 1920×1200</option>
-              <option value="2560,1600">宽幅 2560×1600</option>
-              <option value="3840,2400" selected>洲际 3840×2400</option>
-              <option value="5120,3200">超大陆 5120×3200</option>
+            <span>陆形</span>
+            <select id="opt-landform">
+              <option value="continents" selected>诸大陆</option>
+              <option value="pangea">盘古大陆</option>
+              <option value="archipelago">群岛</option>
+              <option value="island">大岛</option>
+              <option value="peninsula">半岛</option>
+              <option value="isthmus">地峡</option>
+              <option value="inland-sea">内海</option>
+              <option value="lakes">湖区</option>
             </select>
           </label>
           <div class="field-grid">
+            <label class="field">
+              <span>范围</span>
+              <select id="opt-extent">
+                <option value="1920,1200">中幅 1920×1200</option>
+                <option value="2560,1600">宽幅 2560×1600</option>
+                <option value="3840,2400" selected>洲际 3840×2400</option>
+                <option value="5120,3200">超大陆 5120×3200</option>
+              </select>
+            </label>
             <label class="field">
               <span>精细度</span>
               <select id="opt-detail">
@@ -82,42 +93,29 @@
                 <option value="3">超细</option>
               </select>
             </label>
-            <label class="field">
-              <span>陆形</span>
-              <select id="opt-landform">
-                <option value="continents" selected>诸大陆</option>
-                <option value="pangea">盘古大陆</option>
-                <option value="archipelago">群岛</option>
-                <option value="island">大岛</option>
-                <option value="peninsula">半岛</option>
-                <option value="isthmus">地峡</option>
-                <option value="inland-sea">内海</option>
-                <option value="lakes">湖区</option>
-              </select>
-            </label>
           </div>
-          <div class="field field-wind">
-            <span>风向</span>
-            <span class="seed-row">
-              <select id="opt-wind" aria-label="风向">
-                <option value="1,0" selected>西风 →</option>
-                <option value="-1,0">东风 ←</option>
-                <option value="0,1">北风 ↓</option>
-                <option value="0,-1">南风 ↑</option>
-              </select>
-              <button type="button" id="btn-apply-wind" class="btn-icon" title="只重算气候，不改河网">应用</button>
-            </span>
-          </div>
-          <label class="field field-range">
-            <span>板块 <em id="opt-plates-val">12</em></span>
-            <input id="opt-plates" type="range" min="8" max="20" value="12" />
-          </label>
-          <label class="field field-range">
-            <span>海平面 <em id="opt-sea-val">0</em></span>
-            <input id="opt-sea" type="range" min="-20" max="20" value="0" />
-          </label>
           <details class="substep">
-            <summary>陆形步骤</summary>
+            <summary>高级</summary>
+            <div class="field field-wind">
+              <span>风向</span>
+              <span class="seed-row">
+                <select id="opt-wind" aria-label="风向">
+                  <option value="1,0" selected>西风 →</option>
+                  <option value="-1,0">东风 ←</option>
+                  <option value="0,1">北风 ↓</option>
+                  <option value="0,-1">南风 ↑</option>
+                </select>
+                <button type="button" id="btn-apply-wind" class="btn-icon" title="只重算气候，不改河网">应用</button>
+              </span>
+            </div>
+            <label class="field field-range">
+              <span>板块 <em id="opt-plates-val">12</em></span>
+              <input id="opt-plates" type="range" min="8" max="20" value="12" />
+            </label>
+            <label class="field field-range">
+              <span>海平面 <em id="opt-sea-val">0</em></span>
+              <input id="opt-sea" type="range" min="-20" max="20" value="0" />
+            </label>
             <ol id="landform-recipe" class="recipe-list" aria-label="陆形步骤"></ol>
             <div class="btn-row recipe-add">
               <button type="button" data-add-step="hill">+ 丘</button>
@@ -129,112 +127,18 @@
               <button type="button" id="btn-recipe-reset">重置</button>
               <button type="button" id="btn-recipe-apply">应用到当前图</button>
             </div>
-          </details>
-          <details class="substep">
-            <summary>重掷人文</summary>
             <div class="btn-row">
-              <button id="btn-reroll-society" type="button">文明</button>
+              <button id="btn-reroll-society" type="button">重掷文明</button>
               <button id="btn-reroll-names" type="button">地名</button>
-              <button id="btn-reroll-routes" type="button">商路与地标</button>
+            </div>
+            <div class="btn-row">
+              <button id="btn-reroll-routes" type="button">重掷商路与地标</button>
             </div>
           </details>
-        </details>
-
-        <details class="step" id="step-edit">
-          <summary><span class="step-index">2</span> 编辑</summary>
-          <div class="tool-groups" role="toolbar" aria-label="地图编辑">
-            <div class="tool-group">
-              <span class="tool-group-label">查看</span>
-              <div class="tool-grid">
-                <button class="tool active" data-tool="pan" type="button" title="平移与查看（V）">平移</button>
-                <button class="tool" data-tool="measure" type="button" title="测量距离（G）">测距</button>
-              </div>
-            </div>
-            <div class="tool-group">
-              <span class="tool-group-label">地形</span>
-              <div class="tool-grid tools-wide">
-                <button class="tool" data-tool="raise" type="button" title="抬升陆地（R）">抬升</button>
-                <button class="tool" data-tool="lower" type="button" title="降低谷地（F）">降低</button>
-                <button class="tool" data-tool="stamp" type="button" title="地形印戳：丘 / 洼 / 岭（T）">印戳</button>
-                <button class="tool" data-tool="river" type="button" title="开凿河流（I）">河流</button>
-              </div>
-            </div>
-            <div class="tool-group">
-              <span class="tool-group-label">人文</span>
-              <div class="tool-grid tools-wide">
-                <button class="tool" data-tool="paint" type="button" title="涂色：群系 / 文化 / 信仰 / 国度 / 行省（P）">涂色</button>
-                <button class="tool" data-tool="road" type="button" title="连接聚落商路（L）">连路</button>
-                <button class="tool" data-tool="burg" type="button" title="建立聚落（B）">建城</button>
-                <button class="tool" data-tool="marker" type="button" title="放置地标（K）">地标</button>
-              </div>
-            </div>
-            <div class="tool-group">
-              <span class="tool-group-label">调整</span>
-              <div class="tool-grid tools-wide">
-                <button class="tool" data-tool="move" type="button" title="移动聚落（M）">移动</button>
-                <button class="tool" data-tool="rename" type="button" title="重命名（N）">命名</button>
-                <button class="tool" data-tool="erase" type="button" title="删除聚落、地标或商路（X）">擦除</button>
-                <button class="tool" data-tool="journey" type="button" title="战役行程（J）">行程</button>
-              </div>
-            </div>
-          </div>
-          <div id="tool-opts-brush" class="tool-opt" hidden>
-            <label class="field field-range">
-              <span>笔刷 <em id="opt-brush-val">3</em></span>
-              <input id="opt-brush" type="range" min="1" max="8" value="3" />
-            </label>
-          </div>
-          <div id="tool-opts-stamp" class="tool-opt" hidden>
-            <label class="field">
-              <span>印戳</span>
-              <select id="opt-stamp-op">
-                <option value="hill">丘</option>
-                <option value="pit">洼</option>
-                <option value="range">岭</option>
-              </select>
-            </label>
-          </div>
-          <div id="tool-opts-paint" class="tool-opt" hidden>
-            <label class="field">
-              <span>涂色层</span>
-              <select id="opt-paint-layer">
-                <option value="biome">生物群系</option>
-                <option value="culture">文化</option>
-                <option value="religion">信仰</option>
-                <option value="realm">国度</option>
-                <option value="province">行省</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>颜料</span>
-              <select id="opt-paint-value"></select>
-            </label>
-          </div>
-          <div id="tool-opts-marker" class="tool-opt" hidden>
-            <label class="field">
-              <span>地标种类</span>
-              <select id="opt-marker-type">
-                <option value="ruins">废墟</option>
-                <option value="volcano">火山</option>
-                <option value="lighthouse">灯塔</option>
-                <option value="mine">矿坑</option>
-                <option value="shrine">神祠</option>
-                <option value="dungeon">地下城</option>
-                <option value="dragon">龙巢</option>
-                <option value="port">港口</option>
-              </select>
-            </label>
-          </div>
-          <div class="btn-row" id="journey-actions" hidden>
-            <button type="button" id="btn-journey-seal">封存行程</button>
-            <button type="button" id="btn-journey-undo">撤一站</button>
-            <button type="button" id="btn-journey-clear">清空草稿</button>
-          </div>
-          <p class="hint" id="tool-hint">滚轮缩放。格子数据不变。</p>
         </details>
 
         <details class="step" id="step-save">
-          <summary><span class="step-index">3</span> 存档</summary>
+          <summary><span class="step-index">2</span> 存档</summary>
           <div class="btn-row">
             <button id="btn-undo" type="button">撤销</button>
             <button id="btn-redo" type="button">重做</button>
@@ -268,6 +172,82 @@
 
       <main class="stage">
         <canvas id="map" tabindex="0" aria-label="交互式幻想地图"></canvas>
+        <nav class="tool-rail" id="tool-rail" aria-label="地图工具">
+          <button class="tool active" data-tool="pan" type="button" title="平移与查看（V）">平移</button>
+          <button class="tool" data-tool="raise" type="button" title="抬升陆地（R）">抬升</button>
+          <button class="tool" data-tool="lower" type="button" title="降低谷地（F）">降低</button>
+          <button class="tool" data-tool="paint" type="button" title="涂色（P）">涂色</button>
+          <button class="tool" data-tool="burg" type="button" title="建立聚落（B）">建城</button>
+          <button class="tool" data-tool="erase" type="button" title="擦除（X）">擦除</button>
+          <details class="tool-rail-more" id="tool-rail-more">
+            <summary>更多</summary>
+            <div class="tool-rail-overflow">
+              <button class="tool" data-tool="stamp" type="button" title="地形印戳（T）">印戳</button>
+              <button class="tool" data-tool="river" type="button" title="开凿河流（I）">河流</button>
+              <button class="tool" data-tool="road" type="button" title="连接商路（L）">连路</button>
+              <button class="tool" data-tool="marker" type="button" title="放置地标（K）">地标</button>
+              <button class="tool" data-tool="move" type="button" title="移动聚落（M）">移动</button>
+              <button class="tool" data-tool="rename" type="button" title="重命名（N）">命名</button>
+              <button class="tool" data-tool="measure" type="button" title="测量距离（G）">测距</button>
+              <button class="tool" data-tool="journey" type="button" title="战役行程（J）">行程</button>
+            </div>
+          </details>
+          <div id="tool-context" class="tool-context" hidden>
+            <div id="tool-opts-brush" class="tool-opt" hidden>
+              <label class="field field-range">
+                <span>笔刷 <em id="opt-brush-val">3</em></span>
+                <input id="opt-brush" type="range" min="1" max="8" value="3" />
+              </label>
+            </div>
+            <div id="tool-opts-stamp" class="tool-opt" hidden>
+              <label class="field">
+                <span>印戳</span>
+                <select id="opt-stamp-op">
+                  <option value="hill">丘</option>
+                  <option value="pit">洼</option>
+                  <option value="range">岭</option>
+                </select>
+              </label>
+            </div>
+            <div id="tool-opts-paint" class="tool-opt" hidden>
+              <label class="field">
+                <span>涂色层</span>
+                <select id="opt-paint-layer">
+                  <option value="biome">生物群系</option>
+                  <option value="culture">文化</option>
+                  <option value="religion">信仰</option>
+                  <option value="realm">国度</option>
+                  <option value="province">行省</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>颜料</span>
+                <select id="opt-paint-value"></select>
+              </label>
+            </div>
+            <div id="tool-opts-marker" class="tool-opt" hidden>
+              <label class="field">
+                <span>地标种类</span>
+                <select id="opt-marker-type">
+                  <option value="ruins">废墟</option>
+                  <option value="volcano">火山</option>
+                  <option value="lighthouse">灯塔</option>
+                  <option value="mine">矿坑</option>
+                  <option value="shrine">神祠</option>
+                  <option value="dungeon">地下城</option>
+                  <option value="dragon">龙巢</option>
+                  <option value="port">港口</option>
+                </select>
+              </label>
+            </div>
+            <div class="btn-row" id="journey-actions" hidden>
+              <button type="button" id="btn-journey-seal">封存</button>
+              <button type="button" id="btn-journey-undo">撤站</button>
+              <button type="button" id="btn-journey-clear">清空</button>
+            </div>
+            <p class="hint" id="tool-hint" hidden></p>
+          </div>
+        </nav>
         <div class="view-dock" id="view-dock">
           <label class="dock-field">
             <span>风格</span>
@@ -362,14 +342,16 @@
             <span class="visually-hidden">查找</span>
             <input id="opt-search" type="search" placeholder="聚落、国度、河流、地标…" autocomplete="off" />
           </label>
-          <ol class="roster" id="search-results"></ol>
+          <ol class="roster" id="search-results" hidden></ol>
         </section>
         <section class="inspect-block">
           <h2>检视</h2>
-          <dl id="inspector" class="inspector">
-            <dt>状态</dt>
-            <dd>正在准备世界…</dd>
-          </dl>
+          <div id="inspector" class="inspector-stack">
+            <dl class="inspector">
+              <dt>状态</dt>
+              <dd>正在准备世界…</dd>
+            </dl>
+          </div>
           <label class="note-field" id="name-wrap" hidden>
             名称
             <input id="entity-name" type="text" spellcheck="false" autocomplete="off" />
@@ -454,7 +436,7 @@
           <li>编辑</li>
           <li>检视</li>
         </ol>
-        <p>四个区域各管一件事：顶栏生成与分享；左侧 生成 → 编辑 → 存档；中间地图改风格和图层；右侧检索、检视、名册。工具选项只在选中对应工具时出现。第一次打开先问快速开始或看范例。刷新恢复自动存档。生成中可取消或按 Esc。</p>
+        <p>顶栏生成。左侧只做世界参数和存档。地图左侧是工具条：常用六件，其余在「更多」；选项贴在当前工具旁。右侧检索与名册。第一次打开先问快速开始或看范例。</p>
         <h3>快捷键</h3>
         <ul>
           <li><kbd>V</kbd> 平移 · <kbd>R</kbd> 抬升 · <kbd>F</kbd> 降低 · <kbd>T</kbd> 印戳 · <kbd>P</kbd> 涂色 · <kbd>I</kbd> 河流 · <kbd>L</kbd> 连路</li>

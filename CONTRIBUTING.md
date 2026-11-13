@@ -16,6 +16,17 @@ Four layers, no cycles:
 
 Shared names (biomes, marker glyphs, culture/faith/feature labels) live in `src/data/catalogs.js`. Hit-testing hashes live in `src/util/spatialIndex.js` so the canvas renderer never imports a generator module.
 
+## UI charter
+
+The visible page is **生成 → 查看 → 编辑 → 检视**. Keep that split:
+
+- Header: name, seed, generate. Do not add tools here.
+- Left: generate and save only. Tools do not live in the sidebar.
+- Map: tool rail (six primary + 更多), style, layers.
+- Right: search, inspect, roster.
+
+Coded in `src/ui/shell.js`. Prefer one open left step, contextual tool options, and inspect rows that skip empty `—`. Chinese UI copy.
+
 ## Checks
 
 ```bash

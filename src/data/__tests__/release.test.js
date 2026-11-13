@@ -28,12 +28,15 @@ test("shell HTML follows the generate-view-edit-inspect charter", () => {
   const html = readFileSync(join(root, "index.html"), "utf8");
   assert.match(html, /生成 → 查看 → 编辑 → 检视/);
   assert.match(html, /<span class="step-index">1<\/span> 生成/);
-  assert.match(html, /<span class="step-index">2<\/span> 编辑/);
-  assert.match(html, /<span class="step-index">3<\/span> 存档/);
+  assert.match(html, /<span class="step-index">2<\/span> 存档/);
   assert.match(html, /id="step-generate"/);
+  assert.match(html, /id="tool-rail"/);
+  assert.match(html, /id="tool-rail-more"/);
+  assert.match(html, /id="tool-context"/);
   assert.match(html, /id="opt-roster"/);
   assert.match(html, /id="dock-layers"/);
   assert.match(html, /id="tool-opts-paint"/);
+  assert.doesNotMatch(html, /id="step-edit"/);
   assert.doesNotMatch(html, /id="btn-panel-left"/);
   assert.doesNotMatch(html, /id="style-picks"/);
 });

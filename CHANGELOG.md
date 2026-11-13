@@ -2,8 +2,9 @@
 
 ## 2.10.0
 
-- The shell follows one charter: generate → view → edit → inspect. The header keeps name, seed, and generate. The left panel is three numbered steps (generate, edit, save). Style and layer toggles live only on the map. Roster kinds are a single select. Tool options appear only for the active tool.
-- Duplicate chrome is gone: no second layer list in the sidebar, no header panel-fold buttons, and the on-map style dock is a select plus a layer popover instead of two rows of chips.
+- The shell follows one charter: generate → view → edit → inspect. The header keeps name, seed, and generate. The left panel is two numbered steps (generate and save). Map tools sit on a six-button rail; stamp, river, road, marker, move, rename, measure, and journey sit behind 更多. Tool options appear in a card next to the active tool. Style and layer toggles live only on the map. Roster kinds are a single select.
+- Duplicate chrome is gone: no edit step in the sidebar, no second layer list, no header panel-fold buttons, and the on-map style dock is a select plus a layer popover instead of two rows of chips.
+- The inspector groups geography and society and skips empty rows. Search results stay hidden until you type. Generate folds wind, plates, sea, recipe, and reroll under 高级.
 
 ## 2.9.0
 
