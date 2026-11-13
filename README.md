@@ -50,11 +50,11 @@ npm run dev
 ### 怎么用地图
 
 1. 第一次打开会先出现欢迎层：**快速开始**（中幅粗略，大约一两秒）、**看范例**，或按左侧设置生成。刷新页面会**恢复自动存档**。地址栏带 `?seed=` 时按链接生成。默认画幅 **3840×2400**、精细（格距 5，约 14 万格）；也可改回宽幅或放到超大陆。超过约 36 万格时会自动略微放粗格距。图层里可以换成街道图、海图、测绘或暮色。放大后默认不再画出格子，陆地连成一片，岸线和国境是平滑折线。生成在后台线程跑，可随时 **取消** 或按 Esc。阶段：格网 → 板块 → 水文 → 气候 → 文明 → 商路。
-2. 滚轮平滑缩放（对准光标），双击放大，Shift+双击缩小；右下角 **+ / − / 适应**。缩放只改**绘制**：全图是浅色参考底图（陆地、水域、海岸、干流、干道与城镇点），近景才画小路、格界和村落。格子数据不变。侧栏可用 **[** / **]** 或页头 **左栏 / 右栏** 折叠，**H** 全屏看图。
+2. 滚轮平滑缩放（对准光标），双击放大，Shift+双击缩小；右下角 **+ / − / 适应**。缩放只改**绘制**：全图是浅色参考底图（陆地、水域、海岸、干流、干道与城镇点），近景才画小路、格界和村落。格子数据不变。侧栏可用 **[** / **]** 或地图上的折叠钮收起，**H** 全屏看图。页面按 **生成 → 查看 → 编辑 → 检视** 分区：顶栏生成，左侧只做生成和存档，地图左侧是工具条（常用六件，其余在「更多」），右侧检索与名册。
 3. **陆形** 决定海岸轮廓：诸大陆、盘古、群岛、大岛、半岛、地峡、内海、湖区。每个模板是一串可编辑步骤（丘、洼、岭、海峡），叠在板块造山之上。
 4. **抬升 / 降低** 是主要编辑工具：在陆地上涂抹，松手后河流会按重力重算，手绘商路、地标与外交会留下。**印戳** 点击放下丘、洼或岭；**涂色** 改群系、文化、信仰、国度、行省（空颜料点击吸取）；**连路** 点两座城画出商路。右侧检视可以直接改这些层，也能改名称、颜色与外交，并新建文化 / 信仰 / 国度。
 5. **河流** 从高地拖向大海；**建城 / 擦除 / 地标** 种城镇和兴趣点，擦除也可以点掉商路格子（不会整网重掷）；**移动** 把城镇拖到陆地上；**命名** 点击改名；**测距** 量直线里格。**行程** 逐站点选，沿商路走更省时，两岸可航且海路更快时改走海路；回车封存后天数、里格和途经停靠写进存档。改风向后点 **应用风向** 只重算气候。
-6. **图层** 在图集、地势、卫星、水深、板块、铜版、羊皮纸、夜航，以及气温、降水、径流、流域、气候带、政治、文化、行省、信仰、人口之间切换。地图上方有同一排风格和视图按钮，和左侧开关连在一起。地名、国境、河流、商路、行程、地标、山纹、经纬网、晕渲、等高线、暗角、格界可单独开关。底部状态栏显示当前格子。
+6. **图层** 在图集、地势、卫星、水深、板块、铜版、羊皮纸、夜航，以及气温、降水、径流、流域、气候带、政治、文化、行省、信仰、人口之间切换。风格和图层开关只在地图上方，不再在左侧重复。地名、国境、河流、商路、行程、地标、山纹、经纬网、晕渲、等高线、暗角、格界可单独开关。底部状态栏显示当前格子。
 7. **重掷文明** 只重做人名与国家，地形不动。名册与检索用来跳转到聚落、国度、行省、文化、信仰、地貌、河流、商路、地标。检视里可以写战役笔记。
 8. **F1** 打开说明。**范例** 打开几张现成陆形。**链接** 复制可分享地址。**导出 JSON** 保存完整世界；**槽位** 把最多六张图存在本机 IndexedDB；**导出图集 PNG** 出带图名与图例的战役图。陆形步骤可「应用到当前图」。
 
@@ -100,6 +100,7 @@ src/
   editors/              # 受控修改（建城、连路、涂色、立国、地标）
   renderers/            # Canvas 只读绘制（不引用 generators）；HUD 在 hud.js
   ui/app.js             # 控制器（UI 里唯一可引用 MapGenerator）
+  ui/shell.js           # 工坊章程：分区、工具条、互斥步骤
   ui/bindings.js        # DOM 事件绑定
   ui/format.js          # 检视 / 名册 HTML，只引用 data/
   ui/dialogs.js         # 确认、输入、欢迎、说明
@@ -147,11 +148,11 @@ Open http://localhost:8080/ . For hot reload: `npm install`, `npm test`, `npm ru
 ### How to use the map
 
 1. The first visit opens a welcome: **quick start** (medium, coarse, about a second or two), **examples**, or generate with the left-hand settings. Refresh restores the autosave. A `?seed=` link generates that world. The default sheet is **3840×2400** at fine spacing (cell size 5, about 140k cells). Wider and smaller sheets are in the same menu. Past about 360k cells the grid coarsens slightly. Street, nautical, survey, and dusk are additional paint styles. Zooming in does not draw the cell grid unless that toggle is on; land is welded into a continuous sheet and the coast is a smoothed line. Generation runs in a worker and can be **cancelled** or stopped with Esc. Stages: mesh → plates → water → climate → society → roads.
-2. Scroll to zoom toward the cursor. Double-click zooms in; Shift+double-click zooms out. **+ / − / fit** sit at the lower right. Zoom changes drawing only: the fit view is a light basemap (land, water, coasts, trunk rivers, cased highways, and city dots). Trails, cell edges, and villages appear up close. **[** / **]** or the header buttons fold the side panels. **H** hides both.
+2. Scroll to zoom toward the cursor. Double-click zooms in; Shift+double-click zooms out. **+ / − / fit** sit at the lower right. Zoom changes drawing only: the fit view is a light basemap (land, water, coasts, trunk rivers, cased highways, and city dots). Trails, cell edges, and villages appear up close. **[** / **]** or the on-map fold buttons hide a side panel. **H** hides both. The shell is **generate → view → edit → inspect**: header, left generate/save, a six-tool map rail (overflow behind 更多), right inspector.
 3. **Landform** sets the coastline: several continents, Pangaea, archipelago, island, peninsula, isthmus, inland sea, lakes. Each preset is an editable stack of hills, pits, ranges, and straits on top of the plates.
 4. **Raise / lower** is the main brush. Release the pointer and rivers recompute from gravity. Hand-drawn roads, markers, and diplomacy stay. **Stamp** drops a hill, pit, or range. **Paint** edits biome, culture, faith, realm, or province (an empty pigment eyedrops). **Road** links two towns. The inspector edits those layers, plus names, colors, diplomacy, and new cultures, faiths, and realms.
 5. **River** drags a channel downhill. **Town / erase / marker** place or remove places; erase can cut one road cell without rerolling the network. **Move** drags a town onto land. **Rename** and **measure** do what they say. **Journey** clicks waypoints, prefers roads, and takes a sea lane when both ends are coastal and the voyage is faster. Enter stores days, leagues, and stops. **Apply wind** restamps climate only.
-6. **Layers** switch atlas, relief, satellite, bathymetry, plates, copperplate, parchment, and night, plus temperature, precipitation, runoff, drainage basins, climate belts, politics, culture, provinces, faith, and population. The same choices sit on the map as buttons and stay tied to the sidebar. Names, borders, rivers, roads, journeys, markers, hachures, the graticule, hillshade, contours, vignette, and cell edges each have their own toggle. The status bar describes the cell under the cursor.
+6. **Layers** switch atlas, relief, satellite, bathymetry, plates, copperplate, parchment, and night, plus temperature, precipitation, runoff, drainage basins, climate belts, politics, culture, provinces, faith, and population. Style and layer toggles live only on the map. Names, borders, rivers, roads, journeys, markers, hachures, the graticule, hillshade, contours, vignette, and cell edges each have their own toggle. The status bar describes the cell under the cursor.
 7. **Reroll society** rebuilds peoples and states and leaves the terrain. The roster and search jump to towns, realms, provinces, cultures, faiths, features, rivers, roads, and markers. The inspector holds campaign notes.
 8. **F1** opens help. **Examples** opens ready-made coastlines. **Link** copies a share URL. **Export JSON** saves the world. **Slots** keep up to six worlds in IndexedDB. **Export atlas PNG** writes a titled sheet with a legend. Landform steps can be applied to the current map.
 
@@ -197,6 +198,7 @@ src/
   editors/              # controlled edits
   renderers/            # canvas, read-only; HUD in hud.js
   ui/app.js             # the only UI module that may import MapGenerator
+  ui/shell.js           # workshop charter: regions, tool rail, exclusive steps
   ui/bindings.js        # DOM listeners
   ui/format.js          # inspector and roster HTML
   ui/dialogs.js

@@ -233,7 +233,7 @@ export const GENERATION_STAGE_LABELS = {
 };
 
 /**
- * In-app style choices. The sidebar select and the on-map dock both use this list.
+ * In-app style choices. The on-map style select uses this list.
  * Renderer palettes live in styles.js.
  * @type {{ group: string, id: string, label: string }[]}
  */

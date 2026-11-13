@@ -27,6 +27,7 @@ import { EditHistory } from "./history.js";
 import { setLoadingOverlay, setBusyChrome } from "./jobChrome.js";
 import { bindWorkshop } from "./bindings.js";
 import { syncViewDock } from "./viewDock.js";
+import { BRUSH_TOOLS, bindExclusiveSteps, bindToolRail, focusWorkshop, syncToolChrome } from "./shell.js";
 
 const SETTLEMENT_TYPE = SETTLEMENT_TYPE_LABELS;
 
@@ -109,6 +110,8 @@ export class App {
     this.syncRecipeList();
     this.syncPaintPigment();
     this.fillExamples();
+    bindExclusiveSteps(this.doc);
+    bindToolRail(this.doc);
     this.setTool(this.toolId);
     window.addEventListener("resize", () => {
       this.renderer.resize();
@@ -242,6 +245,7 @@ export class App {
       this.landformSteps = recipeFor(world.meta.landform || "continents");
     }
     this.syncRecipeList();
+    this.syncWorkshopFocus();
     this.syncTitle();
     this.syncShareUrl();
     this.redraw();
@@ -300,10 +304,18 @@ export class App {
   setTool(id) {
     this.toolId = id;
     this.doc.querySelectorAll(".tool").forEach((b) => b.classList.toggle("active", b.getAttribute("data-tool") === id));
-    const journeyActions = this.el("journey-actions");
-    if (journeyActions instanceof HTMLElement) journeyActions.hidden = id !== "journey";
+    const show = (elId, on) => {
+      const node = this.el(elId);
+      if (node instanceof HTMLElement) node.hidden = !on;
+    };
+    show("journey-actions", id === "journey");
+    show("tool-opts-brush", BRUSH_TOOLS.includes(id));
+    show("tool-opts-stamp", id === "stamp");
+    show("tool-opts-paint", id === "paint");
+    show("tool-opts-marker", id === "marker");
     const hint = this.el("tool-hint");
     if (hint) hint.textContent = this.tools[this.toolId]?.hint || this.tools.pan?.hint || "";
+    syncToolChrome(this.doc, id);
     const canvas = /** @type {HTMLCanvasElement} */ (this.el("map"));
     canvas.style.cursor = this.toolId === "pan" ? "grab" : "crosshair";
     if (id === "paint") this.matchStyleToPaint();
@@ -846,8 +858,10 @@ export class App {
     const q = input.value.trim();
     if (!q) {
       box.innerHTML = "";
+      box.hidden = true;
       return;
     }
+    box.hidden = false;
     box.innerHTML = rosterListHtml(searchHits(this.world, q), "没有匹配。");
     box.querySelectorAll("button").forEach((btn) => {
       btn.addEventListener("click", () => this.flyTo(Number(btn.getAttribute("data-cell"))));
@@ -878,6 +892,10 @@ export class App {
     const el = this.el("zoom-readout");
     if (!el || !this.world) return;
     el.textContent = `${this.renderer.zoomPercent(this.world)}% · ${this.renderer.lodLabel(this.world)}`;
+  }
+
+  syncWorkshopFocus() {
+    focusWorkshop(this.doc, { hasWorld: Boolean(this.world) });
   }
 
   /** @param {"left"|"right"} side */

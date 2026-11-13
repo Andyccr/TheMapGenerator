@@ -24,29 +24,46 @@ export function escapeHtml(s) {
 }
 
 /**
+ * @param {[string, string][]} rows
+ */
+function inspectGroup(title, rows) {
+  const body = rows
+    .filter(([, v]) => v != null && v !== "" && v !== "—")
+    .map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`)
+    .join("");
+  if (!body) return "";
+  return `<div class="inspect-group"><h3>${escapeHtml(title)}</h3><dl class="inspector">${body}</dl></div>`;
+}
+
+/**
  * @param {import("../types.js").WorldData} world
  * @param {string} lodLabel
  */
 export function overviewInspectHtml(world, lodLabel) {
   const sum = summarizeWorld(world);
   const mapName = world.meta.mapName || world.meta.seed;
-  return `
-        <dt>图名</dt><dd>${escapeHtml(mapName)}</dd>
-        <dt>种子</dt><dd>${escapeHtml(world.meta.seed)}</dd>
-        <dt>陆形</dt><dd>${escapeHtml(landformLabel(world.meta.landform))}</dd>
-        <dt>画幅</dt><dd>${world.meta.width}×${world.meta.height} · 格距 ${world.meta.cellSize}</dd>
-        <dt>绘制</dt><dd>${escapeHtml(lodLabel)}（格子不变）</dd>
-        <dt>格子</dt><dd>${sum.cells} · 陆地 ${sum.land} · 海洋 ${sum.ocean}</dd>
-        <dt>河流</dt><dd>${sum.rivers}</dd>
-        <dt>聚落</dt><dd>${sum.settlements}</dd>
-        <dt>国度</dt><dd>${sum.regions}</dd>
-        <dt>文化</dt><dd>${sum.cultures}</dd>
-        <dt>行省</dt><dd>${sum.provinces}</dd>
-        <dt>信仰</dt><dd>${sum.religions}</dd>
-        <dt>地貌</dt><dd>${sum.features}</dd>
-        <dt>商路</dt><dd>${sum.routes}</dd>
-        <dt>行程</dt><dd>${sum.journeys}</dd>
-        <dt>地标</dt><dd>${sum.markers}</dd>`;
+  return (
+    inspectGroup("世界", [
+      ["图名", escapeHtml(mapName)],
+      ["种子", escapeHtml(world.meta.seed)],
+      ["陆形", escapeHtml(landformLabel(world.meta.landform))],
+      ["画幅", `${world.meta.width}×${world.meta.height} · 格距 ${world.meta.cellSize}`],
+      ["绘制", `${escapeHtml(lodLabel)}（格子不变）`],
+      ["格子", `${sum.cells} · 陆地 ${sum.land} · 海洋 ${sum.ocean}`],
+    ]) +
+    inspectGroup("名册", [
+      ["河流", String(sum.rivers)],
+      ["聚落", String(sum.settlements)],
+      ["国度", String(sum.regions)],
+      ["文化", String(sum.cultures)],
+      ["行省", String(sum.provinces)],
+      ["信仰", String(sum.religions)],
+      ["地貌", String(sum.features)],
+      ["商路", String(sum.routes)],
+      ["行程", String(sum.journeys)],
+      ["地标", String(sum.markers)],
+    ])
+  );
 }
 
 /**
@@ -92,34 +109,33 @@ export function cellInspectHtml(world, cellId) {
     : "—";
   const trips = journeysThrough(world, cellId);
   const tripHint = trips.length ? trips.map((j) => `${j.name}（${formatJourneySummary(j)}）`).join(" · ") : "—";
-  return `
-      <dt>格子</dt><dd>#${c.id}</dd>
-      <dt>海拔</dt><dd>${c.height.toFixed(2)}</dd>
-      <dt>生物群系</dt><dd>${escapeHtml(biomeName)}</dd>
-      <dt>气候带</dt><dd>${escapeHtml(belt)}</dd>
-      <dt>湿度</dt><dd>${c.moisture.toFixed(2)}</dd>
-      <dt>温度</dt><dd>${escapeHtml(tempText)}</dd>
-      <dt>径流量</dt><dd>${c.flux.toFixed(1)}</dd>
-      <dt>流域</dt><dd>${escapeHtml(drainageLabel(world, c))}</dd>
-      <dt>河流</dt><dd>${escapeHtml(riverText)}</dd>
-      <dt>标记</dt><dd>${[
-        c.ocean && "海洋",
-        c.lake && "湖泊",
-        c.coast && "海岸",
-        c.mountain && "山脉",
-      ]
-        .filter(Boolean)
-        .join(" · ") || "—"}</dd>
-      <dt>文化</dt><dd>${cult ? escapeHtml(`${cult.name}（${cultureTypeLabel(cult.type)}）`) : "—"}</dd>
-      <dt>国度</dt><dd>${realm ? escapeHtml(realm.name) : "—"}</dd>
-      <dt>外交</dt><dd>${diplo ? escapeHtml(diplo) : "—"}</dd>
-      <dt>行省</dt><dd>${province ? escapeHtml(province.name) : "—"}</dd>
-      <dt>信仰</dt><dd>${religion ? escapeHtml(`${religion.name}（${religionTypeLabel(religion.type)}）`) : "—"}</dd>
-      <dt>地貌</dt><dd>${feat ? escapeHtml(`${feat.name}（${featureTypeLabel(feat.type)}）`) : "—"}</dd>
-      <dt>聚落</dt><dd>${town ? escapeHtml(`${town.name}（${typeName} · ${town.population || "?"}人）`) : "—"}</dd>
-      <dt>地标</dt><dd>${marker ? escapeHtml(marker.name) : "—"}</dd>
-      <dt>过路</dt><dd>${escapeHtml(roadHint)}</dd>
-      <dt>行程</dt><dd>${escapeHtml(tripHint)}</dd>`;
+  const marks = [c.ocean && "海洋", c.lake && "湖泊", c.coast && "海岸", c.mountain && "山脉"].filter(Boolean).join(" · ");
+  return (
+    inspectGroup("地理", [
+      ["格子", `#${c.id}`],
+      ["海拔", c.height.toFixed(2)],
+      ["生物群系", escapeHtml(biomeName)],
+      ["气候带", escapeHtml(belt)],
+      ["湿度", c.moisture.toFixed(2)],
+      ["温度", escapeHtml(tempText)],
+      ["径流量", c.flux.toFixed(1)],
+      ["流域", escapeHtml(drainageLabel(world, c))],
+      ["河流", escapeHtml(riverText)],
+      ["标记", marks],
+    ]) +
+    inspectGroup("人文", [
+      ["文化", cult ? escapeHtml(`${cult.name}（${cultureTypeLabel(cult.type)}）`) : ""],
+      ["国度", realm ? escapeHtml(realm.name) : ""],
+      ["外交", diplo ? escapeHtml(diplo) : ""],
+      ["行省", province ? escapeHtml(province.name) : ""],
+      ["信仰", religion ? escapeHtml(`${religion.name}（${religionTypeLabel(religion.type)}）`) : ""],
+      ["地貌", feat ? escapeHtml(`${feat.name}（${featureTypeLabel(feat.type)}）`) : ""],
+      ["聚落", town ? escapeHtml(`${town.name}（${typeName} · ${town.population || "?"}人）`) : ""],
+      ["地标", marker ? escapeHtml(marker.name) : ""],
+      ["过路", roadHint === "—" ? "" : escapeHtml(roadHint)],
+      ["行程", tripHint === "—" ? "" : escapeHtml(tripHint)],
+    ])
+  );
 }
 
 /**

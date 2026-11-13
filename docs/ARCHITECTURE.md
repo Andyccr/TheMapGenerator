@@ -19,7 +19,7 @@ This is MVC with an extra generator stage:
 | --- | --- | --- |
 | Model | `src/data/worldData.js` | Serializable snapshot. Import/export *is* the model. |
 | Factory | `src/generators/mapGenerator.js` | The only place algorithms run in sequence. |
-| Controller | `src/ui/app.js` + `src/editors/` | Tools mutate; App owns undo, camera, persistence. Dialogs / inspect / recipe list / DOM wiring are sibling UI modules. |
+| Controller | `src/ui/app.js` + `src/editors/` | Tools mutate; App owns undo, camera, persistence. Dialogs / inspect / recipe list / DOM wiring / shell charter are sibling UI modules. |
 | View | `src/renderers/canvasRenderer.js` | Pan/zoom, hit-test, PNG blit. Screen HUD in `hud.js`. |
 
 Data never imports generators, editors, or renderers. Generators never import the DOM, and they do not re-export catalogs or JSON helpers from `data/`. The renderer never assigns `cell.height`, and never imports `generators/` — shared labels live in `src/data/catalogs.js` (biomes, markers, cultures, faiths, features, landforms, stances, route kinds, recipe-step names), hit-testing in `src/util/spatialIndex.js`. Pairwise diplomacy JSON helpers live in `src/data/diplomacy.js`; `generators/diplomacy.js` only *places* ties.
@@ -110,7 +110,27 @@ class CanvasRenderer {
 
 Style presets include atlas, physical, height, satellite, bathymetry, copperplate, political, cultural, provinces, religions, population, plates, temperature, precipitation, runoff, drainage basins, climate belts, parchment, and night. Overlay toggles (rivers, routes, markers, relief, hillshade, contours, vignette, cell edges) are draw-only; they never rewrite cells. Street, nautical, survey, and dusk are extra paint styles. Land cover for those styles is derived while drawing (`src/renderers/landcover.js`) and is not stored on the cell. The fit-view atlas is a reference basemap: a light land-and-water raster, vector coasts and rivers, and cased highways (trunk, primary, road). Trails appear only after you zoom. Overview hillshade is a few quantized buckets inside the raster, not a second draw per cell. The raster itself is one fill per color (`src/renderers/raster.js`), so a continental mesh does not issue a canvas call per polygon. Elevation contours are derived polylines, built when that toggle is on. Long roads are planned on the coarse graph in `src/generators/navmesh.js` and only refined on the cell mesh.
 
-`MapGenerator.generate` reports `mesh → tectonics → hydrology → climate → society → routes`. Routes are the coarse graph in `generators/navmesh.js` plus a short cell refinement. The UI runs generate / society / routes / recompute / names / climate in `src/workers/generateWorker.js` so the tab stays responsive, and falls back to the main thread if workers cannot start. Live raise/lower preview still recomputes on the main thread (a worker round-trip per brush stroke would hitch). Inspect HTML lives in `src/ui/format.js` and **must not import generators** — labels and diplomacy lookups come from `data/`. Modal chrome is `src/ui/dialogs.js`; inspector selects are `src/ui/inspectPanel.js`; the landform step list is `src/ui/recipePanel.js`; undo lives in `src/ui/history.js`; loading chrome in `src/ui/jobChrome.js`; DOM listeners in `src/ui/bindings.js`. GM-created cultures / faiths / realms live in `src/editors/entities.js`. `runGeneratorJob` returns a promise with `.cancel()` that terminates the worker and does **not** fall back to the main thread. Only `app.js` and `generateClient.js` in `ui/` may import `generators/`, and **App may import only `MapGenerator`**.
+`MapGenerator.generate` reports `mesh → tectonics → hydrology → climate → society → routes`. Routes are the coarse graph in `generators/navmesh.js` plus a short cell refinement. The UI runs generate / society / routes / recompute / names / climate in `src/workers/generateWorker.js` so the tab stays responsive, and falls back to the main thread if workers cannot start. Live raise/lower preview still recomputes on the main thread (a worker round-trip per brush stroke would hitch). Inspect HTML lives in `src/ui/format.js` and **must not import generators** — labels and diplomacy lookups come from `data/`. Modal chrome is `src/ui/dialogs.js`; inspector selects are `src/ui/inspectPanel.js`; the landform step list is `src/ui/recipePanel.js`; undo lives in `src/ui/history.js`; loading chrome in `src/ui/jobChrome.js`; DOM listeners in `src/ui/bindings.js`. The coded workshop charter is `src/ui/shell.js`. GM-created cultures / faiths / realms live in `src/editors/entities.js`. `runGeneratorJob` returns a promise with `.cancel()` that terminates the worker and does **not** fall back to the main thread. Only `app.js` and `generateClient.js` in `ui/` may import `generators/`, and **App may import only `MapGenerator`**.
+
+## UI shell
+
+The page is one workshop: **生成 → 查看 → 编辑 → 检视**. `src/ui/shell.js` is the coded charter. App and bindings call it; it does not import generators.
+
+| Region | Job |
+| --- | --- |
+| `masthead` | identity, seed, generate |
+| `panel-left` | workshop: generate and save |
+| `stage` | view the map and run tools |
+| `panel-right` | search, inspect, roster |
+
+Progressive disclosure:
+
+- Left steps are exclusive. Generate starts open only before a world exists.
+- Generate **高级** holds wind, plates, sea, the landform recipe, and reroll.
+- Six primary tools sit on `#tool-rail` (`pan`, `raise`, `lower`, `paint`, `burg`, `erase`). The other eight sit behind `#tool-rail-more`.
+- `#tool-context` shows brush / stamp / paint / marker / journey options only for the active tool.
+- Style and layers live on the map dock, not in the sidebar.
+- Inspector HTML in `format.js` groups geography vs society and omits empty `—` rows.
 
 ## Persistence
 

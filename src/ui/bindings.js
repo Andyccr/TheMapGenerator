@@ -3,7 +3,7 @@
  * only attaches listeners. Must not import generators.
  */
 import { recipeFor } from "../data/landforms.js";
-import { mountViewDock, syncViewDock } from "./viewDock.js";
+import { mountViewDock } from "./viewDock.js";
 import { parseWorld } from "../data/worldData.js";
 import { landformLabel } from "../data/catalogs.js";
 import { estimatePopulation } from "../data/population.js";
@@ -134,16 +134,9 @@ export function bindWorkshop(app) {
     btn.addEventListener("click", () => app.setTool(String(btn.getAttribute("data-tool") || "pan")));
   });
 
-  app.doc.querySelectorAll(".tab").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      app.doc.querySelectorAll(".tab").forEach((b) => {
-        const on = b === btn;
-        b.classList.toggle("active", on);
-        b.setAttribute("aria-selected", on ? "true" : "false");
-      });
-      app.rosterKind = String(btn.getAttribute("data-roster") || "settlements");
-      app.fillRoster();
-    });
+  el("opt-roster")?.addEventListener("change", (e) => {
+    app.rosterKind = /** @type {HTMLSelectElement} */ (e.target).value || "settlements";
+    app.fillRoster();
   });
   app.doc.querySelectorAll("[data-create]").forEach((btn) => {
     btn.addEventListener("click", () => app.createEntity(String(btn.getAttribute("data-create") || "")));
@@ -259,8 +252,6 @@ export function bindWorkshop(app) {
   el("btn-copy-link")?.addEventListener("click", () => app.copyLink());
   el("btn-fold-left")?.addEventListener("click", () => app.togglePanel("left"));
   el("btn-fold-right")?.addEventListener("click", () => app.togglePanel("right"));
-  el("btn-panel-left")?.addEventListener("click", () => app.togglePanel("left"));
-  el("btn-panel-right")?.addEventListener("click", () => app.togglePanel("right"));
   el("btn-save-slot")?.addEventListener("click", () => app.saveToSlot());
   el("btn-load-slot")?.addEventListener("click", () => app.loadFromSlot());
   el("map-name")?.addEventListener("change", (e) => {
