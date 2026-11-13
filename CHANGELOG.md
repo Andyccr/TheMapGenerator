@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.10.0
+
+- The shell follows one charter: generate → view → edit → inspect. The header keeps name, seed, and generate. The left panel is three numbered steps (generate, edit, save). Style and layer toggles live only on the map. Roster kinds are a single select. Tool options appear only for the active tool.
+- Duplicate chrome is gone: no second layer list in the sidebar, no header panel-fold buttons, and the on-map style dock is a select plus a layer popover instead of two rows of chips.
+
 ## 2.9.0
 
 - The basemap no longer draws a hex grid as you zoom in. Cell edges appear only when that toggle is on. Neighboring cells are stroked in their own fill so the gaps between them close, and the baked sheet does the same.

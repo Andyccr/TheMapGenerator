@@ -242,6 +242,7 @@ export class App {
       this.landformSteps = recipeFor(world.meta.landform || "continents");
     }
     this.syncRecipeList();
+    this.syncWorkshopFocus();
     this.syncTitle();
     this.syncShareUrl();
     this.redraw();
@@ -300,8 +301,15 @@ export class App {
   setTool(id) {
     this.toolId = id;
     this.doc.querySelectorAll(".tool").forEach((b) => b.classList.toggle("active", b.getAttribute("data-tool") === id));
-    const journeyActions = this.el("journey-actions");
-    if (journeyActions instanceof HTMLElement) journeyActions.hidden = id !== "journey";
+    const show = (elId, on) => {
+      const node = this.el(elId);
+      if (node instanceof HTMLElement) node.hidden = !on;
+    };
+    show("journey-actions", id === "journey");
+    show("tool-opts-brush", id === "raise" || id === "lower" || id === "stamp" || id === "paint" || id === "river");
+    show("tool-opts-stamp", id === "stamp");
+    show("tool-opts-paint", id === "paint");
+    show("tool-opts-marker", id === "marker");
     const hint = this.el("tool-hint");
     if (hint) hint.textContent = this.tools[this.toolId]?.hint || this.tools.pan?.hint || "";
     const canvas = /** @type {HTMLCanvasElement} */ (this.el("map"));
@@ -878,6 +886,13 @@ export class App {
     const el = this.el("zoom-readout");
     if (!el || !this.world) return;
     el.textContent = `${this.renderer.zoomPercent(this.world)}% · ${this.renderer.lodLabel(this.world)}`;
+  }
+
+  syncWorkshopFocus() {
+    const gen = this.el("step-generate");
+    const edit = this.el("step-edit");
+    if (gen instanceof HTMLDetailsElement) gen.open = false;
+    if (edit instanceof HTMLDetailsElement) edit.open = true;
   }
 
   /** @param {"left"|"right"} side */
