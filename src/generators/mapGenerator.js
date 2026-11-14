@@ -21,6 +21,7 @@ import {
   assignBasins,
   accumulateFlux,
   extractRivers,
+  inciseThalweg,
   markMountains,
   assignStreamOrder,
   riverWidth,
@@ -40,6 +41,7 @@ import { pruneDiplomacy } from "../data/diplomacy.js";
 import { placeDiplomacy } from "./diplomacy.js";
 import { createNameFactory, phonologyById } from "./names.js";
 import { carryNames } from "../data/carry.js";
+import { settlementSite } from "../data/gazette.js";
 
 /** @typedef {import("../types.js").WorldData} WorldData */
 /** @typedef {import("../types.js").GenerateConfig} GenerateConfig */
@@ -206,7 +208,7 @@ export class MapGenerator {
       cult.name = mills(cult.id).culture();
     }
     for (const s of world.settlements) {
-      s.name = mills(s.cultureId).settlement();
+      s.name = mills(s.cultureId).settlement(settlementSite(world.cells[s.cellId]), s.type);
     }
     for (const r of world.regions) {
       r.name = mills(r.cultureId ?? -1).realm();
@@ -326,6 +328,7 @@ export class MapGenerator {
     const { cells } = world;
     accumulateFlux(cells, true);
     world.rivers = extractRivers(cells, 16);
+    inciseThalweg(cells);
   }
 
   /** @param {WorldData} world */

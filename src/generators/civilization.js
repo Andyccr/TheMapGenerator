@@ -6,6 +6,7 @@
 import { MinHeap } from "../util/heap.js";
 import { worldScale } from "../data/worldData.js";
 import { estimatePopulation } from "../data/population.js";
+import { settlementSite } from "../data/gazette.js";
 
 const PALETTE = ["#8c3a3a", "#3a5f8c", "#6a7a38", "#7a4e8c", "#8c6a32", "#2f6d62", "#8c4e5c"];
 
@@ -109,7 +110,7 @@ export function placeCivilizations(cells, rng, namesFor, extent = {}) {
     settlements.push({
       id: n,
       cellId: cell.id,
-      name: namesFor(cultureId).settlement(),
+      name: "",
       type: "village",
       regionId: -1,
       cultureId,
@@ -140,6 +141,10 @@ export function placeCivilizations(cells, rng, namesFor, extent = {}) {
     settlements[0].type = "capital";
     settlements[0].population = estimatePopulation(cells[settlements[0].cellId], "capital");
     capitals.push(settlements[0]);
+  }
+
+  for (const s of settlements) {
+    s.name = namesFor(s.cultureId).settlement(settlementSite(cells[s.cellId]), s.type);
   }
 
   for (let i = 0; i < capitals.length; i++) {

@@ -479,6 +479,29 @@ function clampMeander(x, y, cells, path, ci) {
 }
 
 /**
+ * After climate-weighted flux exists, cut a shallow thalweg.
+ * Wear is a fraction of the step down to the next cell, so another pass
+ * cannot drain the river to the sea. Dry channels cut less than wet ones.
+ * Height stays downhill; filledHeight routing is left alone.
+ * @param {import("../types.js").Cell[]} cells
+ */
+export function inciseThalweg(cells) {
+  const channel = cells.filter((c) => !c.ocean && !c.lake && c.riverId >= 0 && c.downslope >= 0);
+  channel.sort((a, b) => b.filledHeight - a.filledHeight);
+  for (const c of channel) {
+    const ds = cells[c.downslope];
+    if (!ds || c.border) continue;
+    const floor = ds.ocean || ds.lake ? Math.max(0.012, ds.height + 0.004) : ds.height + 0.008;
+    const excess = c.height - floor;
+    if (excess <= 0.01) continue;
+    const wet = Math.max(0.15, Math.min(1, c.precipitation == null ? 0.5 : c.precipitation));
+    const budget = 0.0032 * Math.log2(1 + Math.max(0, c.flux)) * wet;
+    const wear = Math.min(excess * 0.4, budget, 0.014);
+    if (wear > 0.001) c.height -= wear;
+  }
+}
+
+/**
  * Mountains are local prominence or slope, not a height percentile.
  * A high plateau is flat, so it stays unmarked; a lower ridge still qualifies.
  * @param {import("../types.js").Cell[]} cells

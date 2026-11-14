@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.13.0
+
+- Settlement names follow the site and the rank: a harbor culture says 港 or haven, a ford says 渡 or ford, a highland burg says 堡 or burg, and capitals inland say 都 or stad. This is still the culture's phonology, not a language simulator.
+- The inspector, the realm roster, and search share one gazetteer line: capital, town count, land cells, culture, faith, and wars. It is computed when you look, so it is not a second copy in the save.
+- After the rain-weighted rivers exist, a shallow thalweg cut lowers the channel without letting a later pass drain it to the sea. Wet rivers cut more than dry ones. Applying wind still does not change height.
+
 ## 2.12.0
 
 - Convergent belts stay chains: strain blurs only along the plate margin, so fine grids no longer fatten ranges into blobs. Border cells are no longer forced underwater, so a continent can meet the map edge.
