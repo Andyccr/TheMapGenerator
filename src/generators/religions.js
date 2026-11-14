@@ -3,6 +3,7 @@
  * expand from great cities (Azgaar-style, simplified). Ocean is never claimed.
  */
 import { MinHeap } from "../util/heap.js";
+import { mixHex } from "../data/color.js";
 
 const ORGANIZED_TINTS = ["#c4a24a", "#8c6ab0", "#b05040", "#4a7a9a", "#6a8c4a", "#a07050"];
 
@@ -25,7 +26,7 @@ export function placeReligions(cells, cultures, settlements, rng, mills) {
       name: mills(cult.id).religionFolk(cult.name),
       type: "folk",
       cultureId: cult.id,
-      color: mixToward(cult.color, "#c4b070", 0.35),
+      color: mixHex(cult.color, "#c4b070", 0.35),
       originId: cult.originId,
       note: "",
     });
@@ -112,25 +113,4 @@ export function assignReligions(cells, religions) {
       }
     }
   }
-}
-
-/** @param {string} a @param {string} b @param {number} t */
-function mixToward(a, b, t) {
-  const ha = hex(a);
-  const hb = hex(b);
-  const u = Math.max(0, Math.min(1, t));
-  const r = (ha[0] + (hb[0] - ha[0]) * u) | 0;
-  const g = (ha[1] + (hb[1] - ha[1]) * u) | 0;
-  const bl = (ha[2] + (hb[2] - ha[2]) * u) | 0;
-  return `rgb(${r},${g},${bl})`;
-}
-
-/** @param {string} c */
-function hex(c) {
-  const s = String(c || "").replace("#", "");
-  if (s.length === 3) {
-    return [parseInt(s[0] + s[0], 16), parseInt(s[1] + s[1], 16), parseInt(s[2] + s[2], 16)];
-  }
-  if (s.length < 6) return [128, 112, 80];
-  return [parseInt(s.slice(0, 2), 16), parseInt(s.slice(2, 4), 16), parseInt(s.slice(4, 6), 16)];
 }

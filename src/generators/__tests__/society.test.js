@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { MapGenerator } from "../mapGenerator.js";
 import { parseWorld, hydrateWorld } from "../../data/worldData.js";
-import { cultureStep } from "../cultures.js";
+import { cultureStep, cultureTypeFromCell } from "../cultures.js";
+import { placeFeatures } from "../features.js";
 
 function world(seed) {
   const gen = new MapGenerator();
@@ -125,9 +126,56 @@ test("provinces stay inside their parent realm", () => {
   }
 });
 
-test("culture step treats ocean as expensive, not a homeland", () => {
+test("culture step treats ocean as impassable, not a homeland", () => {
   const ocean = { ocean: true, mountain: false, lake: false, height: -0.2, riverId: -1, coast: false, biome: "OCEAN" };
-  assert.ok(cultureStep(ocean, "naval") > 5);
+  assert.equal(cultureStep(ocean, "naval"), Infinity);
   const land = { ocean: false, mountain: false, lake: false, height: 0.1, riverId: 0, coast: true, biome: "GRASSLAND" };
-  assert.ok(cultureStep(land, "naval") < cultureStep(ocean, "naval"));
+  assert.ok(cultureStep(land, "naval") < 1);
+});
+
+test("culture type follows the hearth", () => {
+  assert.equal(cultureTypeFromCell({ biome: "TEMPERATE_DESERT", mountain: false, height: 0.1, coast: false, riverId: -1 }), "desert");
+  assert.equal(cultureTypeFromCell({ biome: "GRASSLAND", mountain: false, height: 0.1, coast: true, riverId: -1 }), "naval");
+  assert.equal(cultureTypeFromCell({ biome: "GRASSLAND", mountain: false, height: 0.1, coast: false, riverId: 3 }), "river");
+  assert.equal(cultureTypeFromCell({ biome: "GRASSLAND", mountain: true, height: 0.4, coast: false, riverId: -1 }), "highland");
+});
+
+test("inland lake components are named separately from land", () => {
+  /** @type {import("../../types.js").Cell[]} */
+  const cells = [];
+  for (let i = 0; i < 12; i++) {
+    const neighbors = [];
+    if (i) neighbors.push(i - 1);
+    if (i < 11) neighbors.push(i + 1);
+    neighbors.push(12);
+    cells.push({
+      id: i,
+      x: i * 8,
+      y: 0,
+      neighbors,
+      height: -0.2,
+      ocean: false,
+      lake: true,
+      cultureId: -1,
+      featureId: -1,
+    });
+  }
+  cells.push({
+    id: 12,
+    x: 40,
+    y: 20,
+    neighbors: cells.map((c) => c.id),
+    height: 0.2,
+    ocean: false,
+    lake: false,
+    cultureId: -1,
+    featureId: -1,
+  });
+  const features = placeFeatures(cells, () => ({ realm: () => "Aland", river: () => "Rin", feature: () => "Far" }), {
+    width: 200,
+    height: 80,
+  });
+  assert.ok(features.some((f) => f.type === "lake"));
+  assert.equal(cells[0].featureId, cells[1].featureId);
+  assert.notEqual(cells[0].featureId, cells[12].featureId);
 });

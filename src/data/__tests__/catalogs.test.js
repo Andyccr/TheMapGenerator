@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { BIOMES, BIOME_LABELS, LAND_BIOMES, MARKER_TYPES, markerGlyph, cultureTypeLabel, religionTypeLabel, featureTypeLabel, landformLabel, LANDFORM_LABELS, stanceLabel, STANCE_LABELS, stepSummary, stepOpLabel, routeKindLabel, journeyModeLabel, journeyLegLabel, GENERATION_STAGE_LABELS, STYLE_IDS } from "../catalogs.js";
+import { mixHex, toCssHex } from "../color.js";
 
 test("biome catalogs share one id set", () => {
   assert.deepEqual(Object.keys(BIOMES), Object.keys(BIOME_LABELS));
@@ -47,4 +48,10 @@ test("landform, stance, route, and recipe labels live in catalogs", () => {
   assert.ok(STYLE_IDS.includes("survey"));
   assert.ok(STYLE_IDS.includes("dusk"));
   assert.ok(Object.keys(LANDFORM_LABELS).includes("archipelago"));
+});
+
+test("mixed colors are hex so a color input can display them", () => {
+  const mixed = mixHex("#8c3a3a", "#d9c4a0", 0.35);
+  assert.match(mixed, /^#[0-9a-f]{6}$/);
+  assert.equal(toCssHex("rgb(141, 133, 94)"), "#8d855e");
 });

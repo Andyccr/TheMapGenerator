@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.11.0
+
+- Lakes are enclosed water below sea level, not leftover depression fill. Named lake features flood separately from continents, so inland water gets its own name. Tributary rivers stop at a confluence instead of redrawing the trunk to the mouth.
+- Culture type follows the hearth (coast, river, highland, desert). Ocean is impassable, with extra hearths on large islands that would otherwise stay blank. Towns score higher at confluences and river mouths; capitals pick from that ranking.
+- Continentality scales with cell size so a fine mesh is not instantly inland. Windward slopes pick up orographic rain. Roads no longer hug every river cell. Province and faith colors are hex, so the inspector picker works.
+- Tool options sit beside the active rail button. Hover names only towns and markers; the status bar keeps the rest. Cell-layer edits fold under 编辑格子. 立国 only appears on a town. The status strip no longer covers the zoom hud.
+
 ## 2.10.0
 
 - The shell follows one charter: generate → view → edit → inspect. The header keeps name, seed, and generate. The left panel is two numbered steps (generate and save). Map tools sit on a six-button rail; stamp, river, road, marker, move, rename, measure, and journey sit behind 更多. Tool options appear in a card next to the active tool. Style and layer toggles live only on the map. Roster kinds are a single select.

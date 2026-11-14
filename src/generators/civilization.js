@@ -20,6 +20,9 @@ export function settlementScore(c, cells, rng) {
   let s = 0;
   if (c.riverId >= 0) s += 3.4;
   if (c.coast) s += 2.2;
+  if (c.riverId >= 0 && c.coast) s += 1.8;
+  const confluence = c.neighbors.filter((id) => cells[id].downslope === c.id && cells[id].riverId >= 0).length;
+  if (confluence >= 2) s += 2.2;
   if (c.neighbors.some((id) => cells[id].lake)) s += 1.6;
   s += c.moisture * 1.4;
   s += (0.35 - Math.abs(c.height - 0.12)) * 1.2;
@@ -99,9 +102,12 @@ export function placeCivilizations(cells, rng, namesFor, extent = {}) {
   const capitalCount = Math.max(3, Math.min(14, Math.round(settlements.length / 4)));
   const capSep = 140 * scale;
   const capitals = [];
-  for (const s of settlements) {
+  const ranked = settlements
+    .filter((s) => s.type !== "village")
+    .slice()
+    .sort((a, b) => settlementScore(cells[b.cellId], cells, () => 0) - settlementScore(cells[a.cellId], cells, () => 0));
+  for (const s of ranked) {
     if (capitals.length >= capitalCount) break;
-    if (s.type === "village") continue;
     const cell = cells[s.cellId];
     if (capitals.some((c) => (cells[c.cellId].x - cell.x) ** 2 + (cells[c.cellId].y - cell.y) ** 2 < capSep * capSep)) {
       continue;

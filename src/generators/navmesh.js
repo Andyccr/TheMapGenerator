@@ -25,7 +25,7 @@ function sampleScore(cell) {
   let score = 1.4;
   if (cell.mountain) score -= 2.4;
   if (cell.height > 0.42) score -= 0.8;
-  if (cell.riverId >= 0) score += 1.1;
+  if (cell.riverId >= 0) score += 0.35;
   if (cell.coast) score += 0.35;
   return score;
 }

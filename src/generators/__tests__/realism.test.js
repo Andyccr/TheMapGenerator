@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { latitudeBand, climateBeltLabel, circulationWind } from "../../data/climate.js";
 import { assignClimate, spreadMoisture } from "../climate.js";
 import { clearForeignProvinces } from "../provinces.js";
-import { assignStreamOrder, riverWidth, assignBasins } from "../hydrology.js";
+import { assignStreamOrder, riverWidth, assignBasins, extractRivers, markLakesFromFill } from "../hydrology.js";
 import { slumpSlopes, glaciateColdHighlands } from "../relief.js";
 import { shapeHypsometry } from "../tectonics.js";
 
@@ -114,6 +114,49 @@ test("glaciers carve cold highlands and leave warm lowlands", () => {
   assert.ok(peak.height < before);
   assert.ok(peak.height > 0.55);
   assert.equal(warm.height, 0.72);
+});
+
+test("priority-flood leftovers above sea level are not lakes", () => {
+  const puddle = cell(0, 0, 0, [1], { height: 0.12, filledHeight: 0.22 });
+  const sea = cell(1, 10, 0, [0], { ocean: true, height: -0.3, filledHeight: -0.3 });
+  markLakesFromFill([puddle, sea]);
+  assert.equal(puddle.lake, false);
+});
+
+test("tiny enclosed puddles are dropped; a real basin stays a lake", () => {
+  const tiny = [
+    cell(0, 0, 0, [1], { height: -0.2, filledHeight: -0.05 }),
+    cell(1, 10, 0, [0], { height: -0.2, filledHeight: -0.05 }),
+    cell(2, 20, 0, [], { ocean: true, height: -0.4, filledHeight: -0.4 }),
+  ];
+  markLakesFromFill(tiny);
+  assert.equal(tiny[0].lake, false);
+  const basin = [];
+  for (let i = 0; i < 10; i++) {
+    const neighbors = [];
+    if (i) neighbors.push(i - 1);
+    if (i < 9) neighbors.push(i + 1);
+    basin.push(cell(i, i * 10, 0, neighbors, { height: -0.16, filledHeight: -0.02 }));
+  }
+  markLakesFromFill(basin);
+  assert.ok(basin.every((c) => c.lake));
+});
+
+test("a tributary stops where it meets an already-claimed trunk", () => {
+  const flux = 16;
+  const cells = [
+    cell(0, 0, 0, [1], { flux, filledHeight: 0.8, downslope: 1 }),
+    cell(1, 0, 10, [0, 2, 4], { flux, filledHeight: 0.5, downslope: 2 }),
+    cell(2, 0, 20, [1, 3], { flux, filledHeight: 0.25, downslope: 3 }),
+    cell(3, 0, 30, [2], { ocean: true, height: -0.2, filledHeight: -0.2, flux, downslope: -1 }),
+    cell(4, 12, 10, [5, 1], { flux, filledHeight: 0.55, downslope: 1 }),
+    cell(5, 20, 10, [4], { flux, filledHeight: 0.7, downslope: 4 }),
+  ];
+  const rivers = extractRivers(cells);
+  assert.ok(rivers.length >= 2, "expected trunk and tributary");
+  const overlap = cells.filter((c) => !c.ocean && rivers.filter((r) => r.cellIds.includes(c.id)).length > 1);
+  assert.equal(overlap.length, 1, "only the confluence cell is shared");
+  assert.equal(overlap[0].id, 1);
 });
 
 test("one slump pass lowers a spike without erasing it", () => {

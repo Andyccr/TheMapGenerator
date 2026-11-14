@@ -47,18 +47,33 @@ export function classifyOceanAndCoast(cells) {
 }
 
 /**
- * Closed basins that had to be filled become lakes. Tiny one-cell puddles stay land.
+ * Enclosed water (height below sea, not connected to the ocean) becomes a lake.
+ * Priority-flood leftovers that still sit above sea level stay land so rivers
+ * can drain them. Tiny puddles are dropped.
  * @param {import("../types.js").Cell[]} cells
  */
 export function markLakesFromFill(cells) {
-  for (const c of cells) {
-    if (c.ocean) continue;
-    c.lake = c.filledHeight - c.height > 0.018;
-  }
-  for (const c of cells) {
-    if (!c.lake) continue;
-    const lakeN = c.neighbors.filter((id) => cells[id].lake).length;
-    if (lakeN === 0 && c.filledHeight - c.height < 0.05) c.lake = false;
+  for (const c of cells) c.lake = !c.ocean && c.height < 0;
+  const minSize = Math.max(8, Math.round(cells.length * 0.0012));
+  const seen = new Uint8Array(cells.length);
+  for (const start of cells) {
+    if (!start.lake || seen[start.id]) continue;
+    /** @type {number[]} */
+    const ids = [];
+    const stack = [start.id];
+    seen[start.id] = 1;
+    while (stack.length) {
+      const id = stack.pop();
+      ids.push(id);
+      for (const nid of cells[id].neighbors) {
+        if (seen[nid] || !cells[nid].lake) continue;
+        seen[nid] = 1;
+        stack.push(nid);
+      }
+    }
+    if (ids.length < minSize) {
+      for (const id of ids) cells[id].lake = false;
+    }
   }
   for (const c of cells) {
     if (c.ocean) continue;
@@ -284,6 +299,10 @@ export function extractRivers(cells, threshold = 14) {
     let guard = 0;
     while (id >= 0 && guard++ < 8000) {
       const cell = cells[id];
+      if (used[id]) {
+        if (path.length) path.push(id);
+        break;
+      }
       path.push(id);
       if (cell.ocean || cell.lake) break;
       if (cell.downslope < 0) break;
@@ -292,7 +311,7 @@ export function extractRivers(cells, threshold = 14) {
       if (next.filledHeight > cell.filledHeight + 1e-6) break;
       id = cell.downslope;
     }
-    if (path.length < 4) continue;
+    if (path.length < 3) continue;
 
     const rid = rivers.length;
     for (const cid of path) {
