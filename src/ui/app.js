@@ -20,15 +20,15 @@ import { PAINT_LAYERS, paintCell } from "../editors/paint.js";
 import { createCulture, createReligion, createRealm } from "../editors/entities.js";
 import { escapeHtml, overviewInspectHtml, cellInspectHtml, rosterItems, searchHits, rosterListHtml } from "./format.js";
 import { FolioDialogs } from "./dialogs.js";
-import { fillCellEdit, fillDiploEdit, fillRouteEdit, fillJourneyEdit, syncPaintPigment } from "./inspectPanel.js";
+import { fillCellEdit, fillDiploEdit, fillRouteEdit, fillJourneyEdit, syncPaintPigment, applyCreateChrome } from "./inspectPanel.js";
 import { removeJourney, renameJourney } from "../data/journeys.js";
 import { renderRecipeList } from "./recipePanel.js";
 import { EditHistory } from "./history.js";
-import { setLoadingOverlay, setBusyChrome } from "./jobChrome.js";
+import { setLoadingOverlay, setBusyChrome, presentToast, clearErrorNotice } from "./jobChrome.js";
 import { bindWorkshop } from "./bindings.js";
 import { syncViewDock } from "./viewDock.js";
 import { toCssHex } from "../data/color.js";
-import { BRUSH_TOOLS, bindExclusiveSteps, bindToolRail, focusWorkshop, syncToolChrome } from "./shell.js";
+import { BRUSH_TOOLS, bindExclusiveSteps, bindToolRail, focusWorkshop, readDualHemisphere, syncDualHemisphere, syncToolChrome } from "./shell.js";
 
 const SETTLEMENT_TYPE = SETTLEMENT_TYPE_LABELS;
 
@@ -84,8 +84,8 @@ export class App {
     /** @type {{ x0: number, y0: number, x1: number, y1: number } | null} */
     this.measure = null;
     this._zoomRaf = 0;
-    this._toastTimer = 0;
     this._noteTarget = null;
+    this._colorTarget = null;
     this._burgTarget = null;
     this._inspectCellId = -1;
     this.dialogs = new FolioDialogs(doc);
@@ -116,6 +116,7 @@ export class App {
     this.setTool(this.toolId);
     window.addEventListener("resize", () => {
       this.renderer.resize();
+      syncToolChrome(this.doc, this.toolId);
       if (this.world) this.redraw();
     });
     requestAnimationFrame(() => {
@@ -144,8 +145,8 @@ export class App {
         /* corrupt autosave — offer a fresh start */
       }
     }
-    this.syncEmptyStage();
     this.dialogs.openWelcome();
+    this.syncEmptyStage();
   }
 
   /**
@@ -198,6 +199,7 @@ export class App {
               wind: { x: wx, y: wy },
               landform,
               landformSteps: steps || undefined,
+              dualHemisphere: readDualHemisphere(this.doc),
             },
           },
           (stage) => this.setLoading(true, GENERATION_STAGE_LABELS[stage] || "正在生成世界…"),
@@ -236,6 +238,7 @@ export class App {
     const landEl = this.el("opt-landform");
     if (landEl instanceof HTMLSelectElement && world.meta.landform) landEl.value = world.meta.landform;
     const windEl = this.el("opt-wind");
+    syncDualHemisphere(this.doc, Boolean(world.meta.dualHemisphere));
     if (windEl instanceof HTMLSelectElement && world.meta.wind) {
       const key = `${world.meta.wind.x},${world.meta.wind.y}`;
       if ([...windEl.options].some((o) => o.value === key)) windEl.value = key;
@@ -258,6 +261,7 @@ export class App {
     this.syncZoomReadout();
     this.setStatus(-1);
     this._dirty = false;
+    clearErrorNotice(this.doc);
     this.syncEmptyStage();
   }
 
@@ -417,6 +421,7 @@ export class App {
       this.dialogs.closeWelcome();
       this.el("text-dialog")?.close?.();
       this.el("confirm-dialog")?.close?.();
+      this.syncEmptyStage();
       return;
     }
     if (ev.key === "F1" || ev.key === "?") {
@@ -711,6 +716,7 @@ export class App {
     if (!box || !this.world) return;
     if (cellId < 0) {
       this._noteTarget = null;
+      this._colorTarget = null;
       this._burgTarget = null;
       this._inspectCellId = -1;
       this.hideInspect("note-wrap", true);
@@ -730,14 +736,14 @@ export class App {
     if (!c) return;
     const town = this.world.settlements.find((s) => s.cellId === cellId);
     const realm = c.regionId >= 0 ? this.world.regions[c.regionId] : null;
-    const cult = c.cultureId >= 0 ? this.world.cultures?.[c.cultureId] : null;
     const marker = (this.world.markers || []).find((m) => m.cellId === cellId);
     const river = c.riverId >= 0 ? this.world.rivers[c.riverId] : null;
-    const province = c.provinceId >= 0 ? this.world.provinces?.[c.provinceId] : null;
-    const religion = c.religionId >= 0 ? this.world.religions?.[c.religionId] : null;
     const feat = c.featureId >= 0 ? this.world.features?.[c.featureId] : null;
+    const waterFeat = feat && (feat.type === "lake" || feat.type === "sea") ? feat : null;
+    const cellChanged = cellId !== this._inspectCellId;
     this._inspectCellId = cellId;
-    this._noteTarget = town || marker || province || realm || cult || religion || feat || river || null;
+    this._noteTarget = town || marker || river || waterFeat || null;
+    this._colorTarget = (this._noteTarget?.color && this._noteTarget) || (town?.type === "capital" ? realm : null);
     this._burgTarget = town || null;
     const noteEl = this.el("entity-note");
     if (noteEl instanceof HTMLTextAreaElement) noteEl.value = this._noteTarget?.note || "";
@@ -749,14 +755,11 @@ export class App {
     const burgType = this.el("opt-burg-type");
     this.hideInspect("burg-wrap", !town);
     if (town && burgType instanceof HTMLSelectElement) burgType.value = town.type;
-    const hasColor = Boolean(this._noteTarget?.color);
     const colorEl = this.el("entity-color");
-    this.hideInspect("color-wrap", !hasColor);
-    if (hasColor && colorEl instanceof HTMLInputElement) colorEl.value = toCssHex(this._noteTarget.color);
-    this.hideInspect("create-edit", Boolean(c.ocean || c.border));
-    const foundRealm = this.doc.querySelector('[data-create="realm"]');
-    if (foundRealm instanceof HTMLElement) foundRealm.hidden = !town;
+    this.hideInspect("color-wrap", !this._colorTarget?.color);
+    if (this._colorTarget?.color && colorEl instanceof HTMLInputElement) colorEl.value = toCssHex(this._colorTarget.color);
     fillCellEdit(this.doc, this.world, c);
+    applyCreateChrome(this.doc, c, town, cellChanged);
     fillDiploEdit(this.doc, this.world, realm, (other, stance) => {
       if (!this.world || !realm) return;
       this.pushUndo();
@@ -764,7 +767,7 @@ export class App {
       setStance(this.world.diplomacy, realm.id, other, stance);
       this.scheduleAutosave();
       this.inspect(this._inspectCellId);
-    });
+    }, town?.type === "capital");
     fillRouteEdit(this.doc, this.world, cellId, (id) => {
       if (!this.world) return;
       this.pushUndo();
@@ -951,6 +954,7 @@ export class App {
       style: style instanceof HTMLSelectElement ? style.value : this.world?.meta.style,
       plates: plates instanceof HTMLInputElement ? plates.value : "",
       sea: sea instanceof HTMLInputElement ? sea.value : "",
+      hemi: readDualHemisphere(this.doc) ? "1" : "",
     };
   }
 
@@ -976,6 +980,7 @@ export class App {
     setVal("opt-style", share.style);
     setVal("opt-plates", share.plates);
     setVal("opt-sea", share.sea);
+    syncDualHemisphere(this.doc, share.hemi === "1");
     if (share.landform) {
       this.landformSteps = recipeFor(share.landform);
       this.syncRecipeList();
@@ -1100,15 +1105,7 @@ export class App {
    * @param {boolean} [danger]
    */
   toast(msg, danger) {
-    const el = this.el("toast");
-    if (!(el instanceof HTMLElement)) return;
-    el.hidden = false;
-    el.textContent = msg;
-    el.style.borderColor = danger ? "#a33b24" : "";
-    if (this._toastTimer) window.clearTimeout(this._toastTimer);
-    this._toastTimer = window.setTimeout(() => {
-      el.hidden = true;
-    }, 6400);
+    presentToast(this.doc, msg, Boolean(danger));
   }
 
   /**
@@ -1154,7 +1151,10 @@ export class App {
 
   syncEmptyStage() {
     const empty = this.el("stage-empty");
-    if (empty instanceof HTMLElement) empty.hidden = Boolean(this.world) || this._busy;
+    const welcome = this.el("welcome-dialog");
+    const welcomeOpen = welcome instanceof HTMLElement && /** @type {HTMLDialogElement} */ (welcome).open;
+    if (empty instanceof HTMLElement) empty.hidden = Boolean(this.world) || this._busy || welcomeOpen;
+    if (this.world) this.syncWorkshopFocus();
   }
 
   async quickStart() {

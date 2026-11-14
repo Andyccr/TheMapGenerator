@@ -60,15 +60,43 @@ export function fillCellEdit(doc, world, cell) {
 }
 
 /**
+ * Create / diplomacy editors stay hidden until the cell can use them.
+ * 编辑格子 starts collapsed and only stays open while the same cell is refreshed.
+ * @param {Document} doc
+ * @param {import("../types.js").Cell} cell
+ * @param {import("../types.js").Settlement | null | undefined} town
+ * @param {boolean} cellChanged
+ */
+export function applyCreateChrome(doc, cell, town, cellChanged) {
+  const land = Boolean(cell && !cell.ocean && !cell.border);
+  const wantCulture = land && (cell.cultureId == null || cell.cultureId < 0);
+  const wantFaith = land && (cell.religionId == null || cell.religionId < 0);
+  const wantRealm = Boolean(town);
+  const hide = (sel, hidden) => {
+    const el = doc.querySelector(sel);
+    if (el instanceof HTMLElement) el.hidden = hidden;
+  };
+  hide('[data-create="culture"]', !wantCulture);
+  hide('[data-create="religion"]', !wantFaith);
+  hide('[data-create="realm"]', !wantRealm);
+  const row = doc.getElementById("create-edit");
+  if (row instanceof HTMLElement) row.hidden = !(wantCulture || wantFaith || wantRealm);
+  const edit = doc.getElementById("cell-edit-wrap");
+  if (edit instanceof HTMLDetailsElement && cellChanged) edit.open = false;
+}
+
+/**
+ * Diplomacy editors only when `useful` (a capital). Ordinary land stays a summary.
  * @param {Document} doc
  * @param {import("../types.js").WorldData} world
  * @param {import("../types.js").Region | null} realm
  * @param {(otherId: number, stance: string) => void} onStance
+ * @param {boolean} [useful]
  */
-export function fillDiploEdit(doc, world, realm, onStance) {
+export function fillDiploEdit(doc, world, realm, onStance, useful = false) {
   const list = doc.getElementById("diplo-edit");
   if (!(list instanceof HTMLElement)) return;
-  if (!realm) {
+  if (!realm || !useful) {
     list.hidden = true;
     list.innerHTML = "";
     return;

@@ -12,7 +12,7 @@
     <meta property="og:title" content="幻想世界地图生成器" />
     <meta property="og:description" content="用一个种子生成说得通的大陆，再当战役地图来改。" />
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="stylesheet" href="./src/styles.css?v=2.11.0" />
+    <link rel="stylesheet" href="./src/styles.css?v=2.12.0" />
     <link rel="icon" href="./icon.svg" />
     <link rel="apple-touch-icon" href="./icon.svg" />
   </head>
@@ -30,30 +30,32 @@
     </script>
     <div id="app">
       <header class="masthead">
-        <div class="folio">
-          <span class="folio-mark">FWMG</span>
-          <div class="folio-copy">
+        <div class="mast-primary">
+          <div class="folio">
+            <span class="folio-mark">FWMG</span>
             <h1>幻想世界地图生成器</h1>
-            <p class="folio-charter">生成 → 查看 → 编辑 → 检视</p>
+          </div>
+          <label class="mast-field">
+            <span>图名</span>
+            <input id="map-name" type="text" spellcheck="false" placeholder="未命名世界" autocomplete="off" />
+          </label>
+          <label class="mast-field seed-field">
+            <span>种子</span>
+            <input id="seed-input" type="text" spellcheck="false" autocomplete="off" />
+          </label>
+          <div class="mast-actions">
+            <button id="btn-generate" class="btn-primary" type="button">生成世界</button>
+            <button id="btn-random" class="btn-ghost" type="button">随机种子</button>
           </div>
         </div>
-        <label class="mast-field">
-          <span>图名</span>
-          <input id="map-name" type="text" spellcheck="false" placeholder="未命名世界" autocomplete="off" />
-        </label>
-        <label class="mast-field seed-field">
-          <span>种子</span>
-          <span class="seed-row">
-            <input id="seed-input" type="text" spellcheck="false" autocomplete="off" />
-            <button id="btn-copy-seed" class="btn-icon" type="button" title="复制种子">复制</button>
-            <button id="btn-copy-link" class="btn-icon" type="button" title="复制可分享链接">链接</button>
-          </span>
-        </label>
-        <div class="mast-actions">
-          <button id="btn-generate" class="btn-primary" type="button">生成世界</button>
-          <button id="btn-random" class="btn-ghost" type="button">随机种子</button>
-          <button id="btn-examples" class="btn-ghost" type="button" title="打开范例世界">范例</button>
-          <button id="btn-help" class="btn-ghost" type="button" title="帮助（F1）">帮助</button>
+        <div class="mast-secondary">
+          <p class="folio-charter">生成 → 查看 → 编辑 → 检视</p>
+          <div class="mast-actions mast-quiet">
+            <button id="btn-copy-seed" class="btn-ghost" type="button" title="复制种子">复制种子</button>
+            <button id="btn-copy-link" class="btn-ghost" type="button" title="复制可分享链接">链接</button>
+            <button id="btn-examples" class="btn-ghost" type="button" title="打开范例世界">范例</button>
+            <button id="btn-help" class="btn-ghost" type="button" title="帮助（F1）">帮助</button>
+          </div>
         </div>
       </header>
 
@@ -105,9 +107,14 @@
                   <option value="0,1">北风 ↓</option>
                   <option value="0,-1">南风 ↑</option>
                 </select>
-                <button type="button" id="btn-apply-wind" class="btn-icon" title="只重算气候，不改河网">应用</button>
+                <button type="button" id="btn-apply-wind" class="btn-icon" title="重算气候与河宽，不改高度">应用</button>
               </span>
             </div>
+            <label class="check">
+              <input id="opt-dual-hemisphere" type="checkbox" />
+              南北双半球
+            </label>
+            <p class="hint">默认北冷南热。勾选后南北两端都偏冷，赤道在中部。不勾选时旧种子不变。</p>
             <label class="field field-range">
               <span>板块 <em id="opt-plates-val">12</em></span>
               <input id="opt-plates" type="range" min="8" max="20" value="12" />
@@ -172,6 +179,7 @@
 
       <main class="stage">
         <canvas id="map" tabindex="0" aria-label="交互式幻想地图"></canvas>
+        <div class="map-bottom" id="map-bottom">
         <nav class="tool-rail" id="tool-rail" aria-label="地图工具">
           <button class="tool active" data-tool="pan" type="button" title="平移与查看（V）" aria-pressed="true">平移</button>
           <button class="tool" data-tool="raise" type="button" title="抬升陆地（R）" aria-pressed="false">抬升</button>
@@ -248,6 +256,17 @@
             <p class="hint" id="tool-hint" hidden></p>
           </div>
         </nav>
+        <div class="stage-bar" id="stage-bar">
+          <div id="save-state" class="save-state">尚未保存</div>
+          <div id="map-status" class="map-status" role="status" aria-live="polite" aria-atomic="true">将指针移到地图上查看格子</div>
+          <div class="zoom-hud" aria-label="缩放">
+            <button type="button" id="btn-zoom-in" title="放大">+</button>
+            <button type="button" id="btn-zoom-out" title="缩小">−</button>
+            <button type="button" id="btn-zoom-fit" title="适应窗口">适应</button>
+            <span id="zoom-readout">100% · 全图</span>
+          </div>
+        </div>
+        </div>
         <div class="view-dock" id="view-dock">
           <label class="dock-field">
             <span>风格</span>
@@ -301,13 +320,9 @@
             </div>
           </details>
         </div>
-        <div id="stage-empty" class="stage-empty">
+        <div id="stage-empty" class="stage-empty" hidden>
           <p class="stage-empty-kicker">还没有世界</p>
-          <p>第一次打开不必等一张大图算完。选快速开始，或先看一张范例。</p>
-          <div class="btn-row">
-            <button type="button" id="btn-empty-generate" class="btn-primary">快速开始</button>
-            <button type="button" id="btn-empty-examples">看范例</button>
-          </div>
+          <p>用顶栏的「生成世界」，或打开「范例」。</p>
         </div>
         <div id="hover-card" class="hover-card" hidden></div>
         <div id="loading" class="loading" hidden>
@@ -322,17 +337,14 @@
           </ol>
           <button type="button" id="btn-cancel-job" class="btn-ghost">取消</button>
         </div>
-        <div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
+        <div id="error-notice" class="error-notice" hidden role="alert" aria-live="assertive">
+          <span id="error-notice-text"></span>
+          <button type="button" id="error-notice-dismiss">知道了</button>
+        </div>
+        <div id="toast" class="toast" hidden role="status" aria-live="polite" aria-atomic="true"></div>
+        <button type="button" id="btn-chrome" class="chrome-toggle" aria-pressed="false" title="隐藏地图控件">界面</button>
         <button type="button" id="btn-fold-left" class="fold fold-left" title="折叠左侧（[）">‹</button>
         <button type="button" id="btn-fold-right" class="fold fold-right" title="折叠右侧（]）">›</button>
-        <div id="map-status" class="map-status" role="status" aria-live="polite">将指针移到地图上查看格子</div>
-        <div id="save-state" class="save-state">尚未保存</div>
-        <div class="zoom-hud" aria-label="缩放">
-          <button type="button" id="btn-zoom-in" title="放大">+</button>
-          <button type="button" id="btn-zoom-out" title="缩小">−</button>
-          <button type="button" id="btn-zoom-fit" title="适应窗口">适应</button>
-          <span id="zoom-readout">100% · 全图</span>
-        </div>
       </main>
 
       <aside class="panel panel-right" aria-label="检视与名册">
@@ -416,7 +428,7 @@
           <ol class="legend-list" id="biome-legend"></ol>
         </details>
         <footer class="colophon">
-          四层架构：数据 · 生成器 · 编辑器 · 渲染器。工坊：生成 → 查看 → 编辑 → 检视。无需后端。v<span id="app-version">2.11.0</span>
+          四层架构：数据 · 生成器 · 编辑器 · 渲染器。工坊：生成 → 查看 → 编辑 → 检视。无需后端。v<span id="app-version">2.12.0</span>
         </footer>
       </aside>
     </div>
@@ -432,24 +444,24 @@
     </dialog>
     <dialog id="help-dialog" class="folio-dialog help-dialog">
       <form method="dialog">
-        <h2>工坊说明 <span class="ver" id="help-version">v2.11.0</span></h2>
+        <h2>工坊说明 <span class="ver" id="help-version">v2.12.0</span></h2>
         <ol class="charter-flow" aria-label="工坊章程">
           <li>生成</li>
           <li>查看</li>
           <li>编辑</li>
           <li>检视</li>
         </ol>
-        <p>顶栏生成。左侧只做世界参数和存档。地图左侧是工具条：常用六件，其余在「更多」；选项贴在当前工具旁。右侧检索与名册。第一次打开先问快速开始或看范例。</p>
+        <p>顶栏是图名、种子和生成。复制、链接、范例和帮助在下一行。左侧只做世界参数和存档。地图左侧是工具条：常用六件，其余在「更多」；当前工具的说明贴在选项卡里。右侧检索与名册。第一次打开只出现这一份欢迎。地图角上的「界面」可收起控件。高级里的「南北双半球」让南北两端都偏冷，默认仍是北冷南热。</p>
         <h3>快捷键</h3>
         <ul>
           <li><kbd>V</kbd> 平移 · <kbd>R</kbd> 抬升 · <kbd>F</kbd> 降低 · <kbd>T</kbd> 印戳 · <kbd>P</kbd> 涂色 · <kbd>I</kbd> 河流 · <kbd>L</kbd> 连路</li>
           <li><kbd>B</kbd> 建城 · <kbd>X</kbd> 擦除 · <kbd>K</kbd> 地标 · <kbd>M</kbd> 移动 · <kbd>N</kbd> 命名 · <kbd>G</kbd> 测距 · <kbd>J</kbd> 行程</li>
           <li>行程：逐站点选，<kbd>Enter</kbd> 封存，<kbd>Backspace</kbd> 撤一站。沿商路更省时，海路只在更快时采用。</li>
           <li><kbd>Ctrl+Z</kbd> 撤销 · <kbd>Ctrl+Y</kbd> 重做 · <kbd>Ctrl+S</kbd> 立即保存 · <kbd>Shift+Ctrl+S</kbd> 导出 JSON · <kbd>/</kbd> 检索</li>
-          <li><kbd>[</kbd> / <kbd>]</kbd> 折叠侧栏 · <kbd>H</kbd> 全屏地图 · <kbd>Esc</kbd> 取消生成 / 关闭对话框 · <kbd>F1</kbd> 本说明</li>
+          <li><kbd>[</kbd> / <kbd>]</kbd> 折叠侧栏 · <kbd>H</kbd> 全屏地图 · <kbd>Esc</kbd> 关闭图层或对话框，生成中则取消 · <kbd>F1</kbd> 本说明</li>
         </ul>
         <h3>图层与重掷</h3>
-        <p>地图上方选风格，打开「图层」开关地名、国境、河流等。全图是浅色底图：陆地、水域、海岸、干流、干道和城镇点一起出现。放大后才补上小路和村落。地形、水文、文化、国度、行省、信仰、人口、商路是分开的层，检视里可以直接改。点陆地可新建文化或信仰，点聚落可立国，再用涂色扩张。改风向后点「应用」只重算气候。抬升松手后会按新的雨量重铺河流，但不会抹掉手绘商路、地标或外交。JSON 可拖进窗口导入。槽位写入前会确认覆盖。</p>
+        <p>地图上方选风格，打开「图层」开关地名、国境、河流等。全图是浅色底图：陆地、水域、海岸、干流、干道和城镇点一起出现。放大后才补上小路和村落。地形、水文、文化、国度、行省、信仰、人口、商路是分开的层。检视里，普通陆地只显示摘要；没有文化或信仰时才出现新建，立国仍只在聚落上，外交只在都城。编辑格子默认折起。改风向后点「应用」重算气候，并按现有河道重标河宽，不改高度。抬升松手后会按新的雨量重铺河流，但不会抹掉手绘商路、地标或外交。失败会留在地图上的提示里，直到点「知道了」。JSON 可拖进窗口导入。槽位写入前会确认覆盖。</p>
         <p class="hint">算法：O’Leary、Patel、Turner。玩法层对照 Azgaar FMG。AGPL-3.0。</p>
         <button class="btn-primary" value="ok">关闭</button>
       </form>
@@ -484,6 +496,6 @@
         <p class="hint">快速开始用中幅粗略图，通常一两秒。刷新会恢复自动存档。把 JSON 拖进窗口即可导入。</p>
       </form>
     </dialog>
-    <script type="module" src="./src/main.js?v=2.11.0"></script>
+    <script type="module" src="./src/main.js?v=2.12.0"></script>
   </body>
 </html>

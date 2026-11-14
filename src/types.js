@@ -201,6 +201,7 @@
  * @property {string} [mapName]
  * @property {string} [landform]
  * @property {object[]} [landformSteps]
+ * @property {boolean} [dualHemisphere]
  * @property {number} [surfaceRev]
  */
 
@@ -239,6 +240,7 @@
  * @property {string} [societySeed]
  * @property {string} [landform]
  * @property {object[]} [landformSteps]
+ * @property {boolean} [dualHemisphere]
  */
 
 /**

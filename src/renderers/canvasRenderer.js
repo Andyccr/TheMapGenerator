@@ -163,8 +163,11 @@ export class CanvasRenderer {
 
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     if (options.vignette) drawVignette(ctx, this.canvas, style);
-    drawCompass(ctx, this.canvas, ink);
-    drawScaleBar(ctx, this.canvas, world, ink);
+    const hideChrome = this.canvas.closest(".stage")?.classList.contains("chrome-hidden");
+    if (!hideChrome) {
+      drawCompass(ctx, this.canvas, ink);
+      drawScaleBar(ctx, this.canvas, world, ink);
+    }
   }
 
   /**

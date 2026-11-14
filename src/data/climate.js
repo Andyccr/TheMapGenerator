@@ -1,8 +1,23 @@
 /**
  * Latitude climate bands for a north-up atlas.
- * lat 0 is the equatorial (south) edge, lat 1 is poleward (north).
+ * lat 0 is the equator, lat 1 is poleward.
+ * The default map puts the equator on the south edge (lat = 1 - y/height).
+ * An opt-in dual hemisphere puts the equator in the middle so both edges are cold.
  * Pure numbers — generators apply them, the inspector only reads the label.
  */
+
+/**
+ * Map-space latitude in [0, 1]. Default: 1 at the north edge, 0 at the south edge.
+ * Dual hemisphere: 1 at both edges, 0 on the midline. Default seeds stay single-hemisphere.
+ * @param {number} y
+ * @param {number} height
+ * @param {boolean} [dualHemisphere]
+ */
+export function mapLatitude(y, height, dualHemisphere = false) {
+  const ny = height ? y / height : 0;
+  if (dualHemisphere) return Math.abs(ny * 2 - 1);
+  return 1 - ny;
+}
 
 /**
  * Relative precipitation before rain shadow and continentality.

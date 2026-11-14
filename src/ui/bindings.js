@@ -4,6 +4,8 @@
  */
 import { recipeFor } from "../data/landforms.js";
 import { mountViewDock } from "./viewDock.js";
+import { bindChromeToggle } from "./shell.js";
+import { clearErrorNotice } from "./jobChrome.js";
 import { parseWorld } from "../data/worldData.js";
 import { landformLabel } from "../data/catalogs.js";
 import { estimatePopulation } from "../data/population.js";
@@ -72,8 +74,7 @@ export function bindWorkshop(app) {
     app.dialogs.closeWelcome();
     app.generate({ force: true });
   });
-  el("btn-empty-generate")?.addEventListener("click", () => app.quickStart());
-  el("btn-empty-examples")?.addEventListener("click", () => app.dialogs.openExamples());
+  el("error-notice-dismiss")?.addEventListener("click", () => clearErrorNotice(app.doc));
   el("opt-paint-layer")?.addEventListener("change", () => {
     app.syncPaintPigment();
     app.matchStyleToPaint();
@@ -142,9 +143,9 @@ export function bindWorkshop(app) {
     btn.addEventListener("click", () => app.createEntity(String(btn.getAttribute("data-create") || "")));
   });
   el("entity-color")?.addEventListener("change", (e) => {
-    if (!app._noteTarget || !app._noteTarget.color) return;
+    if (!app._colorTarget || !app._colorTarget.color) return;
     app.pushUndo();
-    app._noteTarget.color = /** @type {HTMLInputElement} */ (e.target).value;
+    app._colorTarget.color = /** @type {HTMLInputElement} */ (e.target).value;
     app.scheduleAutosave();
     app.fillLegend();
     app.redraw();
@@ -158,6 +159,10 @@ export function bindWorkshop(app) {
     }
   });
 
+  canvas.addEventListener("pointerleave", () => {
+    const card = el("hover-card");
+    if (card instanceof HTMLElement) card.hidden = true;
+  });
   canvas.addEventListener("pointerdown", (ev) => app.onDown(ev));
   canvas.addEventListener("pointermove", (ev) => app.onMove(ev));
   window.addEventListener("pointerup", (ev) => app.onUp(ev));
@@ -293,6 +298,9 @@ export function bindWorkshop(app) {
   });
 
   mountViewDock(app);
+  bindChromeToggle(app.doc, () => {
+    if (app.world) app.redraw();
+  });
 
   window.addEventListener("keydown", (ev) => app.onKey(ev));
   window.addEventListener("beforeunload", (ev) => {

@@ -83,7 +83,8 @@ export function placeFeatures(cells, mills, extent = {}) {
 function pushFeature(cells, features, mills, ids, type) {
   const originId = ids[0];
   const mill = mills(cells[originId].cultureId ?? -1);
-  const name = type === "lake" ? `${mill.river()}湖` : type === "island" ? `${mill.feature()}岛` : mill.realm();
+  const lakeName = typeof mill.lake === "function" ? mill.lake() : `${mill.river()}湖`;
+  const name = type === "lake" ? lakeName : type === "island" ? `${mill.feature()}岛` : mill.realm();
   let sx = 0;
   let sy = 0;
   for (const id0 of ids) {

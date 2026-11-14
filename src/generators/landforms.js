@@ -27,7 +27,6 @@ export function applyLandform(cells, rng, width, height, landformId = "continent
   setLandFraction(cells, spec.land, seaLevel);
   for (const c of cells) {
     if (c.height > 0) c.height = Math.pow(c.height, 0.86);
-    if (c.border) c.height = Math.min(c.height, -0.28);
   }
 }
 

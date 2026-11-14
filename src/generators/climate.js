@@ -8,7 +8,7 @@
  */
 
 import { BIOMES } from "../data/catalogs.js";
-import { latitudeBand, circulationWind } from "../data/climate.js";
+import { latitudeBand, circulationWind, mapLatitude } from "../data/climate.js";
 
 /**
  * Graph hops from the nearest ocean cell. -1 when the map has no ocean.
@@ -43,8 +43,10 @@ function distanceFromOcean(cells) {
  * @param {number} height
  * @param {{ x: number, y: number }} wind
  * @param {number} [width]
+ * @param {number} [cellSize]
+ * @param {boolean} [dualHemisphere] both map edges are poleward; default keeps the south edge equatorial
  */
-export function assignClimate(cells, height, wind, width, cellSize) {
+export function assignClimate(cells, height, wind, width, cellSize, dualHemisphere = false) {
   const userWind = wind || { x: 1, y: 0 };
   const span = Math.hypot(width || height * 1.6, height);
   const spacing = cellSize || Math.max(4, span / Math.sqrt(Math.max(1, cells.length)));
@@ -56,7 +58,7 @@ export function assignClimate(cells, height, wind, width, cellSize) {
 
   /** Walk upwind; tall ridges steal moisture. Length scales with map span. */
   for (const cell of cells) {
-    const lat = 1 - cell.y / mapH; // 1 = north poleward, 0 = south/tropics
+    const lat = mapLatitude(cell.y, mapH, dualHemisphere);
     const lapse = Math.max(0, cell.height) * 0.55;
     let temperature = 1 - lat * 0.85 - lapse;
     if (cell.ocean) temperature += 0.04;
@@ -129,9 +131,13 @@ export function assignClimate(cells, height, wind, width, cellSize) {
       }
     }
 
-    const orographic = Math.max(0, cell.height) * 0.18;
+    // Peak term stays small so a summit is not wetter than the windward foot.
+    const orographic = Math.max(0, cell.height) * 0.05;
     let precip = latitudeBand(lat) + orographic + windward - shadow * 0.55 - inland * 0.2;
-    if (cell.coast) precip = Math.max(precip, 0.32);
+    // Horse latitudes (about 0.2–0.48) may host west-coast deserts. A coast floor there
+    // used to pin precipitation at 0.32 and erase that belt.
+    const subtropical = lat > 0.2 && lat < 0.48;
+    if (cell.coast && !subtropical) precip = Math.max(precip, 0.2);
     cell.precipitation = Math.max(0.04, Math.min(1, precip));
     cell.moisture = cell.precipitation;
   }

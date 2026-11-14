@@ -22,6 +22,8 @@ import {
   accumulateFlux,
   extractRivers,
   markMountains,
+  assignStreamOrder,
+  riverWidth,
 } from "./hydrology.js";
 import { assignClimate, assignBiomes, spreadMoisture } from "./climate.js";
 import { placeCivilizations, assignRegions } from "./civilization.js";
@@ -80,7 +82,7 @@ export class MapGenerator {
       parseRecipe(world.meta.landformSteps),
     );
     slumpSlopes(world.cells);
-    glaciateColdHighlands(world.cells, world.meta.height);
+    glaciateColdHighlands(world.cells, world.meta.height, Boolean(world.meta.dualHemisphere));
 
     onProgress?.("hydrology");
     this.#hydrology(world);
@@ -155,8 +157,28 @@ export class MapGenerator {
    * @param {WorldData} world
    */
   recomputeClimate(world) {
+    const heights = world.cells.map((c) => c.height);
     this.#temperatures(world);
+    accumulateFlux(world.cells, true);
+    const order = assignStreamOrder(world.cells);
+    for (const river of world.rivers || []) {
+      let mouth = 0;
+      let mouthId = -1;
+      for (const cid of river.cellIds || []) {
+        const c = world.cells[cid];
+        if (!c || c.ocean) continue;
+        if (mouthId < 0 || c.flux >= mouth) {
+          mouth = c.flux;
+          mouthId = cid;
+        }
+      }
+      if (mouthId >= 0) {
+        river.order = order[mouthId] || river.order || 1;
+        river.width = riverWidth(mouth, river.order);
+      }
+    }
     this.#biomes(world);
+    for (let i = 0; i < heights.length; i++) world.cells[i].height = heights[i];
     bumpSurface(world);
     return world;
   }
@@ -203,7 +225,7 @@ export class MapGenerator {
     }
     for (const feat of world.features || []) {
       const mill = mills(world.cells[feat.originId]?.cultureId ?? -1);
-      if (feat.type === "lake") feat.name = `${mill.river()}湖`;
+      if (feat.type === "lake") feat.name = mill.lake();
       else if (feat.type === "island") feat.name = `${mill.feature()}岛`;
       else if (feat.type === "sea") feat.name = mill.feature() + (feat.name.endsWith("洋") ? "洋" : "海");
       else feat.name = mill.realm();
@@ -308,7 +330,14 @@ export class MapGenerator {
 
   /** @param {WorldData} world */
   #temperatures(world) {
-    assignClimate(world.cells, world.meta.height, world.meta.wind, world.meta.width, world.meta.cellSize);
+    assignClimate(
+      world.cells,
+      world.meta.height,
+      world.meta.wind,
+      world.meta.width,
+      world.meta.cellSize,
+      Boolean(world.meta.dualHemisphere),
+    );
   }
 
   /** Moisture and biomes, after `riverId` is current. */

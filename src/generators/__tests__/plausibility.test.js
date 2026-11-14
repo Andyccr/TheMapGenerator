@@ -38,7 +38,7 @@ test("rivers only flow downhill and never climb ridges", () => {
       );
     }
     const last = w.cells[river.cellIds[river.cellIds.length - 1]];
-    assert.ok(last.ocean || last.lake || last.downslope >= 0);
+    assert.ok(last.ocean || last.lake || last.border || last.downslope >= 0);
   }
 });
 

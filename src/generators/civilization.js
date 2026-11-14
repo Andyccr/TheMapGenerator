@@ -33,6 +33,26 @@ export function settlementScore(c, cells, rng) {
 }
 
 /**
+ * City / town / village follow settlement score, not the order spacing happened to accept.
+ * @param {import("../types.js").Settlement[]} settlements
+ * @param {import("../types.js").Cell[]} cells
+ * @param {number} nCity
+ * @param {number} nTown
+ */
+export function rankSettlementTypes(settlements, cells, nCity, nTown) {
+  const scored = settlements.map((s) => ({
+    s,
+    score: settlementScore(cells[s.cellId], cells, () => 0),
+  }));
+  scored.sort((a, b) => b.score - a.score || a.s.id - b.s.id);
+  for (let i = 0; i < scored.length; i++) {
+    const type = i < nCity ? "city" : i < nTown ? "town" : "village";
+    scored[i].s.type = type;
+    scored[i].s.population = estimatePopulation(cells[scored[i].s.cellId], type);
+  }
+}
+
+/**
  * @param {import("../types.js").Cell[]} cells
  * @param {() => number} rng
  * @param {(cultureId: number) => { settlement: () => string, realm: () => string }} namesFor
@@ -85,19 +105,19 @@ export function placeCivilizations(cells, rng, namesFor, extent = {}) {
     if (tooClose(cell.x, cell.y)) continue;
     occupy(cell.x, cell.y);
     const n = settlements.length;
-    const type = n < nCity ? "city" : n < nTown ? "town" : "village";
     const cultureId = cell.cultureId ?? -1;
     settlements.push({
       id: n,
       cellId: cell.id,
       name: namesFor(cultureId).settlement(),
-      type,
+      type: "village",
       regionId: -1,
       cultureId,
-      population: estimatePopulation(cell, type),
+      population: 0,
       note: "",
     });
   }
+  rankSettlementTypes(settlements, cells, nCity, nTown);
 
   const capitalCount = Math.max(3, Math.min(14, Math.round(settlements.length / 4)));
   const capSep = 140 * scale;

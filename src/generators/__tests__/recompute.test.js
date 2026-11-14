@@ -62,9 +62,16 @@ test("recomputeClimate restamps biomes without moving towns", () => {
   const w = gen.generate(small);
   const towns = w.settlements.map((s) => s.cellId);
   const routes = w.routes.length;
+  const heights = w.cells.map((c) => c.height);
+  const channels = w.rivers.map((r) => r.cellIds.join(","));
   w.meta.wind = { x: -1, y: 0 };
   const out = runOnMain("climate", { world: w });
   assert.equal(out, w);
+  assert.deepEqual(w.cells.map((c) => c.height), heights);
+  assert.deepEqual(
+    w.rivers.map((r) => r.cellIds.join(",")),
+    channels,
+  );
   assert.deepEqual(
     w.settlements.map((s) => s.cellId),
     towns,

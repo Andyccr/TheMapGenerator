@@ -100,8 +100,8 @@ export function drawHighlight(ctx, world, id, px) {
  * @param {{ text: string, marks?: string }} ink
  */
 export function drawCompass(ctx, canvas, ink) {
-  const x = 36;
-  const y = canvas.clientHeight - 36;
+  const x = Math.max(22, canvas.clientWidth - 34);
+  const y = Math.max(96, Math.round(canvas.clientHeight * 0.36));
   ctx.save();
   ctx.translate(x, y);
   ctx.strokeStyle = ink.marks === "light" ? "#d4c4a0" : "#3a2a18";
@@ -144,8 +144,8 @@ export function drawScaleBar(ctx, canvas, world, ink) {
     worldLen = c;
   }
   const px = worldLen * scale;
-  const x = 58;
-  const y = canvas.clientHeight - 18;
+  const y = Math.max(122, Math.round(canvas.clientHeight * 0.36) + 26);
+  const x = Math.max(8, canvas.clientWidth - 34 - px);
   ctx.strokeStyle = ink.text;
   ctx.fillStyle = ink.text;
   ctx.lineWidth = 1.4;

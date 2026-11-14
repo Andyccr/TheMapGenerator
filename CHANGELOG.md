@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.12.0
+
+- Convergent belts stay chains: strain blurs only along the plate margin, so fine grids no longer fatten ranges into blobs. Border cells are no longer forced underwater, so a continent can meet the map edge.
+- Meanders are clamped onto downhill river cells. River cuts follow each basin's climate, so arid maps stay thinner than wet ones. Mountain marks use prominence and slope, and lakes of 2–6 cells are dropped.
+- Optional 南北双半球 (off by default) puts cold on both map edges. The coast moisture floor no longer erases subtropical west-coast deserts, and the orographic peak term no longer outrains the windward foot. 应用风向 restamps climate and river width from the existing channels without touching height.
+- Cities and towns are ranked by settlement score. River and lake names take a hydronym from the local culture (河 / 江 / River) instead of a bare syllable plus 湖.
+- Chrome: compass and scale sit off the status strip; status, save state, and zoom share one bottom bar, and on a narrow window that bar and the tool rail are a single dock. 「界面」 hides the map chrome. The masthead keeps 图名 / 种子 / 生成 on one row; 复制 / 链接 / 范例 / 帮助 sit on the next. After a world exists, ① 生成 stays collapsed. The first run is only the welcome dialog. Tool hints show in the option card, Escape closes 图层, and errors stay on the map until dismissed. Inspector create and diplomacy wait until they apply, and 编辑格子 stays collapsed.
+
 ## 2.11.0
 
 - Lakes are enclosed water below sea level, not leftover depression fill. Named lake features flood separately from continents, so inland water gets its own name. Tributary rivers stop at a confluence instead of redrawing the trunk to the mouth.

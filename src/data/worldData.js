@@ -79,6 +79,7 @@ export function createWorldShell(config) {
       mapName: "",
       landform: config.landform || "continents",
       landformSteps: Array.isArray(config.landformSteps) ? config.landformSteps : undefined,
+      dualHemisphere: Boolean(config.dualHemisphere),
     },
     cells: [],
     plates: [],
@@ -173,6 +174,7 @@ export function hydrateWorld(w) {
   if (!w.meta.societySeed) w.meta.societySeed = w.meta.seed;
   if (!w.meta.mapName) w.meta.mapName = "";
   if (!w.meta.landform) w.meta.landform = "continents";
+  if (w.meta.dualHemisphere == null) w.meta.dualHemisphere = false;
   for (const c of w.cells) {
     if (c.cultureId == null) c.cultureId = -1;
     if (c.provinceId == null) c.provinceId = -1;
