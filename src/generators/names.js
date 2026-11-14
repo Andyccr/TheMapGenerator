@@ -14,6 +14,7 @@
  * @property {string[]} realmSuffixes
  * @property {string[]} [hydronyms]
  * @property {string[]} [lakeNames]
+ * @property {Record<string, string[]>} [places]
  */
 
 /** @type {Phonology[]} */
@@ -26,6 +27,7 @@ export const PHONOLOGIES = [
     realmSuffixes: ["ia", "en", "elle", "vale"],
     hydronyms: ["河", "溪"],
     lakeNames: ["湖", "泽"],
+    places: { port: ["港", "津"], haven: ["湾"], ford: ["渡"], highland: ["堡"], capital: ["都", "城"], city: ["城"], town: ["镇"], village: ["村"] },
   },
   {
     id: "harsh",
@@ -35,6 +37,7 @@ export const PHONOLOGIES = [
     realmSuffixes: ["or", "um", "ak", "gard"],
     hydronyms: ["江", "河"],
     lakeNames: ["湖", "泊"],
+    places: { port: ["港", "津"], haven: ["湾"], ford: ["渡"], highland: ["关", "堡"], capital: ["城"], city: ["城"], town: ["镇"], village: ["村"] },
   },
   {
     id: "sibilant",
@@ -44,6 +47,7 @@ export const PHONOLOGIES = [
     realmSuffixes: ["esh", "an", "ia"],
     hydronyms: ["江", "河"],
     lakeNames: ["湖", "泽"],
+    places: { port: ["港"], haven: ["澳"], ford: ["渡"], highland: ["堡"], capital: ["都"], city: ["城"], town: ["镇"], village: ["村"] },
   },
   {
     id: "nordic",
@@ -53,6 +57,7 @@ export const PHONOLOGIES = [
     realmSuffixes: ["mark", "heim", "land", "fjord"],
     hydronyms: ["River", "Beck"],
     lakeNames: ["Lake", "Vatn"],
+    places: { port: ["haven", "port"], haven: ["vik"], ford: ["ford"], highland: ["burg", "hold"], capital: ["stad"], city: ["stad"], town: ["by"], village: ["thorpe"] },
   },
   {
     id: "liquid",
@@ -62,6 +67,7 @@ export const PHONOLOGIES = [
     realmSuffixes: ["ia", "or", "wyn", "mere"],
     hydronyms: ["River", "Brook"],
     lakeNames: ["Mere", "Lake"],
+    places: { port: ["haven", "port"], haven: ["ness"], ford: ["bridge", "ford"], highland: ["burg"], capital: ["gard"], city: ["ton"], town: ["by"], village: ["thorpe"] },
   },
   {
     id: "island",
@@ -71,6 +77,7 @@ export const PHONOLOGIES = [
     realmSuffixes: ["oa", "ua", "atoll", "isle"],
     hydronyms: ["河", "川"],
     lakeNames: ["湖", "潭"],
+    places: { port: ["港"], haven: ["湾"], ford: ["渡"], highland: ["堡"], capital: ["城"], city: ["城"], town: ["镇"], village: ["村"] },
   },
 ];
 
@@ -133,7 +140,6 @@ export function createNameFactory(rng, phonology) {
 
   return {
     phonology: pack,
-    settlement: () => unique(2, 3),
     realm: () => {
       const base = unique(2, 3);
       const suffixes = pack.realmSuffixes;
@@ -145,6 +151,13 @@ export function createNameFactory(rng, phonology) {
     culture: () => unique(2, 3),
     river: () => hydronym(pack.hydronyms, ["河"]),
     lake: () => hydronym(pack.lakeNames, ["湖"]),
+    settlement: (site = "town", rank = "town") => {
+      const places = pack.places || {};
+      const geographic = site === "port" || site === "ford" || site === "highland" || site === "haven";
+      const key = geographic && rank !== "village" ? site : places[rank] ? rank : site;
+      const tails = places[key] || places.town || ["镇"];
+      return hydronym(tails, ["镇"]);
+    },
     marker: () => unique(2, 2),
     feature: () => unique(2, 3),
     religion: () => {

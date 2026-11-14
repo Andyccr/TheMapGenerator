@@ -17,6 +17,7 @@ import {
 import { tiesFor, otherId } from "../data/diplomacy.js";
 import { formatJourneySummary, journeysThrough } from "../data/journeys.js";
 import { climateBeltLabel, mapLatitude } from "../data/climate.js";
+import { realmBrief } from "../data/gazette.js";
 
 /** @param {string} s */
 export function escapeHtml(s) {
@@ -62,8 +63,24 @@ export function overviewInspectHtml(world, lodLabel) {
       ["商路", String(sum.routes)],
       ["行程", String(sum.journeys)],
       ["地标", String(sum.markers)],
-    ])
+    ]) +
+    inspectGroup(
+      "邦国",
+      [...world.regions]
+        .sort((a, b) => landCells(world, b.id) - landCells(world, a.id))
+        .slice(0, 4)
+        .map((r) => [escapeHtml(r.name), escapeHtml(realmBrief(world, r))]),
+    )
   );
+}
+
+/** @param {import("../types.js").WorldData} world @param {number} regionId */
+function landCells(world, regionId) {
+  let n = 0;
+  for (const c of world.cells) {
+    if (c.regionId === regionId && !c.ocean && !c.lake) n++;
+  }
+  return n;
 }
 
 /**
@@ -126,6 +143,7 @@ export function cellInspectHtml(world, cellId) {
     inspectGroup("人文", [
       ["文化", cult ? escapeHtml(`${cult.name}（${cultureTypeLabel(cult.type)}）`) : ""],
       ["国度", realm ? escapeHtml(realm.name) : ""],
+      ["邦国", realm ? escapeHtml(realmBrief(world, realm)) : ""],
       ["外交", diplo ? escapeHtml(diplo) : ""],
       ["行省", province ? escapeHtml(province.name) : ""],
       ["信仰", religion ? escapeHtml(`${religion.name}（${religionTypeLabel(religion.type)}）`) : ""],
@@ -179,8 +197,7 @@ export function rosterItems(world, kind) {
   if (kind === "regions") {
     return world.regions.map((r) => {
       const cap = world.settlements.find((s) => s.id === r.capitalId);
-      const wars = tiesFor(world.diplomacy || [], r.id).filter((t) => t.stance === "war").length;
-      const hint = [cap ? `都城 ${cap.name}` : "", wars ? `交战 ${wars}` : ""].filter(Boolean).join(" · ");
+      const hint = realmBrief(world, r);
       return { label: r.name, hint, cellId: cap?.cellId ?? -1 };
     });
   }
@@ -259,9 +276,10 @@ export function searchHits(world, query) {
     if (s.name.toLowerCase().includes(q)) hits.push({ label: s.name, hint: SETTLEMENT_TYPE_LABELS[s.type] || s.type, cellId: s.cellId });
   }
   for (const r of world.regions) {
-    if (r.name.toLowerCase().includes(q)) {
+    const brief = realmBrief(world, r);
+    if (r.name.toLowerCase().includes(q) || brief.toLowerCase().includes(q)) {
       const cap = world.settlements.find((s) => s.id === r.capitalId);
-      hits.push({ label: r.name, hint: "国度", cellId: cap?.cellId ?? -1 });
+      hits.push({ label: r.name, hint: brief || "国度", cellId: cap?.cellId ?? -1 });
     }
   }
   for (const p of world.provinces || []) {
