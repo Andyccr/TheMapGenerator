@@ -12,6 +12,12 @@ export function mountViewDock(app) {
     if (ev.target instanceof Node && dock.contains(ev.target)) return;
     layers.open = false;
   });
+  app.doc.addEventListener("keydown", (ev) => {
+    if (ev.key !== "Escape" || !layers.open) return;
+    layers.open = false;
+    ev.preventDefault();
+    ev.stopPropagation();
+  });
 }
 
 /** @param {import("./app.js").App} _app */

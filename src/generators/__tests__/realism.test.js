@@ -131,6 +131,15 @@ test("tiny enclosed puddles are dropped; a real basin stays a lake", () => {
   ];
   markLakesFromFill(tiny);
   assert.equal(tiny[0].lake, false);
+  const puddle = [];
+  for (let i = 0; i < 6; i++) {
+    const neighbors = [];
+    if (i) neighbors.push(i - 1);
+    if (i < 5) neighbors.push(i + 1);
+    puddle.push(cell(i, i * 8, 0, neighbors, { height: -0.12, filledHeight: -0.04 }));
+  }
+  markLakesFromFill(puddle);
+  assert.ok(puddle.every((c) => c.lake === false), "a 6-cell mud puddle is dropped");
   const basin = [];
   for (let i = 0; i < 10; i++) {
     const neighbors = [];

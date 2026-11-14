@@ -23,11 +23,18 @@ export const BRUSH_TOOLS = ["raise", "lower", "stamp", "paint", "river"];
  * @param {Document} doc
  * @param {{ hasWorld: boolean }} state
  */
+let workshopLock = false;
+
 export function focusWorkshop(doc, state) {
   const gen = doc.getElementById("step-generate");
   const save = doc.getElementById("step-save");
-  if (gen instanceof HTMLDetailsElement) gen.open = !state.hasWorld;
-  if (save instanceof HTMLDetailsElement) save.open = false;
+  workshopLock = true;
+  try {
+    if (gen instanceof HTMLDetailsElement) gen.open = !state.hasWorld;
+    if (save instanceof HTMLDetailsElement) save.open = false;
+  } finally {
+    workshopLock = false;
+  }
 }
 
 /**
@@ -38,6 +45,7 @@ export function bindExclusiveSteps(doc) {
   const steps = [...doc.querySelectorAll(".panel-left details.step")];
   for (const step of steps) {
     step.addEventListener("toggle", () => {
+      if (workshopLock) return;
       if (!(step instanceof HTMLDetailsElement) || !step.open) return;
       for (const other of steps) {
         if (other !== step && other instanceof HTMLDetailsElement) other.open = false;
@@ -60,12 +68,12 @@ export function syncToolChrome(doc, toolId) {
     const btn = more.querySelector(`[data-tool="${toolId}"]`);
     if (sum) sum.textContent = btn ? (btn.textContent || "").trim() : "更多";
   }
+  const hint = doc.getElementById("tool-hint");
+  if (hint instanceof HTMLElement) hint.hidden = !(hint.textContent || "").trim();
   const ctx = doc.getElementById("tool-context");
   if (!(ctx instanceof HTMLElement)) return;
-  const visible = [...ctx.children].some((el) => el instanceof HTMLElement && !el.hidden && el.id !== "tool-hint");
+  const visible = [...ctx.children].some((el) => el instanceof HTMLElement && !el.hidden);
   ctx.hidden = !visible;
-  const hint = doc.getElementById("tool-hint");
-  if (hint instanceof HTMLElement) hint.hidden = !visible;
   const rail = doc.getElementById("tool-rail");
   const active = rail instanceof HTMLElement ? rail.querySelector(`.tool[data-tool="${toolId}"]`) : null;
   const horizontal = rail instanceof HTMLElement && rail.ownerDocument.defaultView?.getComputedStyle(rail).flexDirection === "row";
@@ -89,5 +97,40 @@ export function bindToolRail(doc) {
     if (!more.open) return;
     if (ev.target instanceof Node && rail.contains(ev.target)) return;
     more.open = false;
+  });
+}
+
+/**
+ * @param {Document} doc
+ */
+export function readDualHemisphere(doc) {
+  const el = doc.getElementById("opt-dual-hemisphere");
+  return el instanceof HTMLInputElement && el.checked;
+}
+
+/**
+ * @param {Document} doc
+ * @param {boolean} on
+ */
+export function syncDualHemisphere(doc, on) {
+  const el = doc.getElementById("opt-dual-hemisphere");
+  if (el instanceof HTMLInputElement) el.checked = Boolean(on);
+}
+
+/**
+ * One control hides the map chrome (rail, status strip, style dock) so a
+ * narrow stage is not a stack of overlapping bars. The button itself stays.
+ * @param {Document} doc
+ * @param {() => void} [onToggle]
+ */
+export function bindChromeToggle(doc, onToggle) {
+  const btn = doc.getElementById("btn-chrome");
+  const stage = doc.querySelector(".stage");
+  if (!(btn instanceof HTMLButtonElement) || !(stage instanceof HTMLElement)) return;
+  btn.addEventListener("click", () => {
+    const hidden = stage.classList.toggle("chrome-hidden");
+    btn.setAttribute("aria-pressed", hidden ? "true" : "false");
+    btn.textContent = hidden ? "显示" : "界面";
+    onToggle?.();
   });
 }

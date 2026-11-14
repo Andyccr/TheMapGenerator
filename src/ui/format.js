@@ -16,7 +16,7 @@ import {
 } from "../data/catalogs.js";
 import { tiesFor, otherId } from "../data/diplomacy.js";
 import { formatJourneySummary, journeysThrough } from "../data/journeys.js";
-import { climateBeltLabel } from "../data/climate.js";
+import { climateBeltLabel, mapLatitude } from "../data/climate.js";
 
 /** @param {string} s */
 export function escapeHtml(s) {
@@ -82,7 +82,7 @@ export function cellInspectHtml(world, cellId) {
   const religion = c.religionId >= 0 ? world.religions?.[c.religionId] : null;
   const feat = c.featureId >= 0 ? world.features?.[c.featureId] : null;
   const biomeName = BIOME_LABELS[c.biome] || c.biome;
-  const lat = world.meta?.height ? 1 - c.y / world.meta.height : 0.5;
+  const lat = world.meta?.height ? mapLatitude(c.y, world.meta.height, Boolean(world.meta.dualHemisphere)) : 0.5;
   const belt = climateBeltLabel(lat);
   const tempText =
     typeof c.tempRange === "number"

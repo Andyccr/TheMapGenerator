@@ -2,6 +2,7 @@
  * Post-tectonic relief: coastal plains, continental shelves, bathymetry,
  * and a light fluvial erosion pass so valleys follow rivers.
  */
+import { mapLatitude } from "../data/climate.js";
 import { assignDownslope, accumulateFlux } from "./hydrology.js";
 import { hopsFromWorld } from "../data/worldData.js";
 
@@ -107,13 +108,14 @@ export function slumpSlopes(cells) {
  * Warm lowlands are left alone. One O(n) pass at generation.
  * @param {import("../types.js").Cell[]} cells
  * @param {number} mapHeight
+ * @param {boolean} [dualHemisphere]
  */
-export function glaciateColdHighlands(cells, mapHeight) {
+export function glaciateColdHighlands(cells, mapHeight, dualHemisphere = false) {
   const span = mapHeight || 1;
   const delta = new Float64Array(cells.length);
   for (const c of cells) {
     if (c.ocean || c.border || c.height < 0.28) continue;
-    const lat = 1 - c.y / span;
+    const lat = mapLatitude(c.y, span, dualHemisphere);
     const cold = lat * 0.62 + Math.max(0, c.height) * 0.7;
     if (cold < 0.8) continue;
     let low = null;

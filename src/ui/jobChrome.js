@@ -1,5 +1,6 @@
 /**
- * Loading overlay and busy-button chrome. App owns job promises.
+ * Loading overlay, busy-button chrome, and the persistent error notice.
+ * App owns job promises. Toasts still fade; errors stay until dismissed.
  */
 import { GENERATION_STAGE_LABELS } from "../data/catalogs.js";
 
@@ -50,4 +51,50 @@ export function setBusyChrome(doc, on) {
   }
   const app = doc.getElementById("app");
   if (app instanceof HTMLElement) app.setAttribute("aria-busy", on ? "true" : "false");
+}
+
+let toastTimer = 0;
+
+/**
+ * Ephemeral status plus, for failures, a notice that stays on the map.
+ * @param {Document} doc
+ * @param {string} msg
+ * @param {boolean} [danger]
+ */
+export function presentToast(doc, msg, danger = false) {
+  if (danger) {
+    showErrorNotice(doc, msg);
+    return;
+  }
+  const el = doc.getElementById("toast");
+  if (!(el instanceof HTMLElement)) return;
+  el.hidden = false;
+  el.textContent = msg;
+  el.style.borderColor = "";
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    el.hidden = true;
+  }, 3200);
+}
+
+/**
+ * @param {Document} doc
+ * @param {string} [msg]
+ */
+export function showErrorNotice(doc, msg) {
+  const notice = doc.getElementById("error-notice");
+  const text = doc.getElementById("error-notice-text");
+  if (!(notice instanceof HTMLElement)) return;
+  if (!msg) {
+    notice.hidden = true;
+    if (text) text.textContent = "";
+    return;
+  }
+  if (text) text.textContent = msg;
+  notice.hidden = false;
+}
+
+/** @param {Document} doc */
+export function clearErrorNotice(doc) {
+  showErrorNotice(doc, "");
 }

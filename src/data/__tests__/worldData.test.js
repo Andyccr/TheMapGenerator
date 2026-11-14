@@ -24,6 +24,7 @@ test("parseWorld hydrates missing playability arrays on version 1 saves", () => 
   assert.deepEqual(w.journeys, []);
   assert.equal(w.cells[0].cultureId, -1);
   assert.equal(w.meta.landform, "continents");
+  assert.equal(w.meta.dualHemisphere, false);
 });
 
 test("parseWorld rejects unknown versions", () => {

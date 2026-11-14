@@ -5,7 +5,7 @@
  * 3. Route flow downhill; accumulate flux; rivers never climb and therefore never cross ridges.
  * 4. Remaining filled basins become lakes.
  */
-import { chaikin } from "../util/geometry.js";
+import { chaikin, pointInPolygon } from "../util/geometry.js";
 
 /**
  * @param {import("../types.js").Cell[]} cells
@@ -49,12 +49,12 @@ export function classifyOceanAndCoast(cells) {
 /**
  * Enclosed water (height below sea, not connected to the ocean) becomes a lake.
  * Priority-flood leftovers that still sit above sea level stay land so rivers
- * can drain them. Tiny puddles are dropped.
+ * can drain them. Mud-puddles of 2–6 cells are dropped.
  * @param {import("../types.js").Cell[]} cells
  */
 export function markLakesFromFill(cells) {
   for (const c of cells) c.lake = !c.ocean && c.height < 0;
-  const minSize = Math.max(8, Math.round(cells.length * 0.0012));
+  const minSize = Math.max(7, Math.round(cells.length * 0.0012));
   const seen = new Uint8Array(cells.length);
   for (const start of cells) {
     if (!start.lake || seen[start.id]) continue;
@@ -277,17 +277,15 @@ export function extractRivers(cells, threshold = 14) {
   const rivers = [];
   const used = new Uint8Array(cells.length);
 
-  const landFlux = cells.filter((c) => !c.ocean && !c.lake).map((c) => c.flux).sort((a, b) => a - b);
-  const percentile = landFlux.length ? landFlux[Math.min(landFlux.length - 1, Math.floor(landFlux.length * 0.93))] : threshold;
-  const cut = Math.max(2, percentile);
-
+  const cuts = localRiverCuts(cells, threshold);
   const order = assignStreamOrder(cells);
   const sources = cells
-    .filter((c) => !c.ocean && !c.lake && c.flux >= cut && c.downslope >= 0)
+    .filter((c) => !c.ocean && !c.lake && c.flux >= (cuts.get(c.basinId ?? -1) ?? threshold) && c.downslope >= 0)
     .sort((a, b) => a.flux - b.flux);
 
   for (const src of sources) {
     if (used[src.id]) continue;
+    const cut = cuts.get(src.basinId ?? -1) ?? threshold;
     const ups = src.neighbors.some(
       (nid) => cells[nid].downslope === src.id && cells[nid].flux >= cut && cells[nid].flux > src.flux,
     );
@@ -343,7 +341,44 @@ export function extractRivers(cells, threshold = 14) {
 }
 
 /**
- * Low-gradient reaches wander; steep ones stay in the thalweg.
+ * Flux cut per drainage basin. A global percentile gives arid maps the same
+ * channel density as wet ones; here the rank and the absolute floor follow
+ * the basin's own precipitation.
+ * @param {import("../types.js").Cell[]} cells
+ * @param {number} threshold
+ * @returns {Map<number, number>}
+ */
+function localRiverCuts(cells, threshold) {
+  /** @type {Map<number, import("../types.js").Cell[]>} */
+  const groups = new Map();
+  for (const c of cells) {
+    if (c.ocean || c.lake) continue;
+    const key = c.basinId ?? -1;
+    let bucket = groups.get(key);
+    if (!bucket) groups.set(key, (bucket = []));
+    bucket.push(c);
+  }
+  /** @type {Map<number, number>} */
+  const cuts = new Map();
+  for (const [key, bucket] of groups) {
+    if (!bucket.length) continue;
+    let precip = 0;
+    for (const c of bucket) precip += c.precipitation == null ? 0.5 : c.precipitation;
+    precip /= bucket.length;
+    const dryness = 1 - Math.min(1, Math.max(0, precip));
+    const pct = 0.84 + dryness * 0.13;
+    const fluxes = bucket.map((c) => c.flux).sort((a, b) => a - b);
+    const idx = Math.min(fluxes.length - 1, Math.max(0, Math.floor((fluxes.length - 1) * pct)));
+    const ranked = fluxes[idx];
+    const floor = 1.5 + dryness * Math.max(4, threshold) * 0.85;
+    cuts.set(key, Math.max(2, floor, ranked));
+  }
+  return cuts;
+}
+
+/**
+ * Low-gradient reaches wander, then the offset is pulled back onto a
+ * downhill river cell so the pen cannot climb onto a ridge or the coast.
  * Endpoints stay put so the mouth still meets the sea.
  * @param {number[][]} points
  * @param {import("../types.js").Cell[]} cells
@@ -362,32 +397,106 @@ function meander(points, cells, path) {
     const ci = Math.min(path.length - 1, Math.round(t * (path.length - 1)));
     const c = cells[path[ci]];
     const ds = c?.downslope >= 0 ? cells[c.downslope] : null;
-    const slope = ds ? Math.abs(c.height - ds.height) : 0.2;
+    const slope = ds ? Math.abs((c.filledHeight ?? c.height) - (ds.filledHeight ?? ds.height)) : 0.2;
     const amp = Math.max(0, 0.55 - slope * 4) * 3.2;
     const wave = Math.sin(i * 0.9 + path[0] * 0.17) * amp;
-    out[i][0] += (-dy / len) * wave;
-    out[i][1] += (dx / len) * wave;
+    const x = out[i][0] + (-dy / len) * wave;
+    const y = out[i][1] + (dx / len) * wave;
+    const clamped = clampMeander(x, y, cells, path, ci);
+    out[i][0] = clamped[0];
+    out[i][1] = clamped[1];
   }
   return out;
 }
 
 /**
- * Mark mountains from local prominence so icons and settlement penalties agree.
+ * @param {number} x
+ * @param {number} y
+ * @param {import("../types.js").Cell[]} cells
+ * @param {number[]} path
+ * @param {number} ci
+ * @returns {number[]}
+ */
+function clampMeander(x, y, cells, path, ci) {
+  let index = ci;
+  while (index > 0 && cells[path[index]]?.ocean) index--;
+  const thalweg = cells[path[index]];
+  if (!thalweg || thalweg.ocean) return [x, y];
+  const cap = thalweg.filledHeight ?? thalweg.height;
+  /** @type {number[]} */
+  const allowed = [];
+  for (let k = ci; k <= Math.min(path.length - 1, ci + 1); k++) {
+    const id = path[k];
+    const c = cells[id];
+    if (!c || c.ocean) continue;
+    if ((c.filledHeight ?? c.height) <= cap + 1e-4) allowed.push(id);
+  }
+  if (!allowed.length) return [thalweg.x, thalweg.y];
+  const allowSet = new Set(allowed);
+  /** @type {number[]} */
+  const banned = [];
+  for (const id of allowed) {
+    for (const nid of cells[id].neighbors || []) {
+      if (!allowSet.has(nid) && !banned.includes(nid)) banned.push(nid);
+    }
+  }
+  const polys = allowed.filter((id) => (cells[id].polygon || []).length >= 3);
+  if (polys.some((id) => pointInPolygon(x, y, cells[id].polygon))) return [x, y];
+  const pool = allowed.concat(banned);
+  const nearest = (px, py) => {
+    let best = allowed[0];
+    let bestD = Infinity;
+    for (const id of pool) {
+      const c = cells[id];
+      if (!c) continue;
+      const d = (c.x - px) ** 2 + (c.y - py) ** 2;
+      if (d < bestD) {
+        bestD = d;
+        best = id;
+      }
+    }
+    return best;
+  };
+  if (!polys.length && allowSet.has(nearest(x, y))) return [x, y];
+  let lo = 0;
+  let hi = 1;
+  let bx = thalweg.x;
+  let by = thalweg.y;
+  for (let k = 0; k < 8; k++) {
+    const t = (lo + hi) * 0.5;
+    const px = thalweg.x + (x - thalweg.x) * t;
+    const py = thalweg.y + (y - thalweg.y) * t;
+    const ok = polys.length
+      ? polys.some((id) => pointInPolygon(px, py, cells[id].polygon))
+      : allowSet.has(nearest(px, py));
+    if (ok) {
+      bx = px;
+      by = py;
+      lo = t;
+    } else hi = t;
+  }
+  return [bx, by];
+}
+
+/**
+ * Mountains are local prominence or slope, not a height percentile.
+ * A high plateau is flat, so it stays unmarked; a lower ridge still qualifies.
  * @param {import("../types.js").Cell[]} cells
  */
 export function markMountains(cells) {
-  const land = cells.filter((c) => !c.ocean && !c.lake);
-  if (!land.length) return;
-  const heights = land.map((c) => c.height).sort((a, b) => a - b);
-  const high = heights[Math.floor(heights.length * 0.78)];
   for (const c of cells) {
-    if (c.ocean || c.lake) {
+    if (c.ocean || c.lake || !c.neighbors?.length) {
       c.mountain = false;
       continue;
     }
-    let prominence = 0;
-    for (const nid of c.neighbors) prominence += c.height - cells[nid].height;
-    prominence /= Math.max(1, c.neighbors.length);
-    c.mountain = c.height >= Math.max(0.36, high) && prominence > 0.012;
+    let rise = 0;
+    let slope = 0;
+    for (const nid of c.neighbors) {
+      const dh = c.height - cells[nid].height;
+      if (dh > 0) rise += dh;
+      if (dh > slope) slope = dh;
+    }
+    const prominence = rise / c.neighbors.length;
+    c.mountain = prominence >= 0.045 || slope >= 0.11;
   }
 }

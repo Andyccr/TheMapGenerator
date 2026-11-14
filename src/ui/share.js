@@ -20,6 +20,7 @@ const STYLES = new Set(STYLE_IDS);
  * @property {string} [style]
  * @property {string} [plates]
  * @property {string} [sea]
+ * @property {string} [hemi]
  */
 
 /**
@@ -59,6 +60,7 @@ export function parseShare(search = "") {
     const n = Number(sea);
     if (n >= -20 && n <= 20) out.sea = String(n);
   }
+  if (q.get("hemi") === "1") out.hemi = "1";
   return out;
 }
 
@@ -75,6 +77,7 @@ export function serializeShare(state) {
   if (state.style && state.style !== "atlas") q.set("style", state.style);
   if (state.plates && state.plates !== "12") q.set("plates", state.plates);
   if (state.sea && state.sea !== "0") q.set("sea", state.sea);
+  if (state.hemi === "1") q.set("hemi", "1");
   const s = q.toString();
   return s ? `?${s}` : "";
 }

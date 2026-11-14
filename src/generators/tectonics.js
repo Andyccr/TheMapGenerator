@@ -89,6 +89,45 @@ function plateBoundaryDistance(cells) {
 }
 
 /**
+ * Keep convergent strain on the plate margin.
+ * Isotropic neighbor passes (especially the 3–8 used on fine grids) bleed a
+ * boundary chain into a filled blob. Here each pass averages only cells that
+ * already sit on the margin, so the belt stays a ribbon of finite width.
+ * @param {import("../types.js").Cell[]} cells
+ * @param {number[]} strain
+ * @param {Float64Array | number[]} boundDist
+ * @returns {number[]}
+ */
+export function diffuseMarginStrain(cells, strain, boundDist) {
+  const margin = 1;
+  let field = strain.slice();
+  for (let pass = 0; pass < 2; pass++) {
+    const next = field.slice();
+    for (const cell of cells) {
+      if (boundDist[cell.id] > margin) {
+        next[cell.id] = 0;
+        continue;
+      }
+      let acc = field[cell.id] * 2.2;
+      let w = 2.2;
+      for (const nid of cell.neighbors) {
+        if (boundDist[nid] > margin) continue;
+        acc += field[nid];
+        w += 1;
+      }
+      next[cell.id] = acc / w;
+    }
+    field = next;
+  }
+  const width = 1.15;
+  for (let i = 0; i < field.length; i++) {
+    if (boundDist[i] > margin) field[i] = 0;
+    else field[i] *= Math.exp(-boundDist[i] / width);
+  }
+  return field;
+}
+
+/**
  * @param {import("../types.js").Cell[]} cells
  * @param {import("../types.js").Plate[]} plates
  * @param {() => number} rng
@@ -140,22 +179,7 @@ export function assignElevation(cells, plates, rng, width, height, seaLevel, cel
     strain[cell.id] = n ? s / Math.max(1, n * 0.5) : 0;
   }
 
-  /** @type {number[]} */
-  let field = strain.slice();
-  const smoothPasses = Math.max(3, Math.min(8, Math.round(4 * (10 / Math.max(3.5, cellSize)))));
-  for (let pass = 0; pass < smoothPasses; pass++) {
-    const next = field.slice();
-    for (const cell of cells) {
-      let acc = field[cell.id] * 1.6;
-      let w = 1.6;
-      for (const nid of cell.neighbors) {
-        acc += field[nid];
-        w += 1;
-      }
-      next[cell.id] = acc / w;
-    }
-    field = next;
-  }
+  const field = diffuseMarginStrain(cells, strain, boundDist);
 
   const hotspots = [];
   const nHot = 2 + Math.floor(rng() * 3);
@@ -211,7 +235,8 @@ export function assignElevation(cells, plates, rng, width, height, seaLevel, cel
       h = Math.max(h, 0.12 + mountains * 0.35 + detail);
     }
 
-    if (cell.border) h = Math.min(h, -0.55);
+    // Border cells keep their relief. A continent may meet the map edge;
+    // ocean is whatever is below sea and connected to a low border, not a forced frame.
     cell.height = h;
   }
   setLandFraction(cells, 0.48, seaLevel);
@@ -219,31 +244,38 @@ export function assignElevation(cells, plates, rng, width, height, seaLevel, cel
 }
 
 /**
- * O'Leary-style sea-level set: pick a cutoff so a target fraction of interior
- * cells are land. The UI slider then nudges that shoreline.
+ * O'Leary-style sea-level set: pick a cutoff so about `targetLand` of all
+ * cells are land. Border cells are in that sample, so a high edge can stay
+ * land, and a border cell with no land neighbor is dropped as a speck.
  * @param {import("../types.js").Cell[]} cells
  * @param {number} targetLand
  * @param {number} seaSlider
  */
 export function setLandFraction(cells, targetLand, seaSlider) {
-  const interior = cells.filter((c) => !c.border);
-  if (!interior.length) return;
-  const heights = interior.map((c) => c.height).sort((a, b) => a - b);
+  if (!cells.length) return;
+  const heights = cells.map((c) => c.height).sort((a, b) => a - b);
   const idx = Math.floor(heights.length * (1 - targetLand));
   const cutoff = heights[Math.max(0, Math.min(heights.length - 1, idx))] + seaSlider * 0.01;
-  for (const cell of cells) {
-    cell.height -= cutoff;
-    if (cell.border) cell.height = Math.min(cell.height, -0.28);
-  }
+  for (const cell of cells) cell.height -= cutoff;
 
   for (let k = 0; k < 2; k++) {
     for (const cell of cells) {
-      if (cell.border) continue;
       let land = 0;
       let sea = 0;
       for (const nid of cell.neighbors) {
         if (cells[nid].height >= 0) land++;
         else sea++;
+      }
+      // A border cell beside interior land is the continent meeting the map edge.
+      // Border-only chains are not a coastline; they go back under water.
+      if (cell.border) {
+        let inland = 0;
+        for (const nid of cell.neighbors) {
+          const n = cells[nid];
+          if (!n.border && n.height >= 0) inland++;
+        }
+        if (cell.height >= 0 && inland === 0) cell.height = -0.04;
+        continue;
       }
       if (cell.height >= 0 && sea >= 6 && land <= 1) cell.height = -0.04;
       if (cell.height < 0 && land >= 6 && sea <= 1) cell.height = 0.03;

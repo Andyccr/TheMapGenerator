@@ -12,6 +12,8 @@
  * @property {string[]} vowels
  * @property {string[]} codas
  * @property {string[]} realmSuffixes
+ * @property {string[]} [hydronyms]
+ * @property {string[]} [lakeNames]
  */
 
 /** @type {Phonology[]} */
@@ -22,6 +24,8 @@ export const PHONOLOGIES = [
     vowels: ["a", "e", "i", "ia", "ae", "ei"],
     codas: ["", "", "n", "l", "r", "s"],
     realmSuffixes: ["ia", "en", "elle", "vale"],
+    hydronyms: ["河", "溪"],
+    lakeNames: ["湖", "泽"],
   },
   {
     id: "harsh",
@@ -29,6 +33,8 @@ export const PHONOLOGIES = [
     vowels: ["a", "o", "u", "au", "o"],
     codas: ["k", "r", "g", "nd", "rk", "", "th"],
     realmSuffixes: ["or", "um", "ak", "gard"],
+    hydronyms: ["江", "河"],
+    lakeNames: ["湖", "泊"],
   },
   {
     id: "sibilant",
@@ -36,6 +42,8 @@ export const PHONOLOGIES = [
     vowels: ["a", "e", "i", "o", "ia"],
     codas: ["s", "sh", "n", "", "th", "st"],
     realmSuffixes: ["esh", "an", "ia"],
+    hydronyms: ["江", "河"],
+    lakeNames: ["湖", "泽"],
   },
   {
     id: "nordic",
@@ -43,6 +51,8 @@ export const PHONOLOGIES = [
     vowels: ["a", "o", "u", "ei", "au", "y"],
     codas: ["r", "n", "g", "rd", "nd", "", "l"],
     realmSuffixes: ["mark", "heim", "land", "fjord"],
+    hydronyms: ["River", "Beck"],
+    lakeNames: ["Lake", "Vatn"],
   },
   {
     id: "liquid",
@@ -50,6 +60,8 @@ export const PHONOLOGIES = [
     vowels: ["a", "e", "o", "ia", "au"],
     codas: ["", "n", "l", "th", "m", "rd"],
     realmSuffixes: ["ia", "or", "wyn", "mere"],
+    hydronyms: ["River", "Brook"],
+    lakeNames: ["Mere", "Lake"],
   },
   {
     id: "island",
@@ -57,6 +69,8 @@ export const PHONOLOGIES = [
     vowels: ["a", "o", "u", "ai", "e"],
     codas: ["", "n", "i", "a", "l"],
     realmSuffixes: ["oa", "ua", "atoll", "isle"],
+    hydronyms: ["河", "川"],
+    lakeNames: ["湖", "潭"],
   },
 ];
 
@@ -96,6 +110,13 @@ export function createNameFactory(rng, phonology) {
     return title(w);
   };
 
+  const hydronym = (tails, fallback) => {
+    const stem = unique(1, 2);
+    const list = tails && tails.length ? tails : fallback;
+    const tail = list[(rng() * list.length) | 0];
+    return /^[A-Za-z]/.test(tail) ? `${stem} ${tail}` : stem + tail;
+  };
+
   const used = new Set();
   const unique = (minSyl, maxSyl) => {
     for (let i = 0; i < 40; i++) {
@@ -122,7 +143,8 @@ export function createNameFactory(rng, phonology) {
       return base;
     },
     culture: () => unique(2, 3),
-    river: () => unique(2, 2),
+    river: () => hydronym(pack.hydronyms, ["河"]),
+    lake: () => hydronym(pack.lakeNames, ["湖"]),
     marker: () => unique(2, 2),
     feature: () => unique(2, 3),
     religion: () => {
