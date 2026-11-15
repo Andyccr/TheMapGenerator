@@ -34,7 +34,7 @@ export function sculptElevation(world, cx, cy, radius, delta) {
 
 export class PanTool {
   id = "pan";
-  hint = "滚轮缩放：全图合并色块与干流，近景晕渲、细河与村落。格子数据不变。双击放大，拖动平移。";
+  hint = "拖动平移。空格、中键或右键也可暂借平移。滚轮缩放，双击放大。";
   /**
    * @param {import("../types.js").WorldData} _world
    * @param {import("../types.js").PointerEventWorld} _ev
@@ -47,7 +47,7 @@ export class PanTool {
 
 export class RaiseTool {
   id = "raise";
-  hint = "涂抹以抬升陆地、堆出山脊。绘制时只改高程，松手后再算河流与气候。";
+  hint = "涂抹抬升。松手后按重力重算河流。空格可暂借平移。";
   /**
    * @param {import("../types.js").WorldData} world
    * @param {import("../types.js").PointerEventWorld} ev
@@ -67,7 +67,7 @@ export class RaiseTool {
 
 export class LowerTool {
   id = "lower";
-  hint = "涂抹以沉陷谷地或开辟海洋。绘制时只改高程，松手后再算河流与气候。";
+  hint = "涂抹降低。松手后按重力重算河流。空格可暂借平移。";
   /**
    * @param {import("../types.js").WorldData} world
    * @param {import("../types.js").PointerEventWorld} ev
@@ -87,7 +87,7 @@ export class LowerTool {
 
 export class RiverTool {
   id = "river";
-  hint = "从高地拖向大海。河道会被强制改为顺流而下。";
+  hint = "从高地拖向大海。河道只会顺流。Esc 回平移。";
   constructor() {
     /** @type {number[]} */
     this.path = [];
@@ -119,7 +119,7 @@ export class RiverTool {
 
 export class MoveSettlementTool {
   id = "move";
-  hint = "把城镇拖到另一块陆地上。不能放进海里。";
+  hint = "把城镇拖到陆地上。不能放进海里。";
   constructor() {
     /** @type {number | null} */
     this.held = null;
@@ -144,7 +144,7 @@ export class MoveSettlementTool {
 
 export class RenameTool {
   id = "rename";
-  hint = "点击聚落、地标、河流或地貌改名。右侧检视也可以改名称与图层。";
+  hint = "点击聚落、地标、河流或地貌改名。";
   /**
    * @param {import("../types.js").WorldData} world
    * @param {import("../types.js").PointerEventWorld} ev
@@ -201,7 +201,7 @@ export class RenameTool {
 
 export class BurgTool {
   id = "burg";
-  hint = "在陆地上点击以建立城镇。按住 Shift 建立城市。";
+  hint = "点击陆地建城。按住 Shift 建成城市。";
   /**
    * @param {import("../types.js").WorldData} world
    * @param {import("../types.js").PointerEventWorld} ev
@@ -232,7 +232,7 @@ export class BurgTool {
 
 export class EraseTool {
   id = "erase";
-  hint = "点击聚落、地标或商路格子以删除。最后一个都城不能删。";
+  hint = "点击删除聚落、地标或经过这里的路。";
   /**
    * @param {import("../types.js").WorldData} world
    * @param {import("../types.js").PointerEventWorld} ev
@@ -271,7 +271,7 @@ export class EraseTool {
 
 export class MarkerTool {
   id = "marker";
-  hint = "在陆地上点击放置兴趣点。种类在左侧选择。";
+  hint = "点击陆地放地标。种类在工具卡里选。";
   /**
    * @param {import("../types.js").WorldData} world
    * @param {import("../types.js").PointerEventWorld} ev
@@ -301,7 +301,7 @@ export class MarkerTool {
 
 export class MeasureTool {
   id = "measure";
-  hint = "点击两点测量里格。比例尺与地图单位一致。";
+  hint = "拖出两点测距。Esc 取消。";
   apply() {
     /* Camera/measure overlay is owned by the App. */
   }
@@ -309,7 +309,7 @@ export class MeasureTool {
 
 export class StampTool {
   id = "stamp";
-  hint = "点击放下丘、洼或岭。松手后按重力重算河流。笔刷控制印戳大小。";
+  hint = "点击放下丘、洼或岭。笔刷控制大小。";
   /**
    * @param {import("../types.js").WorldData} world
    * @param {import("../types.js").PointerEventWorld} ev
@@ -328,7 +328,7 @@ export class StampTool {
 
 export class RoadTool {
   id = "road";
-  hint = "先点一座聚落，再点另一座连商路。第二次按住 Shift 则走海路。";
+  hint = "先点一座城，再点另一座。第二次按住 Shift 走海路。";
   constructor() {
     /** @type {number | null} */
     this.fromId = null;
@@ -367,7 +367,7 @@ export class RoadTool {
 
 export class PaintTool {
   id = "paint";
-  hint = "涂抹改群系、文化、信仰、国度或行省。颜料留空时点击吸取。不会重算水文。";
+  hint = "涂抹改层。颜料留空时点击吸取。不改水文。";
   constructor() {
     this.dirty = false;
   }

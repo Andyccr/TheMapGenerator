@@ -482,8 +482,14 @@ summary:focus-visible {
   display: none;
 }
 
-.tool-rail-more[open] {
+.tool-rail-more[open],
+.tool-rail-more.active {
   border-color: var(--brass);
+  background: #3a2a18;
+}
+
+.tool-rail-more.active > summary {
+  color: #f3e2c4;
 }
 
 .tool-rail-overflow {
@@ -515,8 +521,8 @@ summary:focus-visible {
   left: calc(100% + 0.35rem);
   top: 0;
   z-index: 5;
-  width: 12.2rem;
-  padding: 0.55rem 0.65rem 0.4rem;
+  width: 11.4rem;
+  padding: 0.45rem 0.55rem 0.35rem;
   background: rgba(20, 15, 12, 0.96);
   border: 1px solid var(--brass);
   border-radius: 6px;
@@ -579,7 +585,9 @@ summary:focus-visible {
 }
 
 #tool-hint {
-  margin: 0.45rem 0 0;
+  margin: 0.35rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
 }
 
 .stage {
@@ -1370,13 +1378,41 @@ kbd {
     grid-template-columns: 1fr;
   }
 
-  .fold {
+  #app.hide-left {
+    grid-template-areas:
+      "mast"
+      "stage"
+      "right";
+    grid-template-rows: auto minmax(420px, 1fr) auto;
+  }
+
+  #app.hide-right {
+    grid-template-areas:
+      "mast"
+      "left"
+      "stage";
+    grid-template-rows: auto auto minmax(420px, 1fr);
+  }
+
+  #app.hide-left.hide-right {
+    grid-template-areas:
+      "mast"
+      "stage";
+    grid-template-rows: auto minmax(420px, 1fr);
+  }
+
+  #app.hide-left .panel-left,
+  #app.hide-right .panel-right {
     display: none;
+  }
+
+  .fold {
+    top: 2.85rem;
   }
 
   .view-dock {
     left: 0.5rem;
-    right: 0.5rem;
+    right: 3.4rem;
   }
 
   .map-bottom {
@@ -1452,7 +1488,16 @@ kbd {
   }
 
   .chrome-toggle {
+    top: auto;
     right: 0.45rem;
+    bottom: 7.4rem;
+    z-index: 7;
+  }
+
+  .stage.chrome-hidden .chrome-toggle {
+    top: auto;
+    right: 0.45rem;
+    bottom: 0.45rem;
   }
 
   .error-notice,

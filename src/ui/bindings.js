@@ -163,6 +163,7 @@ export function bindWorkshop(app) {
     const card = el("hover-card");
     if (card instanceof HTMLElement) card.hidden = true;
   });
+  canvas.addEventListener("contextmenu", (ev) => ev.preventDefault());
   canvas.addEventListener("pointerdown", (ev) => app.onDown(ev));
   canvas.addEventListener("pointermove", (ev) => app.onMove(ev));
   window.addEventListener("pointerup", (ev) => app.onUp(ev));
@@ -303,6 +304,7 @@ export function bindWorkshop(app) {
   });
 
   window.addEventListener("keydown", (ev) => app.onKey(ev));
+  window.addEventListener("keyup", (ev) => app.onKeyUp(ev));
   window.addEventListener("beforeunload", (ev) => {
     if (app._busy || app._dirty || app.history.length) {
       ev.preventDefault();

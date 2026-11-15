@@ -28,7 +28,7 @@ import { setLoadingOverlay, setBusyChrome, presentToast, clearErrorNotice } from
 import { bindWorkshop } from "./bindings.js";
 import { syncViewDock } from "./viewDock.js";
 import { toCssHex } from "../data/color.js";
-import { BRUSH_TOOLS, bindExclusiveSteps, bindToolRail, focusWorkshop, readDualHemisphere, syncDualHemisphere, syncToolChrome } from "./shell.js";
+import { BRUSH_TOOLS, bindExclusiveSteps, bindToolRail, focusWorkshop, isStageChromeHidden, readDualHemisphere, setStageChrome, syncDualHemisphere, syncToolChrome } from "./shell.js";
 
 const SETTLEMENT_TYPE = SETTLEMENT_TYPE_LABELS;
 
@@ -63,6 +63,9 @@ export class App {
     this.history = new EditHistory(8);
     this.painting = false;
     this.panning = false;
+    this._spaceHeld = false;
+    this._panMoved = false;
+    this._panCell = -1;
     this.lastX = 0;
     this.lastY = 0;
     this.highlight = -1;
@@ -307,6 +310,16 @@ export class App {
 
   /** @param {string} id */
   setTool(id) {
+    if (id !== this.toolId) {
+      const road = this.tools.road;
+      if (road && "fromId" in road) road.fromId = null;
+      const river = this.tools.river;
+      if (river && Array.isArray(river.path)) river.path = [];
+      const move = this.tools.move;
+      if (move && "held" in move) move.held = null;
+      if (id !== "journey") this.tools.journey?.clear();
+      if (id !== "measure") this.measure = null;
+    }
     this.toolId = id;
     this.doc.querySelectorAll(".tool").forEach((b) => {
       const on = b.getAttribute("data-tool") === id;
@@ -410,9 +423,18 @@ export class App {
       return;
     }
     if (typing) return;
+    if (ev.code === "Space") {
+      if (t && (t.tagName === "BUTTON" || t.tagName === "SUMMARY" || t.closest?.("dialog"))) return;
+      ev.preventDefault();
+      if (ev.repeat) return;
+      this._spaceHeld = true;
+      const canvas = /** @type {HTMLCanvasElement} */ (this.el("map"));
+      if (!this.panning) canvas.style.cursor = "grab";
+      return;
+    }
     if (ev.key === "Escape") {
+      ev.preventDefault();
       if (this._job) {
-        ev.preventDefault();
         this.cancelJob();
         return;
       }
@@ -421,7 +443,30 @@ export class App {
       this.dialogs.closeWelcome();
       this.el("text-dialog")?.close?.();
       this.el("confirm-dialog")?.close?.();
+      const more = this.el("tool-rail-more");
+      if (more instanceof HTMLDetailsElement && more.open) {
+        more.open = false;
+        return;
+      }
+      const layers = this.el("dock-layers");
+      if (layers instanceof HTMLDetailsElement && layers.open) {
+        layers.open = false;
+        return;
+      }
       this.syncEmptyStage();
+      if (this.measure) {
+        this.measure = null;
+        this.redraw();
+        return;
+      }
+      if (this.toolId === "journey" && this.tools.journey?.path?.length) {
+        this.clearJourneyDraft();
+        return;
+      }
+      if (this.toolId !== "pan") {
+        this.setTool("pan");
+        return;
+      }
       return;
     }
     if (ev.key === "F1" || ev.key === "?") {
@@ -463,14 +508,7 @@ export class App {
     }
     if (ev.key.toLowerCase() === "h") {
       ev.preventDefault();
-      const app = this.el("app");
-      if (app instanceof HTMLElement) {
-        const both = app.classList.contains("hide-left") && app.classList.contains("hide-right");
-        app.classList.toggle("hide-left", !both);
-        app.classList.toggle("hide-right", !both);
-        this.renderer.resize();
-        this.redraw();
-      }
+      this.toggleFocusMode();
       return;
     }
     const tool = TOOL_KEYS[ev.key.toLowerCase()];
@@ -478,6 +516,43 @@ export class App {
       ev.preventDefault();
       this.setTool(tool);
     }
+  }
+
+  /** @param {KeyboardEvent} ev */
+  onKeyUp(ev) {
+    if (ev.code !== "Space") return;
+    const t = /** @type {HTMLElement} */ (ev.target);
+    const typing = t && (t.tagName === "INPUT" || t.tagName === "SELECT" || t.tagName === "TEXTAREA");
+    if (typing) return;
+    ev.preventDefault();
+    this._spaceHeld = false;
+    if (this.panning) return;
+    const canvas = /** @type {HTMLCanvasElement} */ (this.el("map"));
+    canvas.style.cursor = this.toolId === "pan" ? "grab" : "crosshair";
+  }
+
+  /**
+   * Hide both side panels and map chrome, or restore them.
+   */
+  toggleFocusMode() {
+    const app = this.el("app");
+    if (!(app instanceof HTMLElement)) return;
+    const full = app.classList.contains("hide-left") && app.classList.contains("hide-right") && isStageChromeHidden(this.doc);
+    const next = !full;
+    app.classList.toggle("hide-left", next);
+    app.classList.toggle("hide-right", next);
+    setStageChrome(this.doc, next);
+    this.renderer.resize();
+    if (this.world) this.redraw();
+  }
+
+  /**
+   * Pan is the pan tool, Space (held), middle mouse, or right mouse.
+   * Shift is reserved for 建城 (city) and 连路 (sea lane).
+   * @param {PointerEvent} ev
+   */
+  isPanGesture(ev) {
+    return this.toolId === "pan" || this._spaceHeld || ev.button === 1 || ev.button === 2;
   }
 
   /** @param {PointerEvent} ev */
@@ -489,13 +564,15 @@ export class App {
     this.lastX = x;
     this.lastY = y;
     this.highlight = cellId;
-    this.inspect(cellId);
 
-    if (this.toolId === "pan" || ev.button === 1 || ev.shiftKey) {
+    if (this.isPanGesture(ev)) {
       this.panning = true;
+      this._panMoved = false;
+      this._panCell = cellId;
       canvas.style.cursor = "grabbing";
       return;
     }
+    this.inspect(cellId);
     if (this.toolId === "measure") {
       this.measure = { x0: worldX, y0: worldY, x1: worldX, y1: worldY };
       this.redraw();
@@ -530,6 +607,7 @@ export class App {
     if (!this.world) return;
     const { worldX, worldY, cellId, x, y } = this.pointer(ev);
     if (this.panning) {
+      if (x !== this.lastX || y !== this.lastY) this._panMoved = true;
       this.renderer.pan(this.world, x - this.lastX, y - this.lastY);
       this.lastX = x;
       this.lastY = y;
@@ -562,7 +640,8 @@ export class App {
     if (this.panning) {
       this.panning = false;
       const canvas = /** @type {HTMLCanvasElement} */ (this.el("map"));
-      canvas.style.cursor = this.toolId === "pan" ? "grab" : "crosshair";
+      canvas.style.cursor = this._spaceHeld || this.toolId === "pan" ? "grab" : "crosshair";
+      if (!this._panMoved) this.inspect(this._panCell);
     }
     if (this.toolId === "measure" && this.measure) {
       this.measure.x1 = worldX;

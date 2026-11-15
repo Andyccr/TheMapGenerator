@@ -43,7 +43,7 @@ export function commitJourney(world, cellIds, name) {
 
 export class JourneyTool {
   id = "journey";
-  hint = "点下第一站，再点下一站。沿商路更省时；两岸可航时会改走更快的海路。回车封存，退格撤掉上一站。";
+  hint = "逐站点选。回车封存，退格撤站，Esc 取消。";
   constructor() {
     /** @type {number[]} */
     this.waypoints = [];

@@ -3,7 +3,16 @@ import { test } from "node:test";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { BRUSH_TOOLS, MORE_TOOLS, PRIMARY_TOOLS, SHELL_CHARTER, SHELL_REGIONS } from "../shell.js";
+import {
+  BRUSH_TOOLS,
+  MORE_TOOLS,
+  PRIMARY_TOOLS,
+  SHELL_CHARTER,
+  SHELL_REGIONS,
+  overflowLabel,
+  shouldKeepOverflowOpen,
+  toolHasOptions,
+} from "../shell.js";
 
 const html = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../../../index.html"), "utf8");
 
@@ -19,8 +28,22 @@ test("primary rail is six tools; the rest sit behind 更多", () => {
   assert.deepEqual(PRIMARY_TOOLS, ["pan", "raise", "lower", "paint", "burg", "erase"]);
   assert.equal(MORE_TOOLS.length, 8);
   assert.ok(BRUSH_TOOLS.includes("paint"));
+  assert.equal(BRUSH_TOOLS.includes("river"), false);
   const overlap = PRIMARY_TOOLS.filter((id) => MORE_TOOLS.includes(id));
   assert.deepEqual(overlap, []);
+});
+
+test("overflow picker closes after a tool is chosen and pan has no option card", () => {
+  assert.equal(shouldKeepOverflowOpen("river"), false);
+  assert.equal(shouldKeepOverflowOpen("pan"), false);
+  assert.equal(overflowLabel("river"), "河流");
+  assert.equal(overflowLabel("pan"), "更多");
+  assert.equal(toolHasOptions("pan"), false);
+  assert.equal(toolHasOptions("burg"), false);
+  assert.equal(toolHasOptions("paint"), true);
+  assert.equal(toolHasOptions("marker"), true);
+  assert.equal(toolHasOptions("journey"), true);
+  assert.equal(toolHasOptions("river"), false);
 });
 
 test("index.html rail matches the coded primary and overflow lists", () => {

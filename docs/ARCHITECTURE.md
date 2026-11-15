@@ -127,8 +127,8 @@ Progressive disclosure:
 
 - Left steps are exclusive. Generate starts open only before a world exists.
 - Generate **高级** holds wind, plates, sea, the landform recipe, and reroll.
-- Six primary tools sit on `#tool-rail` (`pan`, `raise`, `lower`, `paint`, `burg`, `erase`). The other eight sit behind `#tool-rail-more`.
-- `#tool-context` shows brush / stamp / paint / marker / journey options only for the active tool.
+- Six primary tools sit on `#tool-rail` (`pan`, `raise`, `lower`, `paint`, `burg`, `erase`). The other eight sit behind `#tool-rail-more`, which closes after a pick and names the active extra tool.
+- `#tool-context` shows brush / stamp / paint / marker / journey options only when that tool has settings. Pan has no card. Dragging to pan does not inspect; a click still does. Space, middle-click, and right-click pan; Shift is for founding a city and drawing a sea lane.
 - Style and layers live on the map dock, not in the sidebar.
 - Inspector HTML in `format.js` groups geography vs society and omits empty `—` rows.
 
