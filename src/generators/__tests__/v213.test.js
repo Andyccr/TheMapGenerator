@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { realmBrief, settlementSite } from "../../data/gazette.js";
+import { campaignSheet, realmBrief, settlementSite } from "../../data/gazette.js";
 import { inciseThalweg } from "../hydrology.js";
 import { MapGenerator } from "../mapGenerator.js";
 import { createNameFactory, phonologyById } from "../names.js";
@@ -60,6 +60,10 @@ test("realm brief names the capital and the town count", () => {
   assert.match(line, /滨民/);
   assert.match(line, /海祠/);
   assert.match(line, /交战1/);
+  const sheet = campaignSheet({ ...world, meta: { mapName: "北海图", seed: "n" }, regions: [region], rivers: [{ name: "霜江", width: 3, cellIds: [0], points: [] }] });
+  assert.match(sheet, /北海图/);
+  assert.match(sheet, /都城 河津/);
+  assert.match(sheet, /霜江/);
 });
 
 test("thalweg incision stays downhill and cuts a wet channel more than a dry one", () => {

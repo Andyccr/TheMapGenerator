@@ -805,8 +805,8 @@ export class App {
       this.hideInspect("diplo-edit", true);
       this.hideInspect("color-wrap", true);
       this.hideInspect("create-edit", true);
-      this.hideInspect("route-edit", true);
-      this.hideInspect("journey-edit", true);
+      this.hideInspect("route-edit-wrap", true);
+      this.hideInspect("journey-edit-wrap", true);
       box.innerHTML = overviewInspectHtml(this.world, this.renderer.lodLabel(this.world));
       this.setStatus(-1);
       return;
@@ -856,7 +856,7 @@ export class App {
       this.inspect(this._inspectCellId);
       this.redraw();
       this.toast("已删去这条路。");
-    });
+    }, cellChanged);
     fillJourneyEdit(this.doc, this.world, cellId, {
       onDrop: (id) => {
         if (!this.world) return;
@@ -879,7 +879,7 @@ export class App {
           this.redraw();
         });
       },
-    });
+    }, cellChanged);
     box.innerHTML = cellInspectHtml(this.world, cellId);
     this.setStatus(cellId);
   }

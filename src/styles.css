@@ -804,8 +804,24 @@ summary:focus-visible {
   color: var(--brass);
 }
 
+.inspect-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  margin-bottom: 0.45rem;
+}
+
+.inspect-head h2 {
+  margin: 0;
+}
+
 .inspect-edit {
   margin-top: 0.55rem;
+}
+
+.inspect-edit .route-edit {
+  margin-top: 0.35rem;
 }
 
 .inspect-edit[hidden] {

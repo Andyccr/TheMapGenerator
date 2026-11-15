@@ -6,7 +6,7 @@
  * write `world.view` (session state, not geography).
  */
 import { pointInPolygon, simplifyPolyline } from "../util/geometry.js";
-import { buildSpatialIndex, visitCellsInRect } from "../util/spatialIndex.js";
+import { buildSpatialIndex, idsNear, visitCellsInRect } from "../util/spatialIndex.js";
 import { fillFor, inkFor, routePaint, ATLAS_BIOME } from "./styles.js";
 import { lodConfig, lodFromZoom, LOD_LABELS } from "./lod.js";
 import { buildContours, buildElevationContours } from "./contours.js";
@@ -31,6 +31,8 @@ export class CanvasRenderer {
     /** @type {{ coasts: number[][][], shores: number[][][], borders: number[][][], cultures: number[][][], provinces: number[][][], religions: number[][][] } | null} */
     this._contours = null;
     this._contourKey = "";
+    /** @type {WeakMap<number[][], { minX: number, minY: number, maxX: number, maxY: number }>} */
+    this._lineBox = new WeakMap();
     /** @type {number[][][][] | null} */
     this._elev = null;
     this._elevKey = "";
@@ -248,13 +250,9 @@ export class CanvasRenderer {
   hitTest(world, worldX, worldY) {
     this.#ensureIndex(world);
     if (!this.index) return -1;
-    const gx = Math.floor(worldX / this.index.cellSize);
-    const gy = Math.floor(worldY / this.index.cellSize);
-    const bucket = this.index.buckets.get(`${gx},${gy}`);
-    if (!bucket) return -1;
     let best = -1;
     let bestD = Infinity;
-    for (const id of bucket) {
+    for (const id of idsNear(this.index, worldX, worldY)) {
       const c = world.cells[id];
       if (c.polygon.length < 3) continue;
       if (pointInPolygon(worldX, worldY, c.polygon)) {
@@ -517,7 +515,7 @@ export class CanvasRenderer {
     this._view = world.view;
     const key = `${world.meta.seed}:${world.cells.length}:${world.generatedAt}`;
     if (this._indexSeed !== key) {
-      this.index = buildSpatialIndex(world.cells, world.meta.cellSize);
+      this.index = buildSpatialIndex(world.cells, world.meta.cellSize || 8);
       this._indexSeed = key;
     }
   }
@@ -550,6 +548,7 @@ export class CanvasRenderer {
     if (this._contourKey === key && this._contours) return;
     this._contours = buildContours(world);
     this._contourKey = key;
+    this._lineBox = new WeakMap();
   }
 
   /**
@@ -716,17 +715,22 @@ export class CanvasRenderer {
    * @param {{ x0: number, y0: number, x1: number, y1: number }} b
    */
   #lineInView(line, b) {
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    for (const p of line) {
-      if (p[0] < minX) minX = p[0];
-      if (p[1] < minY) minY = p[1];
-      if (p[0] > maxX) maxX = p[0];
-      if (p[1] > maxY) maxY = p[1];
+    let box = this._lineBox.get(line);
+    if (!box) {
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      for (const p of line) {
+        if (p[0] < minX) minX = p[0];
+        if (p[1] < minY) minY = p[1];
+        if (p[0] > maxX) maxX = p[0];
+        if (p[1] > maxY) maxY = p[1];
+      }
+      box = { minX, minY, maxX, maxY };
+      this._lineBox.set(line, box);
     }
-    return maxX >= b.x0 && minX <= b.x1 && maxY >= b.y0 && minY <= b.y1;
+    return box.maxX >= b.x0 && box.minX <= b.x1 && box.maxY >= b.y0 && box.minY <= b.y1;
   }
 
   /**
@@ -752,12 +756,7 @@ export class CanvasRenderer {
         ctx.lineWidth = widthOf(river.width);
         ctx.beginPath();
         ctx.moveTo(pts[0][0], pts[0][1]);
-        for (let i = 1; i < pts.length; i++) {
-          const prev = pts[i - 1];
-          const cur = pts[i];
-          ctx.quadraticCurveTo(prev[0], prev[1], (prev[0] + cur[0]) / 2, (prev[1] + cur[1]) / 2);
-        }
-        ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
         ctx.stroke();
       }
     };

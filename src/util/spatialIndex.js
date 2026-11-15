@@ -6,26 +6,41 @@
  * @param {number} spacing
  */
 export function buildSpatialIndex(cells, spacing) {
-  const cellSize = spacing * 2.2;
+  const cellSize = Math.max(4, spacing * 2.2);
   /** @type {Map<string, number[]>} */
   const buckets = new Map();
   for (const c of cells) {
-    if (c.polygon.length < 3) continue;
-    const gx = Math.floor(c.x / cellSize);
-    const gy = Math.floor(c.y / cellSize);
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        const key = `${gx + dx},${gy + dy}`;
-        let b = buckets.get(key);
-        if (!b) {
-          b = [];
-          buckets.set(key, b);
-        }
-        b.push(c.id);
-      }
+    if (!c.polygon || c.polygon.length < 3) continue;
+    const key = `${Math.floor(c.x / cellSize)},${Math.floor(c.y / cellSize)}`;
+    let b = buckets.get(key);
+    if (!b) {
+      b = [];
+      buckets.set(key, b);
     }
+    b.push(c.id);
   }
   return { cellSize, buckets };
+}
+
+/**
+ * Ids stored in the point's bucket and its eight neighbors.
+ * The index keeps each cell once; the query spreads the search.
+ * @param {{ cellSize: number, buckets: Map<string, number[]> }} index
+ * @param {number} x
+ * @param {number} y
+ */
+export function idsNear(index, x, y) {
+  const gx = Math.floor(x / index.cellSize);
+  const gy = Math.floor(y / index.cellSize);
+  /** @type {number[]} */
+  const out = [];
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      const bucket = index.buckets.get(`${gx + dx},${gy + dy}`);
+      if (bucket) out.push(...bucket);
+    }
+  }
+  return out;
 }
 
 /** @type {WeakMap<object, { cellSize: number, buckets: Map<string, number[]> }>} */

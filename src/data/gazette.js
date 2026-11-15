@@ -55,3 +55,23 @@ export function realmBrief(world, region) {
   if (wars) bits.push(`交战${wars}`);
   return bits.join(" · ");
 }
+
+/**
+ * Plain-text handout for the table. Not stored on the save.
+ * @param {import("../types.js").WorldData} world
+ */
+export function campaignSheet(world) {
+  if (!world?.meta) return "";
+  /** @type {Map<number, number>} */
+  const land = new Map();
+  for (const c of world.cells || []) {
+    if (c.ocean || c.lake || c.regionId == null || c.regionId < 0) continue;
+    land.set(c.regionId, (land.get(c.regionId) || 0) + 1);
+  }
+  const lines = [world.meta.mapName || world.meta.seed || "未命名世界", `种子 ${world.meta.seed}`];
+  const realms = [...(world.regions || [])].sort((a, b) => (land.get(b.id) || 0) - (land.get(a.id) || 0));
+  for (const region of realms.slice(0, 8)) lines.push(`${region.name} — ${realmBrief(world, region)}`);
+  const rivers = [...(world.rivers || [])].filter((r) => r.name).sort((a, b) => (b.width || 0) - (a.width || 0)).slice(0, 8);
+  if (rivers.length) lines.push(`河流 ${rivers.map((r) => r.name).join("、")}`);
+  return lines.join("\n");
+}

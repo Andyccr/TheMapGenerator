@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.15.0
+
+- 过路 and 行程 sit in collapsed details, the same way 编辑格子 does. Create and diplomacy stay gated. 简报 copies the realm and river lines for the table.
+- Rivers are stroked along the thalweg instead of a quadratic that bows off the channel. Coast and border lines remember their boxes so a pan does not remeasure every vertex.
+- The hit index stores each cell once and searches the neighboring buckets at click time, so a continental mesh does not triplicate the grid.
+
 ## 2.14.0
 
 - Map controls: the overflow list no longer stays open over the map. 「更多」 names the active extra tool and closes after a pick. Pan no longer keeps a hint card on the canvas. River no longer shows a unused brush slider.

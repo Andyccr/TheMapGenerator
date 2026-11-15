@@ -57,3 +57,11 @@ test("index.html rail matches the coded primary and overflow lists", () => {
   assert.deepEqual(overflow, MORE_TOOLS);
   assert.match(rail, /id="tool-context"/);
 });
+
+test("roads and journeys fold like cell edits", () => {
+  assert.match(html, /<details class="substep inspect-edit" id="route-edit-wrap" hidden>/);
+  assert.match(html, /<details class="substep inspect-edit" id="journey-edit-wrap" hidden>/);
+  assert.match(html, /id="btn-copy-sheet"/);
+  assert.doesNotMatch(html, /<details[^>]*id="route-edit-wrap"[^>]*open/);
+  assert.doesNotMatch(html, /<details[^>]*id="journey-edit-wrap"[^>]*open/);
+});
