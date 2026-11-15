@@ -22,7 +22,7 @@ The visible page is **生成 → 查看 → 编辑 → 检视**. Keep that split
 
 - Header: name, seed, generate. Do not add tools here.
 - Left: generate and save only. Tools do not live in the sidebar.
-- Map: tool rail (six primary + 更多), style, layers.
+- Map: tool rail (six primary + 更多, which closes after a pick), style, layers. Option cards only for tools that have settings.
 - Right: search, inspect, roster.
 
 Coded in `src/ui/shell.js`. Prefer one open left step, contextual tool options, and inspect rows that skip empty `—`. Chinese UI copy.

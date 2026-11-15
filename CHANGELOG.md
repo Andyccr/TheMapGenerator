@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.14.0
+
+- Map controls: the overflow list no longer stays open over the map. 「更多」 names the active extra tool and closes after a pick. Pan no longer keeps a hint card on the canvas. River no longer shows a unused brush slider.
+- Pan is drag, Space, middle-click, or right-click. Shift is only for 建城 (city) and 连路 (sea lane). Dragging to pan no longer jumps the inspector; a click still inspects.
+- Escape closes menus, cancels measure or a journey draft, then returns to pan. H hides both side panels and the map chrome. On a narrow window, folding a panel actually removes it from the layout, and 「界面」 sits above the bottom dock so it is still reachable.
+- Switching tools drops an unfinished road, river, or journey. Version query on CSS/JS is 2.14.0.
+
 ## 2.13.0
 
 - Settlement names follow the site and the rank: a harbor culture says 港 or haven, a ford says 渡 or ford, a highland burg says 堡 or burg, and capitals inland say 都 or stad. This is still the culture's phonology, not a language simulator.

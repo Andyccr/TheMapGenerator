@@ -15,7 +15,50 @@ export const SHELL_REGIONS = [
 
 export const PRIMARY_TOOLS = ["pan", "raise", "lower", "paint", "burg", "erase"];
 export const MORE_TOOLS = ["stamp", "river", "road", "marker", "move", "rename", "measure", "journey"];
-export const BRUSH_TOOLS = ["raise", "lower", "stamp", "paint", "river"];
+/** Tools that actually read `ctx.brush`. River carve does not. */
+export const BRUSH_TOOLS = ["raise", "lower", "stamp", "paint"];
+
+/** @type {Readonly<Record<string, string>>} */
+export const TOOL_LABELS = {
+  pan: "平移",
+  raise: "抬升",
+  lower: "降低",
+  paint: "涂色",
+  burg: "建城",
+  erase: "擦除",
+  stamp: "印戳",
+  river: "河流",
+  road: "连路",
+  marker: "地标",
+  move: "移动",
+  rename: "命名",
+  measure: "测距",
+  journey: "行程",
+};
+
+/**
+ * Option cards belong on tools that have settings. Pan must not cover the map.
+ * @param {string} toolId
+ */
+export function toolHasOptions(toolId) {
+  return BRUSH_TOOLS.includes(toolId) || toolId === "marker" || toolId === "journey";
+}
+
+/**
+ * Overflow list is a picker. It must not stay open while you draw.
+ * @param {string} [_toolId]
+ */
+export function shouldKeepOverflowOpen(_toolId) {
+  return false;
+}
+
+/**
+ * @param {string} toolId
+ * @param {string} [fallback]
+ */
+export function overflowLabel(toolId, fallback = "更多") {
+  return MORE_TOOLS.includes(toolId) ? TOOL_LABELS[toolId] || fallback : fallback;
+}
 
 /**
  * First visit keeps generate open. After a world exists the map is the job,
@@ -63,21 +106,25 @@ export function bindExclusiveSteps(doc) {
 export function syncToolChrome(doc, toolId) {
   const more = doc.getElementById("tool-rail-more");
   if (more instanceof HTMLDetailsElement) {
-    more.open = MORE_TOOLS.includes(toolId);
+    more.open = shouldKeepOverflowOpen(toolId);
+    more.classList.toggle("active", MORE_TOOLS.includes(toolId));
     const sum = more.querySelector("summary");
-    const btn = more.querySelector(`[data-tool="${toolId}"]`);
-    if (sum) sum.textContent = btn ? (btn.textContent || "").trim() : "更多";
+    if (sum) {
+      sum.textContent = overflowLabel(toolId);
+      sum.setAttribute("title", MORE_TOOLS.includes(toolId) ? "换一件更多里的工具" : "更多工具");
+    }
   }
+  const hasOpts = toolHasOptions(toolId);
   const hint = doc.getElementById("tool-hint");
-  if (hint instanceof HTMLElement) hint.hidden = !(hint.textContent || "").trim();
+  if (hint instanceof HTMLElement) hint.hidden = !hasOpts || !(hint.textContent || "").trim();
   const ctx = doc.getElementById("tool-context");
   if (!(ctx instanceof HTMLElement)) return;
-  const visible = [...ctx.children].some((el) => el instanceof HTMLElement && !el.hidden);
-  ctx.hidden = !visible;
+  ctx.hidden = !hasOpts;
   const rail = doc.getElementById("tool-rail");
   const active = rail instanceof HTMLElement ? rail.querySelector(`.tool[data-tool="${toolId}"]`) : null;
-  const horizontal = rail instanceof HTMLElement && rail.ownerDocument.defaultView?.getComputedStyle(rail).flexDirection === "row";
-  if (visible && active instanceof HTMLElement && rail instanceof HTMLElement && !horizontal) {
+  const horizontal =
+    rail instanceof HTMLElement && rail.ownerDocument.defaultView?.getComputedStyle(rail).flexDirection === "row";
+  if (hasOpts && active instanceof HTMLElement && rail instanceof HTMLElement && !horizontal) {
     ctx.style.top = `${active.getBoundingClientRect().top - rail.getBoundingClientRect().top}px`;
   } else {
     ctx.style.top = "";
@@ -118,6 +165,30 @@ export function syncDualHemisphere(doc, on) {
 }
 
 /**
+ * Hide or show map chrome (rail, status strip, style dock). The 「界面」
+ * button itself stays so you can get the controls back.
+ * @param {Document} doc
+ * @param {boolean} hidden
+ */
+export function setStageChrome(doc, hidden) {
+  const stage = doc.querySelector(".stage");
+  const btn = doc.getElementById("btn-chrome");
+  if (stage instanceof HTMLElement) stage.classList.toggle("chrome-hidden", hidden);
+  if (btn instanceof HTMLButtonElement) {
+    btn.setAttribute("aria-pressed", hidden ? "true" : "false");
+    btn.textContent = hidden ? "显示" : "界面";
+  }
+}
+
+/**
+ * @param {Document} doc
+ */
+export function isStageChromeHidden(doc) {
+  const stage = doc.querySelector(".stage");
+  return stage instanceof HTMLElement && stage.classList.contains("chrome-hidden");
+}
+
+/**
  * One control hides the map chrome (rail, status strip, style dock) so a
  * narrow stage is not a stack of overlapping bars. The button itself stays.
  * @param {Document} doc
@@ -125,12 +196,9 @@ export function syncDualHemisphere(doc, on) {
  */
 export function bindChromeToggle(doc, onToggle) {
   const btn = doc.getElementById("btn-chrome");
-  const stage = doc.querySelector(".stage");
-  if (!(btn instanceof HTMLButtonElement) || !(stage instanceof HTMLElement)) return;
+  if (!(btn instanceof HTMLButtonElement)) return;
   btn.addEventListener("click", () => {
-    const hidden = stage.classList.toggle("chrome-hidden");
-    btn.setAttribute("aria-pressed", hidden ? "true" : "false");
-    btn.textContent = hidden ? "显示" : "界面";
+    setStageChrome(doc, !isStageChromeHidden(doc));
     onToggle?.();
   });
 }
