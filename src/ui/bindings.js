@@ -3,6 +3,7 @@
  * only attaches listeners. Must not import generators.
  */
 import { recipeFor } from "../data/landforms.js";
+import { campaignSheet } from "../data/gazette.js";
 import { mountViewDock } from "./viewDock.js";
 import { bindChromeToggle } from "./shell.js";
 import { clearErrorNotice } from "./jobChrome.js";
@@ -254,6 +255,16 @@ export function bindWorkshop(app) {
   el("btn-reroll-routes")?.addEventListener("click", () => app.reroll("routes"));
   el("btn-help")?.addEventListener("click", () => app.dialogs.openHelp());
   el("btn-examples")?.addEventListener("click", () => app.dialogs.openExamples());
+  el("btn-copy-sheet")?.addEventListener("click", async () => {
+    if (!app.world) return;
+    const text = campaignSheet(app.world);
+    try {
+      await navigator.clipboard.writeText(text);
+      app.toast("简报已复制。");
+    } catch {
+      app.toast(text);
+    }
+  });
   el("btn-copy-seed")?.addEventListener("click", () => app.copySeed());
   el("btn-copy-link")?.addEventListener("click", () => app.copyLink());
   el("btn-fold-left")?.addEventListener("click", () => app.togglePanel("left"));

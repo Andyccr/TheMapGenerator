@@ -134,24 +134,28 @@ export function fillDiploEdit(doc, world, realm, onStance, useful = false) {
  * @param {number} cellId
  * @param {(routeId: number) => void} onDropRoute
  */
-export function fillRouteEdit(doc, world, cellId, onDropRoute) {
-  const wrap = doc.getElementById("route-edit");
-  if (!(wrap instanceof HTMLElement)) return;
+export function fillRouteEdit(doc, world, cellId, onDropRoute, cellChanged = false) {
+  const list = doc.getElementById("route-edit");
+  const wrap = doc.getElementById("route-edit-wrap") || list;
+  if (!(list instanceof HTMLElement) || !(wrap instanceof HTMLElement)) return;
   const roads = (world.routes || []).filter((r) => r.cellIds.includes(cellId));
   if (!roads.length) {
     wrap.hidden = true;
-    wrap.innerHTML = "";
+    list.innerHTML = "";
     return;
   }
   wrap.hidden = false;
-  wrap.innerHTML = roads
+  if (wrap instanceof HTMLDetailsElement && cellChanged) wrap.open = false;
+  const sum = wrap.querySelector("summary");
+  if (sum) sum.textContent = `过路 · ${roads.length}`;
+  list.innerHTML = roads
     .map((r) => {
       const a = world.settlements.find((s) => s.id === r.fromId);
       const b = world.settlements.find((s) => s.id === r.toId);
       return `<li><span>${escapeHtml(routeKindLabel(r.kind))} ${escapeHtml(a?.name || "?")}–${escapeHtml(b?.name || "?")}</span><button type="button" data-drop-route="${r.id}">删</button></li>`;
     })
     .join("");
-  wrap.querySelectorAll("[data-drop-route]").forEach((btn) => {
+  list.querySelectorAll("[data-drop-route]").forEach((btn) => {
     btn.addEventListener("click", () => {
       onDropRoute(Number(btn.getAttribute("data-drop-route")));
     });
@@ -165,17 +169,21 @@ export function fillRouteEdit(doc, world, cellId, onDropRoute) {
  * @param {number} cellId
  * @param {{ onDrop: (id: number) => void, onRename: (id: number, name: string) => void }} handlers
  */
-export function fillJourneyEdit(doc, world, cellId, handlers) {
-  const wrap = doc.getElementById("journey-edit");
-  if (!(wrap instanceof HTMLElement)) return;
+export function fillJourneyEdit(doc, world, cellId, handlers, cellChanged = false) {
+  const list = doc.getElementById("journey-edit");
+  const wrap = doc.getElementById("journey-edit-wrap") || list;
+  if (!(list instanceof HTMLElement) || !(wrap instanceof HTMLElement)) return;
   const trips = journeysThrough(world, cellId);
   if (!trips.length) {
     wrap.hidden = true;
-    wrap.innerHTML = "";
+    list.innerHTML = "";
     return;
   }
   wrap.hidden = false;
-  wrap.innerHTML = trips
+  if (wrap instanceof HTMLDetailsElement && cellChanged) wrap.open = false;
+  const sum = wrap.querySelector("summary");
+  if (sum) sum.textContent = `行程 · ${trips.length}`;
+  list.innerHTML = trips
     .map((j) => {
       const legs = (j.legs || [])
         .slice(0, 12)
@@ -185,12 +193,12 @@ export function fillJourneyEdit(doc, world, cellId, handlers) {
       return `<li class="journey-card"><div class="journey-head"><span>${escapeHtml(j.name)} · ${escapeHtml(formatJourneySummary(j))}</span><span class="journey-actions-inline"><button type="button" data-rename-journey="${j.id}">改名</button><button type="button" data-drop-journey="${j.id}">删</button></span></div><ol class="journey-legs">${legs}${more}</ol></li>`;
     })
     .join("");
-  wrap.querySelectorAll("[data-drop-journey]").forEach((btn) => {
+  list.querySelectorAll("[data-drop-journey]").forEach((btn) => {
     btn.addEventListener("click", () => {
       handlers.onDrop(Number(btn.getAttribute("data-drop-journey")));
     });
   });
-  wrap.querySelectorAll("[data-rename-journey]").forEach((btn) => {
+  list.querySelectorAll("[data-rename-journey]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const id = Number(btn.getAttribute("data-rename-journey"));
       const journey = (world.journeys || []).find((j) => j.id === id);

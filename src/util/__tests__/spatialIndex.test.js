@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { cellsInDisk, visitCellsInRect } from "../spatialIndex.js";
+import { buildSpatialIndex, cellsInDisk, idsNear, visitCellsInRect } from "../spatialIndex.js";
 import { sculptElevation } from "../../editors/tools.js";
 
 /** @param {number} id @param {number} x @param {number} y */
@@ -32,4 +32,13 @@ test("disk query and sculpt ignore cells outside the brush", () => {
   const seen = [];
   visitCellsInRect(cells, -5, -5, 20, 20, (id) => seen.push(id));
   assert.deepEqual(seen, [0]);
+});
+
+test("hit index stores each cell once and still finds a neighbor bucket", () => {
+  const cells = [cell(0, 10, 10), cell(1, 80, 10)];
+  const index = buildSpatialIndex(cells, 12);
+  const stored = [...index.buckets.values()].reduce((n, bucket) => n + bucket.length, 0);
+  assert.equal(stored, 2);
+  assert.ok(idsNear(index, 11, 11).includes(0));
+  assert.ok(!idsNear(index, 11, 11).includes(1));
 });
